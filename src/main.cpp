@@ -1,9 +1,12 @@
+#include "grammar/CykLogger.h"
+#include "grammar/CykParser.h"
 #include "grammar/EmptyRulesDeleter.h"
 #include "grammar/GrammarTypes.h"
+#include "grammar/LongRulesSplitter.h"
 #include "grammar/ProductiveRulesFilter.h"
 #include "grammar/ReachableRulesFilter.h"
-#include "timer/Timer.h"
-#include <iomanip>
+#include "grammar/TerminalsIsolator.h"
+#include "grammar/UnitRulesDeleter.h"
 #include <iostream>
 #include <windows.h>
 
@@ -14,19 +17,30 @@ raw::Rule MakeRule(const std::string& name, const raw::Alternatives& alts)
 	return raw::Rule{name, alts};
 }
 
-void PrintRules(const raw::Rules& rules, const std::string& stageName)
+raw::Rules NormalizeToCnf(raw::Rules rules, const std::string& startSymbol)
 {
-	std::cout << stageName << std::endl;
-	for (const auto& rule : rules)
+	rules = EmptyRulesDeleter(std::move(rules)).DeleteEmptyRules();
+	rules = UnitRulesDeleter(std::move(rules)).DeleteUnitRules();
+	rules = LongRulesSplitter(std::move(rules)).SplitLongRules();
+	rules = TerminalsIsolator(std::move(rules)).IsolateTerminals();
+	rules = ProductiveRulesFilter(std::move(rules)).FilterUnproductiveRules();
+	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
+	return rules;
+}
+
+void PrintRules(const raw::Rules& rules, const std::string& title)
+{
+	std::cout << title << std::endl;
+	for (const auto& [name, alternatives] : rules)
 	{
-		std::cout << rule.name << " -> ";
-		for (size_t i = 0; i < rule.alternatives.size(); ++i)
+		std::cout << name << " -> ";
+		for (size_t i = 0; i < alternatives.size(); ++i)
 		{
-			for (const auto& symbol : rule.alternatives[i])
+			for (const auto& symbol : alternatives[i])
 			{
 				std::cout << symbol << " ";
 			}
-			if (i + 1 < rule.alternatives.size())
+			if (i + 1 < alternatives.size())
 			{
 				std::cout << "| ";
 			}
@@ -44,35 +58,39 @@ int main()
 		SetConsoleOutputCP(CP_UTF8);
 		SetConsoleCP(CP_UTF8);
 
-		const Timer timer;
-		std::cout << std::fixed << std::setprecision(4);
-		std::cout << "Пример обработки правил грамматики" << std::endl;
+		const std::string startSymbol = "<S>";
 
-		raw::Rules grammar = {
-			MakeRule("<S>", {{"<A>", "b"}, {"<C>"}}),
-			MakeRule("<A>", {{"a"}, {EMPTY_SYMBOL}}),
-			MakeRule("<C>", {{"<C>", "c"}}),
-			MakeRule("<D>", {{"d"}})};
+		raw::Rules rawRules = {
+			MakeRule("<S>", {
+				{"a", "<S>", "b"},
+				{"a", "b"}
+			})
+		};
 
-		PrintRules(grammar, "Исходная грамматика");
+		std::cout << "1. Исходная грамматика" << std::endl;
+		PrintRules(rawRules, "");
 
-		EmptyRulesDeleter emptyDeleter(std::move(grammar));
-		raw::Rules noEmptyRules = emptyDeleter.DeleteEmptyRules();
-		PrintRules(noEmptyRules, "1. После удаления epsilon-правил");
+		std::cout << "2. Нормализация (CNF)" << std::endl;
+		raw::Rules cnfRules = NormalizeToCnf(rawRules, startSymbol);
+		PrintRules(cnfRules, "Правила после CNF:");
 
-		ProductiveRulesFilter productiveFilter(std::move(noEmptyRules));
-		raw::Rules productiveRules = productiveFilter.FilterUnproductiveRules();
-		PrintRules(productiveRules, "2. После удаления непродуктивных правил");
+		std::string input = "aabb";
+		std::cout << "3. Парсинг строки: " << input << std::endl;
 
-		ReachableRulesFilter reachableFilter(std::move(productiveRules));
-		raw::Rules finalRules = reachableFilter.FilterUnreachableRules();
-		PrintRules(finalRules, "3. После удаления недостижимых правил");
+		CykParser parser(cnfRules, "<S>");
+		auto result = parser.Parse(input);
 
-		std::cout << "Время работы: " << timer.Elapsed() << "s" << std::endl;
+		CykLogger::LogPyramid(result.table, input);
+
+		if (result.isBelongsToLanguage) {
+			std::cout << "[SUCCESS] Строка принадлежит языку" << std::endl;
+		} else {
+			std::cout << "[FAILURE] Строка не распознана" << std::endl;
+		}
 	}
 	catch (const std::exception& e)
 	{
-		std::cerr << "[X] Error: " << e.what() << std::endl;
+		std::cerr << "[X] Ошибка: " << e.what() << std::endl;
 		return EXIT_FAILURE;
 	}
 

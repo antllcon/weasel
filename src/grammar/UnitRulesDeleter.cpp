@@ -1,10 +1,15 @@
 #include "UnitRulesDeleter.h"
 #include <algorithm>
-#include <optional>
+#include <queue>
 #include <stdexcept>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace
 {
+	using AdjacencyMap = std::unordered_map<std::string, std::unordered_set<std::string>>;
+	using RuleMap = std::unordered_map<std::string, const raw::Rule*>;
+
 	void AssertIsGrammarNotEmpty(bool isEmpty)
 	{
 		if (isEmpty)
@@ -18,68 +23,81 @@ namespace
 		return alternative.size() == 1 && !IsTerm(alternative.front());
 	}
 
-	void CleanSelfReferencingRules(raw::Rules& rules)
+	AdjacencyMap BuildUnitGraph(const raw::Rules& rules)
 	{
-		for (auto& rule : rules)
+		AdjacencyMap graph;
+		for (const auto& rule : rules)
 		{
-			std::erase_if(rule.alternatives, [&rule](const raw::Alternative& alt) {
-				return IsUnitAlternative(alt) && alt.front() == rule.name;
-			});
-		}
-	}
-
-	std::optional<std::pair<size_t, std::string>> FindFirstUnitRule(const raw::Rules& rules)
-	{
-		for (size_t i = 0; i < rules.size(); ++i)
-		{
-			for (const auto& alt : rules[i].alternatives)
+			for (const auto& alt : rule.alternatives)
 			{
 				if (IsUnitAlternative(alt))
 				{
-					return std::make_pair(i, alt.front());
+					graph[rule.name].insert(alt.front());
 				}
 			}
 		}
-		return std::nullopt;
+		return graph;
 	}
 
-	raw::Alternatives GetAlternativesForSymbol(const raw::Rules& rules, const std::string& symbol)
+	std::unordered_set<std::string> FindReachableNonTerminals(
+		const std::string& startNode,
+		const AdjacencyMap& graph)
 	{
+		std::unordered_set<std::string> visited;
+		std::queue<std::string> queue;
+
+		queue.push(startNode);
+		visited.insert(startNode);
+
+		while (!queue.empty())
+		{
+			const std::string current = queue.front();
+			queue.pop();
+
+			if (graph.contains(current))
+			{
+				for (const auto& neighbor : graph.at(current))
+				{
+					if (!visited.contains(neighbor))
+					{
+						visited.insert(neighbor);
+						queue.push(neighbor);
+					}
+				}
+			}
+		}
+
+		return visited;
+	}
+
+	RuleMap CreateRuleLookup(const raw::Rules& rules)
+	{
+		RuleMap lookup;
 		for (const auto& rule : rules)
 		{
-			if (rule.name == symbol)
-			{
-				return rule.alternatives;
-			}
+			lookup[rule.name] = &rule;
 		}
-		return {};
+		return lookup;
 	}
 
-	void MergeAlternatives(raw::Alternatives& target, const raw::Alternatives& source)
+	void CollectNonUnitAlternatives(
+		raw::Alternatives& destination,
+		const raw::Rule& sourceRule)
 	{
-		for (const auto& srcAlt : source)
+		for (const auto& alt : sourceRule.alternatives)
 		{
-			const bool exists = std::ranges::any_of(target, [&srcAlt](const raw::Alternative& tgtAlt) {
-				return srcAlt == tgtAlt;
-			});
-
-			if (!exists)
+			if (!IsUnitAlternative(alt))
 			{
-				target.push_back(srcAlt);
+				const bool exists = std::ranges::any_of(destination, [&](const auto& existing) {
+					return existing == alt;
+				});
+
+				if (!exists)
+				{
+					destination.push_back(alt);
+				}
 			}
 		}
-	}
-
-	void ReplaceUnitRule(raw::Rules& rules, size_t ruleIndex, const std::string& targetSymbol)
-	{
-		auto& rule = rules[ruleIndex];
-
-		std::erase_if(rule.alternatives, [&targetSymbol](const raw::Alternative& alt) {
-			return IsUnitAlternative(alt) && alt.front() == targetSymbol;
-		});
-
-		raw::Alternatives targetAlternatives = GetAlternativesForSymbol(rules, targetSymbol);
-		MergeAlternatives(rule.alternatives, targetAlternatives);
 	}
 }
 
@@ -92,15 +110,24 @@ raw::Rules UnitRulesDeleter::DeleteUnitRules()
 {
 	AssertIsGrammarNotEmpty(m_rules.empty());
 
-	CleanSelfReferencingRules(m_rules);
+	const AdjacencyMap unitGraph = BuildUnitGraph(m_rules);
+	const RuleMap ruleLookup = CreateRuleLookup(m_rules);
 
-	while (const auto unitRuleInfo = FindFirstUnitRule(m_rules))
+	for (auto& rule : m_rules)
 	{
-		const size_t ruleIndex = unitRuleInfo->first;
-		const std::string targetSymbol = unitRuleInfo->second;
+		const std::unordered_set<std::string> reachable = FindReachableNonTerminals(rule.name, unitGraph);
 
-		ReplaceUnitRule(m_rules, ruleIndex, targetSymbol);
-		CleanSelfReferencingRules(m_rules);
+		raw::Alternatives newAlternatives;
+
+		for (const auto& reachableSymbol : reachable)
+		{
+			if (ruleLookup.contains(reachableSymbol))
+			{
+				CollectNonUnitAlternatives(newAlternatives, *ruleLookup.at(reachableSymbol));
+			}
+		}
+
+		rule.alternatives = std::move(newAlternatives);
 	}
 
 	return m_rules;

@@ -84,3 +84,13 @@ inline bool IsTerm(const std::string& term)
 {
 	return term.size() < NON_TERM_MIN_SIZE || term[0] != NON_TERM_FIRST_CHAR;
 }
+
+using CykCell = std::unordered_set<std::string>;
+using CykRow = std::vector<CykCell>;
+using CykTable = std::vector<CykRow>;
+
+struct CykParseResult
+{
+	bool isBelongsToLanguage;
+	CykTable table;
+};

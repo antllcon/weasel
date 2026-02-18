@@ -1,7 +1,7 @@
 #include "ReachableRulesFilter.h"
+#include <algorithm>
 #include <stdexcept>
 #include <unordered_set>
-#include <algorithm>
 
 namespace
 {
@@ -28,10 +28,10 @@ void AddSymbolsFromAlternatives(const raw::Alternatives& alternatives, std::unor
 	}
 }
 
-std::unordered_set<std::string> FindReachableSymbols(const raw::Rules& rules)
+std::unordered_set<std::string> FindReachableSymbols(const raw::Rules& rules, const std::string& startSymbol)
 {
 	std::unordered_set<std::string> reachableSet;
-	reachableSet.insert(rules.front().name);
+	reachableSet.insert(startSymbol);
 
 	bool changed = true;
 	while (changed)
@@ -48,10 +48,11 @@ std::unordered_set<std::string> FindReachableSymbols(const raw::Rules& rules)
 
 	return reachableSet;
 }
-}
+} // namespace
 
-ReachableRulesFilter::ReachableRulesFilter(raw::Rules rules)
+ReachableRulesFilter::ReachableRulesFilter(raw::Rules rules, const std::string& startSymbol)
 	: m_rules(std::move(rules))
+	, m_startSymbol(startSymbol)
 {
 }
 
@@ -59,7 +60,7 @@ raw::Rules ReachableRulesFilter::FilterUnreachableRules() const
 {
 	AssertIsGrammarNotEmpty(m_rules.empty());
 
-	std::unordered_set<std::string> reachableSet = FindReachableSymbols(m_rules);
+	std::unordered_set<std::string> reachableSet = FindReachableSymbols(m_rules, m_startSymbol);
 
 	raw::Rules filteredRules = m_rules;
 

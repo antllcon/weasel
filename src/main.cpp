@@ -21,8 +21,10 @@ raw::Rules NormalizeToCnf(raw::Rules rules, const std::string& startSymbol)
 {
 	rules = EmptyRulesDeleter(std::move(rules)).DeleteEmptyRules();
 	rules = UnitRulesDeleter(std::move(rules)).DeleteUnitRules();
-	rules = LongRulesSplitter(std::move(rules)).SplitLongRules();
+
 	rules = TerminalsIsolator(std::move(rules)).IsolateTerminals();
+	rules = LongRulesSplitter(std::move(rules)).SplitLongRules();
+
 	rules = ProductiveRulesFilter(std::move(rules)).FilterUnproductiveRules();
 	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
 	return rules;
@@ -30,7 +32,11 @@ raw::Rules NormalizeToCnf(raw::Rules rules, const std::string& startSymbol)
 
 void PrintRules(const raw::Rules& rules, const std::string& title)
 {
-	std::cout << title << std::endl;
+	if (!title.empty())
+	{
+		std::cout << title << std::endl;
+	}
+
 	for (const auto& [name, alternatives] : rules)
 	{
 		std::cout << name << " -> ";
@@ -58,14 +64,72 @@ int main()
 		SetConsoleOutputCP(CP_UTF8);
 		SetConsoleCP(CP_UTF8);
 
-		const std::string startSymbol = "<S>";
+		const std::string startSymbol = "<Z>";
 
 		raw::Rules rawRules = {
+			MakeRule("<Z>", {
+				{"<E>", "+", "<T>"}
+			}),
+			MakeRule("<E>", {
+				{"<E>"},
+				{"<S>", "+", "<F>"},
+				{"<T>"}
+			}),
+			MakeRule("<F>", {
+				{"<F>"},
+				{"<F>", "*", "<P>"},
+				{"<P>"}
+			}),
+			MakeRule("<P>", {
+				{"<G>"}
+			}),
+			MakeRule("<T>", {
+				{"<T>", "+", "i"},
+				{"i"},
+				{"<T>", "*", "<F>"},
+				{"<T>", "-", "<G>"}
+			}),
+			MakeRule("<G>", {
+				{"<G>"},
+				{"<G>", "<G>"},
+				{"<F>"}
+			}),
+			MakeRule("<Q>", {
+				{"<E>"},
+				{"<E>", "+", "<F>"},
+				{"<T>"},
+				{"<S>"}
+			}),
 			MakeRule("<S>", {
-				{"a", "<S>", "b"},
-				{"a", "b"}
+				{"a"},
+				{"d"}
 			})
 		};
+
+		// raw::Rules rawRules = {
+		// 	MakeRule("<S>", {
+		// 		{"<A>"},
+		// 		{"<B>"},
+		// 		{"a"}
+		// 	}),
+		// 	MakeRule("<A>", {
+		// 		{"a", "<B>"},
+		// 		{"b", "<S>"}
+		// 	}),
+		// 	MakeRule("<B>", {
+		// 		{"<A>", "<B>"},
+		// 		{"<B>", "a"},
+		// 		{"<A>", "d"},
+		// 		{"<B>", "b"}
+		// 	}),
+		// 	MakeRule("<C>", {
+		// 		{"<A>", "d"},
+		// 		{"<B>", "b"},
+		// 		{"<A>", "<B>"},
+		// 		{"<B>", "a"},
+		// 		{"a"}
+		// 	})
+		// };
 
 		std::cout << "1. Исходная грамматика" << std::endl;
 		PrintRules(rawRules, "");
@@ -74,7 +138,7 @@ int main()
 		raw::Rules cnfRules = NormalizeToCnf(rawRules, startSymbol);
 		PrintRules(cnfRules, "Правила после CNF:");
 
-		std::string input = "aabb";
+		std::string input = "bbbcbaa";
 		std::cout << "3. Парсинг строки: " << input << std::endl;
 
 		CykParser parser(cnfRules, "<S>");
@@ -82,9 +146,12 @@ int main()
 
 		CykLogger::LogPyramid(result.table, input);
 
-		if (result.isBelongsToLanguage) {
+		if (result.isBelongsToLanguage)
+		{
 			std::cout << "[SUCCESS] Строка принадлежит языку" << std::endl;
-		} else {
+		}
+		else
+		{
 			std::cout << "[FAILURE] Строка не распознана" << std::endl;
 		}
 	}

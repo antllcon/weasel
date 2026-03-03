@@ -1,0 +1,70 @@
+%! Author = antllcon
+%! Date = 01.03.2026
+
+% Настройки документа
+\documentclass[12pt, a4paper]{article}
+
+% 1. Язык и кодировка
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian,english]{babel}
+
+% 2. Настройка полей
+\usepackage[left=2.5cm, right=1.5cm, top=2cm, bottom=2cm]{geometry}
+
+% 3. Математика
+\usepackage{amsmath, amsfonts, amssymb}
+
+% 4. Графика и таблицы
+\usepackage{graphicx}
+\usepackage{booktabs}
+
+% 5. Шрифты
+% \usepackage{mathptmx}
+
+% 6. Кликабельные ссылки и оглавление
+\usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
+
+% Информация о документе
+\title{\textbf{Моя первая профессиональная статья}}
+\author{Глухарев Степан Викторович \\ \textit{Название Университета или Организации}}
+\date{\today}
+
+% Тело документа
+\begin{document}
+
+    \maketitle
+
+    \begin{abstract}
+        Здесь пишется краткая аннотация (abstract) статьи.
+        Пару предложений о том, какая проблема исследуется, какими методами решается и какой получен результат.
+    \end{abstract}
+
+    \tableofcontents
+    \newpage
+
+
+    \section{Введение}\label{sec:intro}
+    Это основной текст статьи. Как мы увидим в разделе\ref{sec:theory}, LaTeX делает работу с текстом очень удобной.
+
+
+    \section{Теоретическая база}\label{sec:theory}
+    Любая статья требует формул. Если формула короткая, пишем её прямо в тексте: $x^2 + y^2 = r^2$.
+    Если формула важная, выделяем её:
+    \begin{equation}\label{eq:integral}
+        \int_{0}^{\infty} e^{-x^2} dx = \frac{\sqrt{\pi}}{2}
+    \end{equation}
+
+    \subsection{Инструменты исследователя}
+    Для достижения результата нам понадобятся:
+    \begin{itemize}
+        \item Четкая гипотеза;
+        \item Проверенные данные;
+        \item Хороший шаблон LaTeX.
+    \end{itemize}
+
+
+    \section{Заключение}
+    Статья почти готова. Осталось добавить библиографию.
+
+\end{document}

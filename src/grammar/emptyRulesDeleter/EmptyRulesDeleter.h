@@ -1,11 +1,10 @@
 #pragma once
-#include "GrammarTypes.h"
+#include "src/grammar/GrammarTypes.h"
 
 class EmptyRulesDeleter
 {
 public:
 	explicit EmptyRulesDeleter(raw::Rules rules);
-
 	[[nodiscard]] raw::Rules DeleteEmptyRules();
 
 private:

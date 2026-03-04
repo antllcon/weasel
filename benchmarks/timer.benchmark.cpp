@@ -1,10 +1,12 @@
-#include "src/timer/Timer.h"
+#include "src/timer/ScopedTimer.h"
+
 #include <benchmark/benchmark.h>
+#include <iostream>
 
 // Замер производительности сброса таймера
 static void BMRestart(benchmark::State& state)
 {
-	Timer timer;
+	ScopedTimer timer("Benchmark", std::cout);
 	for (auto _ : state)
 	{
 		timer.Restart();

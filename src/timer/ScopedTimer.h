@@ -1,11 +1,14 @@
 #pragma once
 #include <chrono>
+#include <string>
 
-class Timer
+class ScopedTimer
 {
 public:
-	Timer();
-	void Restart();
+	ScopedTimer(std::string phaseName, std::ostream& outputStream);
+	~ScopedTimer();
+
+	double Restart();
 	[[nodiscard]] double Elapsed() const;
 
 private:
@@ -13,4 +16,6 @@ private:
 	using TimePoint = std::chrono::time_point<Clock>;
 
 	TimePoint m_startTime;
+	std::string m_phaseName;
+	std::ostream& m_outputStream;
 };

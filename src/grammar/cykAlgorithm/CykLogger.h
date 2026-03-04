@@ -1,5 +1,5 @@
 #pragma once
-#include "GrammarTypes.h"
+#include "../GrammarTypes.h"
 #include <string>
 
 class CykLogger

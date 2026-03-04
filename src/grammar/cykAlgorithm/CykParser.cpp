@@ -1,7 +1,7 @@
 #include "CykParser.h"
 #include <stdexcept>
-#include <vector>
 #include <unordered_set>
+#include <vector>
 
 namespace
 {

@@ -1,14 +1,12 @@
 #pragma once
+#include <ranges>
 #include <string>
-#include <vector>
 #include <unordered_map>
 #include <unordered_set>
-#include <ranges>
+#include <vector>
 
 inline const std::string END_SYMBOL = "#";
 inline const std::string EMPTY_SYMBOL = "e";
-constexpr char NON_TERM_FIRST_CHAR = '<';
-constexpr int NON_TERM_MIN_SIZE = 3;
 
 namespace raw
 {
@@ -22,7 +20,7 @@ struct Rule
 };
 
 using Rules = std::vector<Rule>;
-}
+} // namespace raw
 
 using Guides = std::unordered_set<std::string>;
 
@@ -82,7 +80,22 @@ using Table = std::vector<TableRow>;
 
 inline bool IsTerm(const std::string& term)
 {
-	return term.size() < NON_TERM_MIN_SIZE || term[0] != NON_TERM_FIRST_CHAR;
+	if (term.empty())
+	{
+		return false;
+	}
+
+	if (term.front() == '<' && term.back() == '>')
+	{
+		return false;
+	}
+
+	if (std::isupper(static_cast<unsigned char>(term[0])))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 using CykCell = std::unordered_set<std::string>;

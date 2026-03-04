@@ -1,9 +1,8 @@
 #include "GrammarOptimizer.h"
-#include "../ProductiveRulesFilter.h"
-#include "../ReachableRulesFilter.h"
-#include "../UnitRulesDeleter.h"
 #include "../emptyRulesDeleter/EmptyRulesDeleter.h"
-#include "../spinRulesDeleter/SpinRulesDeleter.h"
+#include "../productiveRulesFilter/ProductiveRulesFilter.h"
+#include "../reachableRulesFilter/ReachableRulesFilter.h"
+#include "../unitRulesDeleter/UnitRulesDeleter.h"
 #include <algorithm>
 #include <stdexcept>
 
@@ -65,7 +64,6 @@ bool AreRulesEqual(const raw::Rules& lhs, const raw::Rules& rhs)
 raw::Rules RunBaseOptimizations(raw::Rules currentRules, const std::string& startSymbol)
 {
 	currentRules = EmptyRulesDeleter(std::move(currentRules)).DeleteEmptyRules();
-	currentRules = SpinRulesDeleter(std::move(currentRules)).DeleteSpins();
 	currentRules = UnitRulesDeleter(std::move(currentRules)).DeleteUnitRules();
 	currentRules = ProductiveRulesFilter(std::move(currentRules)).FilterUnproductiveRules();
 	currentRules = ReachableRulesFilter(std::move(currentRules), startSymbol).FilterUnreachableRules();
@@ -82,7 +80,7 @@ raw::Rules OptimizeForBottomUp(raw::Rules rules, const std::string& startSymbol)
 	bool changed;
 	do
 	{
-		raw::Rules previous = rules; // может move за использовать, чтобы было быстро
+		raw::Rules previous = rules;
 		rules = RunBaseOptimizations(std::move(rules), startSymbol);
 		changed = !AreRulesEqual(rules, previous);
 	} while (changed);
@@ -94,17 +92,20 @@ raw::Rules OptimizeForLL1(raw::Rules rules, const std::string& startSymbol)
 {
 	AssertIsStartSymbolPresent(rules, startSymbol);
 
+	rules = UnitRulesDeleter(std::move(rules)).DeleteUnitRules();
+	rules = ProductiveRulesFilter(std::move(rules)).FilterUnproductiveRules();
+	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
+
 	bool changed;
 	do
 	{
 		raw::Rules previous = rules;
-
-		rules = RunBaseOptimizations(std::move(rules), startSymbol);
 		// rules = LeftRecursionEliminator(std::move(rules)).Eliminate();
 		// rules = LeftFactorizer(std::move(rules)).Factorize();
-
 		changed = !AreRulesEqual(rules, previous);
 	} while (changed);
+
+	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
 
 	return rules;
 }

@@ -1,11 +1,10 @@
 #pragma once
-#include "GrammarTypes.h"
+#include "src/grammar/GrammarTypes.h"
 
 class ProductiveRulesFilter
 {
 public:
 	explicit ProductiveRulesFilter(raw::Rules rules);
-
 	[[nodiscard]] raw::Rules FilterUnproductiveRules();
 
 private:

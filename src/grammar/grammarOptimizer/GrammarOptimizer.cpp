@@ -3,6 +3,9 @@
 #include "../productiveRulesFilter/ProductiveRulesFilter.h"
 #include "../reachableRulesFilter/ReachableRulesFilter.h"
 #include "../unitRulesDeleter/UnitRulesDeleter.h"
+#include "src/grammar/leftFactorizer/LeftFactorizer.h"
+#include "src/grammar/leftRecursionEliminator/LeftRecursionEliminator.h"
+#include "src/timer/ScopedTimer.h"
 #include <algorithm>
 #include <stdexcept>
 
@@ -95,16 +98,8 @@ raw::Rules OptimizeForLL1(raw::Rules rules, const std::string& startSymbol)
 	rules = UnitRulesDeleter(std::move(rules)).DeleteUnitRules();
 	rules = ProductiveRulesFilter(std::move(rules)).FilterUnproductiveRules();
 	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
-
-	bool changed;
-	do
-	{
-		raw::Rules previous = rules;
-		// rules = LeftRecursionEliminator(std::move(rules)).Eliminate();
-		// rules = LeftFactorizer(std::move(rules)).Factorize();
-		changed = !AreRulesEqual(rules, previous);
-	} while (changed);
-
+	rules = LeftRecursionEliminator(std::move(rules)).Eliminate();
+	rules = LeftFactorizer(std::move(rules)).Factorize();
 	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
 
 	return rules;

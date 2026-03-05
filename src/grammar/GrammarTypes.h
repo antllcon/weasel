@@ -85,7 +85,7 @@ inline bool IsTerm(const std::string& term)
 		return false;
 	}
 
-	if (term.front() == '<' && term.back() == '>')
+	if (term.front() == '<')
 	{
 		return false;
 	}

@@ -1,4 +1,7 @@
 #include "grammar/GrammarTypes.h"
+#include "grammar/grammarOptimizer/GrammarOptimizer.h"
+#include "timer/ScopedTimer.h"
+
 #include <iostream>
 #include <windows.h>
 
@@ -53,6 +56,11 @@ int main()
 			MakeRule("<D>", {{"<A>", "<B>"}, {"<D>", "f"}, {"<C>"}})};
 
 		PrintRules(rawRules, "1. Исходная грамматика");
+
+		ScopedTimer timer("оптимизация к LL1", std::cout);
+		auto optimRules = GrammarOptimizer::OptimizeForLL1(rawRules, startSymbol);
+
+		PrintRules(optimRules, "2. Оптимизированная грамматика");
 	}
 	catch (const std::exception& e)
 	{

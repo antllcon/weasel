@@ -1,5 +1,7 @@
 #include "grammar/GrammarTypes.h"
 #include "grammar/grammarOptimizer/GrammarOptimizer.h"
+#include "grammar/guideSetsCalculator/GuideSetsCalculator.h"
+#include "grammar/llValidator/LlValidator.h"
 #include "timer/ScopedTimer.h"
 
 #include <iostream>
@@ -12,7 +14,7 @@ raw::Rule MakeRule(const std::string& name, const raw::Alternatives& alts)
 	return raw::Rule{name, alts};
 }
 
-void PrintRules(const raw::Rules& rules, const std::string& title)
+void PrintRules(const raw::Rules& rules, const std::string& title = "")
 {
 	if (!title.empty())
 	{
@@ -37,6 +39,47 @@ void PrintRules(const raw::Rules& rules, const std::string& title)
 	}
 	std::cout << std::endl;
 }
+
+void PrintRulesWithGuides(const Rules& rules, const std::string& title = "")
+{
+	if (!title.empty())
+	{
+		std::cout << title << std::endl;
+	}
+
+	for (const auto& rule : rules)
+	{
+		std::cout << rule.name << " -> ";
+		for (size_t i = 0; i < rule.alternatives.size(); ++i)
+		{
+			const auto& alt = rule.alternatives[i];
+			for (const auto& symbol : alt.rule)
+			{
+				std::cout << symbol;
+			}
+
+			std::cout << " { ";
+			bool isFirst = true;
+			for (const auto& term : alt.guides)
+			{
+				if (!isFirst)
+				{
+					std::cout << ", ";
+				}
+				std::cout << term;
+				isFirst = false;
+			}
+			std::cout << " }";
+
+			if (i + 1 < rule.alternatives.size())
+			{
+				std::cout << " | ";
+			}
+		}
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+}
 } // namespace
 
 int main()
@@ -46,21 +89,30 @@ int main()
 		SetConsoleOutputCP(CP_UTF8);
 		SetConsoleCP(CP_UTF8);
 
-		const std::string startSymbol = "<S>";
+		const std::string startSymbol = "P";
 
 		raw::Rules rawRules = {
-			MakeRule("<S>", {{"a", "<S>", "b"}, {"c", "<A>", "b"}, {"a", "<D>", "b", "<A>", "c", "<B>", "<C>"}}),
-			MakeRule("<A>", {{"<B>", "x"}, {"<A>", "y"}}),
-			MakeRule("<C>", {{"<A>", "x"}, {"a"}, {"b"}, {"<B>", "x"}, {"<S>", "y"}, {"<D>"}}),
-			MakeRule("<B>", {{"x", "<A>", "y"}, {"<D>", "x"}}),
-			MakeRule("<D>", {{"<A>", "<B>"}, {"<D>", "f"}, {"<C>"}})};
-
+			MakeRule("P", {{"b", "d", ";", "X", "f"}}),
+			MakeRule("X", {{"s", "Y"}, {"d", ";", "X"}}),
+			MakeRule("Y", {{"e"}, {";", "s", "Y"}})};
 		PrintRules(rawRules, "1. Исходная грамматика");
 
-		ScopedTimer timer("оптимизация к LL1", std::cout);
 		auto optimRules = GrammarOptimizer::OptimizeForLL1(rawRules, startSymbol);
-
 		PrintRules(optimRules, "2. Оптимизированная грамматика");
+
+		GuideSetsCalculator calculator(optimRules, startSymbol);
+		auto rulesWithGuides = calculator.Calculate();
+		PrintRulesWithGuides(rulesWithGuides, "3. Грамматика с направляющими множествами");
+
+		LlValidator validator(rulesWithGuides);
+		if (validator.IsValid())
+		{
+			std::cout << "[Result] Грамматика LL(1)" << std::endl;
+		}
+		else
+		{
+			std::cout << "[Result] Грамматика не LL(1)" << std::endl;
+		}
 	}
 	catch (const std::exception& e)
 	{

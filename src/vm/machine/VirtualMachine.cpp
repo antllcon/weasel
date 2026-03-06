@@ -71,16 +71,70 @@ void ExecuteReturnInstruction(ExecutionContext& context)
 	}
 }
 
+void ExecuteAddInstruction(ExecutionContext& context)
+{
+	const Value rhs = Pop(context);
+	const Value lhs = Pop(context);
+	Push(context, AddValues(lhs, rhs));
+}
+
+void ExecuteSubtractInstruction(ExecutionContext& context)
+{
+	const Value rhs = Pop(context);
+	const Value lhs = Pop(context);
+	Push(context, SubtractValues(lhs, rhs));
+}
+
+void ExecuteMultiplyInstruction(ExecutionContext& context)
+{
+	const Value rhs = Pop(context);
+	const Value lhs = Pop(context);
+	Push(context, MultiplyValues(lhs, rhs));
+}
+
+void ExecuteDivideInstruction(ExecutionContext& context)
+{
+	const Value rhs = Pop(context);
+	const Value lhs = Pop(context);
+	Push(context, DivideValues(lhs, rhs));
+}
+
+void ExecuteNegateInstruction(ExecutionContext& context)
+{
+	const Value value = Pop(context);
+	Push(context, NegateValue(value));
+}
+
 void Run(ExecutionContext& context)
 {
-	while (true)
+	for (;;)
 	{
-		OpCode instruction = static_cast<OpCode>(ReadByte(context));
+		const OpCode instruction = static_cast<OpCode>(ReadByte(context));
 
 		switch (instruction)
 		{
 		case OpCode::Constant: {
 			ExecuteConstantInstruction(context);
+			break;
+		}
+		case OpCode::Add: {
+			ExecuteAddInstruction(context);
+			break;
+		}
+		case OpCode::Subtract: {
+			ExecuteSubtractInstruction(context);
+			break;
+		}
+		case OpCode::Multiply: {
+			ExecuteMultiplyInstruction(context);
+			break;
+		}
+		case OpCode::Divide: {
+			ExecuteDivideInstruction(context);
+			break;
+		}
+		case OpCode::Negate: {
+			ExecuteNegateInstruction(context);
 			break;
 		}
 		case OpCode::Return: {

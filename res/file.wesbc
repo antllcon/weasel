@@ -1,0 +1,10 @@
+# author antllcon
+# data 06.03.2026
+.const
+24
+17
+.code
+cst 0
+cst 1
+add
+ret

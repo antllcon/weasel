@@ -13,7 +13,7 @@ void AssertIsConstantIndexValid(size_t size)
 }
 } // namespace
 
-void Chunk::WriteBite(uint8_t byte)
+void Chunk::WriteByte(uint8_t byte)
 {
 	m_code.push_back(byte);
 }

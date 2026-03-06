@@ -7,7 +7,7 @@
 class Chunk
 {
 public:
-	void WriteBite(uint8_t byte);
+	void WriteByte(uint8_t byte);
 	void WriteOpCode(OpCode code);
 	uint8_t AddConstant(Value value);
 

@@ -3,16 +3,13 @@
 #include "grammar/guideSetsCalculator/GuideSetsCalculator.h"
 #include "grammar/llValidator/LlValidator.h"
 #include "grammar/printGrammar/PrintGrammar.h"
-#include "vm/machine/VirtualMachine.h"
 #include "vm/parser/BytecodeParser.h"
-#include "vm/value/Value.h"
 #include <iostream>
-#include <variant>
 #include <windows.h>
 
 using namespace PrintGrammar;
 
-int main(int argc, char* argv[])
+int main()
 {
 	try
 	{

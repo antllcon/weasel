@@ -176,9 +176,9 @@ std::ifstream OpenTextFile(const std::filesystem::path& path)
 
 void ParseFileContent(std::ifstream& file, Chunk& chunk)
 {
-	ParseState state = ParseState::Initial;
-	std::string line;
+	auto state = ParseState::Initial;
 
+	std::string line;
 	while (std::getline(file, line))
 	{
 		line = StripComments(line);

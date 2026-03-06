@@ -1,10 +1,28 @@
 #pragma once
+
+#include <string>
 #include <variant>
 
-using Value = std::variant<double>;
+class Value
+{
+public:
+	Value();
+	Value(double value);
+	Value(const std::string& value);
 
-Value AddValues(const Value& lhs, const Value& rhs);
-Value SubtractValues(const Value& lhs, const Value& rhs);
-Value MultiplyValues(const Value& lhs, const Value& rhs);
-Value DivideValues(const Value& lhs, const Value& rhs);
-Value NegateValue(const Value& value);
+	Value operator+(const Value& rhs) const;
+	Value operator-(const Value& rhs) const;
+	Value operator*(const Value& rhs) const;
+	Value operator/(const Value& rhs) const;
+	Value operator-() const;
+	bool operator==(const Value& rhs) const;
+
+	template <typename Visitor>
+	auto visit(Visitor&& visitor) const
+	{
+		return std::visit(std::forward<Visitor>(visitor), m_data);
+	}
+
+private:
+	std::variant<double, std::string> m_data;
+};

@@ -75,34 +75,34 @@ void ExecuteAddInstruction(ExecutionContext& context)
 {
 	const Value rhs = Pop(context);
 	const Value lhs = Pop(context);
-	Push(context, AddValues(lhs, rhs));
+	Push(context, lhs + rhs);
 }
 
 void ExecuteSubtractInstruction(ExecutionContext& context)
 {
 	const Value rhs = Pop(context);
 	const Value lhs = Pop(context);
-	Push(context, SubtractValues(lhs, rhs));
+	Push(context, lhs - rhs);
 }
 
 void ExecuteMultiplyInstruction(ExecutionContext& context)
 {
 	const Value rhs = Pop(context);
 	const Value lhs = Pop(context);
-	Push(context, MultiplyValues(lhs, rhs));
+	Push(context, lhs * rhs);
 }
 
 void ExecuteDivideInstruction(ExecutionContext& context)
 {
 	const Value rhs = Pop(context);
 	const Value lhs = Pop(context);
-	Push(context, DivideValues(lhs, rhs));
+	Push(context, lhs / rhs);
 }
 
 void ExecuteNegateInstruction(ExecutionContext& context)
 {
 	const Value value = Pop(context);
-	Push(context, NegateValue(value));
+	Push(context, -value);
 }
 
 void Run(ExecutionContext& context)

@@ -3,7 +3,6 @@
 #include "vm/parser/BytecodeParser.h"
 #include "vm/value/Value.h"
 #include <iostream>
-#include <variant>
 #include <windows.h>
 
 namespace
@@ -18,10 +17,9 @@ void AssertHasCorrectArgumentCount(int argc)
 
 void PrintResult(const Value& result)
 {
-	std::visit([](auto&& val) {
-		std::cout << "[Result] " << val << std::endl;
-	},
-		result);
+	result.visit([](auto&& val) {
+	   std::cout << "[Result] " << val << std::endl;
+	});
 }
 } // namespace
 

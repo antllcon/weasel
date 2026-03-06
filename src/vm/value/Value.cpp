@@ -3,104 +3,132 @@
 
 namespace
 {
-	void AssertIsSameArithmeticType(bool condition)
+void AssertIsOperationSupported(bool condition)
+{
+	if (!condition)
 	{
-		if (!condition)
-		{
-			throw std::runtime_error("Операнды должны быть числового типа");
-		}
-	}
-
-	void AssertIsNotZero(double value)
-	{
-		if (value == 0.0)
-		{
-			throw std::runtime_error("Деление на ноль невозможно");
-		}
+		throw std::runtime_error("Операция не поддерживается для данных типов");
 	}
 }
 
-Value AddValues(const Value& lhs, const Value& rhs)
+void AssertIsNotZero(double value)
 {
-	return std::visit([](auto&& l, auto&& r) -> Value
+	if (value == 0.0)
 	{
-		using L = std::decay_t<decltype(l)>;
-		using R = std::decay_t<decltype(r)>;
+		throw std::runtime_error("Деление на ноль невозможно");
+	}
+}
+} // namespace
+
+Value::Value()
+	: m_data(0.0)
+{
+}
+
+Value::Value(double value)
+	: m_data(value)
+{
+}
+
+Value::Value(const std::string& value)
+	: m_data(value)
+{
+}
+
+Value Value::operator+(const Value& rhs) const
+{
+	return std::visit([]<typename T0, typename T1>(T0&& l, T1&& r) -> Value {
+		using L = std::decay_t<T0>;
+		using R = std::decay_t<T1>;
 
 		if constexpr (std::is_same_v<L, double> && std::is_same_v<R, double>)
 		{
-			return l + r;
+			return Value(l + r);
+		}
+		else if constexpr (std::is_same_v<L, std::string> && std::is_same_v<R, std::string>)
+		{
+			return Value(l + r);
 		}
 
-		AssertIsSameArithmeticType(false);
-		return {};
-	}, lhs, rhs);
+		AssertIsOperationSupported(false);
+		return Value();
+	},
+		m_data,
+		rhs.m_data);
 }
 
-Value SubtractValues(const Value& lhs, const Value& rhs)
+Value Value::operator-(const Value& rhs) const
 {
-	return std::visit([](auto&& l, auto&& r) -> Value
-	{
-		using L = std::decay_t<decltype(l)>;
-		using R = std::decay_t<decltype(r)>;
+	return std::visit([]<typename T0, typename T1>(T0&& l, T1&& r) -> Value {
+		using L = std::decay_t<T0>;
+		using R = std::decay_t<T1>;
 
 		if constexpr (std::is_same_v<L, double> && std::is_same_v<R, double>)
 		{
-			return l - r;
+			return Value(l - r);
 		}
 
-		AssertIsSameArithmeticType(false);
-		return {};
-	}, lhs, rhs);
+		AssertIsOperationSupported(false);
+		return Value();
+	},
+		m_data,
+		rhs.m_data);
 }
 
-Value MultiplyValues(const Value& lhs, const Value& rhs)
+Value Value::operator*(const Value& rhs) const
 {
-	return std::visit([](auto&& l, auto&& r) -> Value
-	{
-		using L = std::decay_t<decltype(l)>;
-		using R = std::decay_t<decltype(r)>;
+	return std::visit([]<typename T0, typename T1>(T0&& l, T1&& r) -> Value {
+		using L = std::decay_t<T0>;
+		using R = std::decay_t<T1>;
 
 		if constexpr (std::is_same_v<L, double> && std::is_same_v<R, double>)
 		{
-			return l * r;
+			return Value(l * r);
 		}
 
-		AssertIsSameArithmeticType(false);
-		return {};
-	}, lhs, rhs);
+		AssertIsOperationSupported(false);
+		return Value();
+	},
+		m_data,
+		rhs.m_data);
 }
 
-Value DivideValues(const Value& lhs, const Value& rhs)
+Value Value::operator/(const Value& rhs) const
 {
-	return std::visit([](auto&& l, auto&& r) -> Value
-	{
-		using L = std::decay_t<decltype(l)>;
-		using R = std::decay_t<decltype(r)>;
+	return std::visit([]<typename T0, typename T1>(T0&& l, T1&& r) -> Value {
+		using L = std::decay_t<T0>;
+		using R = std::decay_t<T1>;
 
 		if constexpr (std::is_same_v<L, double> && std::is_same_v<R, double>)
 		{
 			AssertIsNotZero(r);
-			return l / r;
+			return Value(l / r);
 		}
 
-		AssertIsSameArithmeticType(false);
-		return {};
-	}, lhs, rhs);
+		AssertIsOperationSupported(false);
+		return Value();
+	},
+		m_data,
+		rhs.m_data);
 }
 
-Value NegateValue(const Value& value)
+Value Value::operator-() const
 {
-	return std::visit([](auto&& v) -> Value
-	{
-		using V = std::decay_t<decltype(v)>;
+	return std::visit([]<typename T0>(T0&& v) -> Value {
+		using V = std::decay_t<T0>;
 
 		if constexpr (std::is_same_v<V, double>)
 		{
-			return -v;
+			return Value(-v);
 		}
 
-		AssertIsSameArithmeticType(false);
-		return {};
-	}, value);
+		AssertIsOperationSupported(false);
+		return Value();
+	},
+		m_data);
+}
+
+bool Value::operator==(const Value& rhs) const
+{
+	return m_data == rhs.m_data;
 }

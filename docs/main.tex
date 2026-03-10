@@ -1,69 +1,167 @@
-%! Author = antllcon
-%! Date = 01.03.2026
+%! Language = Russian
+%! TEX program = xelatex
 
-% Настройки документа
 \documentclass[12pt, a4paper]{article}
 
-% 1. Язык и кодировка
-\usepackage[utf8]{inputenc}
-\usepackage[T2A]{fontenc}
-\usepackage[russian,english]{babel}
+% --- 1. Язык и шрифты ---
+\usepackage{fontspec}
+\setmainfont{Times New Roman} % Требует XeLaTeX
+\usepackage[russian]{babel}
 
-% 2. Настройка полей
-\usepackage[left=2.5cm, right=1.5cm, top=2cm, bottom=2cm]{geometry}
+% --- 2. Поля и интервалы ---
+\usepackage[left=3cm, right=1.5cm, top=2cm, bottom=2cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing % Полуторный интервал
 
-% 3. Математика
-\usepackage{amsmath, amsfonts, amssymb}
+% --- 3. Абзацы ---
+\usepackage{indentfirst} % Отступ у первого абзаца
+\setlength{\parindent}{1.25cm} % Абзацный отступ 1.25 см
 
-% 4. Графика и таблицы
-\usepackage{graphicx}
-\usepackage{booktabs}
+% --- 4. Заголовки (пакет titlesec) ---
+\usepackage{titlesec}
+\usepackage{titletoc}
 
-% 5. Шрифты
-% \usepackage{mathptmx}
+% Настройка нумерованных разделов (с абзацного отступа, полужирный, без точки)
+\titleformat{\section}[block]{\hspace{1.25cm}\bfseries\large}{\thesection}{1em}{}
+\titleformat{\subsection}[block]{\hspace{1.25cm}\bfseries\normalsize}{\thesubsection}{1em}{}
 
-% 6. Кликабельные ссылки и оглавление
-\usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
+% Команда для структурных элементов (Введение, Заключение и т.д. - по центру, капсом)
+\newcommand{\structsection}[1]{
+    \newpage
+    \addcontentsline{toc}{section}{#1}
+    \begin{center}
+    \MakeUppercase{#1}
+    \end{center}
+    \par\vspace{1em}
+}
 
-% Информация о документе
-\title{\textbf{Моя первая профессиональная статья}}
-\author{Глухарев Степан Викторович \\ \textit{Название Университета или Организации}}
-\date{\today}
+% --- 5. Оформление сносок ---
+\renewcommand{\footnotesize}{\fontsize{10pt}{12pt}\selectfont} % Сноски 10 пт
+\setlength{\footnotemargin}{1.25cm} % Отступ сноски (требует \usepackage[hang]{footmisc})
+\usepackage[hang]{footmisc}
 
-% Тело документа
+% --- 6. Приложения ---
+\newcommand{\appendixsection}[2]{
+    \newpage
+    \begin{center}
+    ПРИЛОЖЕНИЕ #1 \\
+    \vspace{1em}
+    \textbf{#2}
+    \end{center}
+    \addcontentsline{toc}{section}{ПРИЛОЖЕНИЕ #1. #2}
+    \par\vspace{1em}
+}
+
+\newpage
+\addcontentsline{toc}{section}{СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ}
+\begin{center}
+    \MakeUppercase{Список использованных источников}
+\end{center}
+\par\vspace{1em}
+
+% Вывод списка без стандартного заголовка biblatex
+\printbibliography[heading=none]
+
+% --- 7. Библиография (ГОСТ) ---
+\usepackage{csquotes} % Обязательно для работы biblatex с кавычками
+\usepackage[
+    backend=biber,
+    style=gost-numeric,
+    language=auto,
+    autolang=other,
+    sorting=ntvy,      % Сортировка: сначала русские, потом английские (по алфавиту)
+    doi=false,         % Скрытие лишних полей для чистоты
+    isbn=false,
+    url=false
+]{biblatex}
+
+% Подключение файла с библиографией
+\addbibresource{references.bib}
+
 \begin{document}
 
-    \maketitle
+% ================= ТИТУЛЬНЫЙ ЛИСТ =================
+    \begin{titlepage}
+        \begin{center}
+            Автономная некоммерческая организация высшего образования \\
+            «Русский университет метатехнологий» \\
+            \vspace{1em}
+            Кафедра программных систем
+        \end{center}
 
-    \begin{abstract}
-        Здесь пишется краткая аннотация (abstract) статьи.
-        Пару предложений о том, какая проблема исследуется, какими методами решается и какой получен результат.
-    \end{abstract}
+        \vspace{2em}
+        \noindent Направление подготовки: 09.03.04 Программная инженерия \\
+        Профиль подготовки: Проектирование и разработка программных систем
 
-    \tableofcontents
+        \vspace{5em}
+        \begin{center}
+            ПОЯСНИТЕЛЬНАЯ ЗАПИСКА К КУРСОВОМУ ПРОЕКТУ \\
+            \vspace{1em}
+            на тему: \\
+            «Название работы»
+        \end{center}
+
+        \vspace{5em}
+        \begin{flushright}
+            \begin{minipage}{0.45\textwidth}
+                Выполнил(а): \\
+                студент(ка) группы \rule{2cm}{0.15mm} \\
+                очной формы обучения \\
+                \rule{3cm}{0.15mm} / Фамилия И.О. \\
+                {\footnotesize подпись \hspace{1cm} расшифровка} \\
+
+                \vspace{2em}
+                Руководитель: \\
+                должность, уч. степень \\
+                \rule{3cm}{0.15mm} / Фамилия И.О. \\
+                {\footnotesize подпись \hspace{1cm} расшифровка}
+            \end{minipage}
+        \end{flushright}
+
+        \vfill
+        \begin{center}
+            Йошкар-Ола \\
+            \the\year
+        \end{center}
+    \end{titlepage}
+% ==================================================
+
+% Сброс счетчика страниц (титульный лист - это страница 1, но номер не ставится)
+    \setcounter{page}{2}
+
+% ================= СОДЕРЖАНИЕ =====================
     \newpage
+    \addcontentsline{toc}{section}{СОДЕРЖАНИЕ}
+    \begin{center}
+        СОДЕРЖАНИЕ
+    \end{center}
+    \tableofcontents
+% ==================================================
 
-    \section{Введение}\label{sec:intro}
-    Это основной текст статьи. Как мы увидим в разделе\ref{sec:theory}, LaTeX делает работу с текстом очень удобной.
+    \structsection{Введение}
+    Текст введения. Здесь описывается актуальность, цель и задачи курсового проекта. Обратите внимание на абзацный отступ, который применяется автоматически ко всем абзацам.
 
+    \newpage
+    \section{Аналитическая часть}
+    Описание используемых методов при разработке собственного языка программирования\footnote{Пример пояснения, оформленного в виде сноски 10 пт.}.
 
-    \section{Теоретическая база}\label{sec:theory}
-    Любая статья требует формул. Если формула короткая, пишем её прямо в тексте: $x^2 + y^2 = r^2$.
-    Если формула важная, выделяем её:
-    \begin{equation}\label{eq:integral}
-        \int_{0}^{\infty} e^{-x^2} dx = \frac{\sqrt{\pi}}{2}
-    \end{equation}
+    \subsection{Обзор существующих решений}
+    Текст подраздела. Форматирование подразделов идет с абзацного отступа, полужирным шрифтом без точки в конце.
 
-    \subsection{Инструменты исследователя}
-    Для достижения результата нам понадобятся:
-    \begin{itemize}
-        \item Четкая гипотеза;
-        \item Проверенные данные;
-        \item Хороший шаблон LaTeX.
-    \end{itemize}
+    \newpage
+    \section{Техническая часть}
+    Описание особенностей реализации программного продукта. Ссылки на литературу оформляются в квадратных скобках [1].
 
+    \structsection{Заключение}
+    В заключении подводятся итоги выполненной работы, описываются возникшие проблемы и степень их проработанности.
 
-    \section{Заключение}
-    Статья почти готова. Осталось добавить библиографию.
+    \structsection{Список использованных источников}
+    \begin{enumerate}
+        \item Фамилия И.О. Название книги. — М.: Издательство, 2023. — 123 с.
+    \end{enumerate}
+
+% ================= ПРИЛОЖЕНИЯ =====================
+    \appendixsection{А}{Листинг кода}
+    Здесь могут быть приведены схемы, оригинальные фрагменты кода и т.п.
 
 \end{document}

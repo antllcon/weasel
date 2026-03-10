@@ -1,73 +1,109 @@
 #include "grammar/GrammarTypes.h"
+#include "grammar/grammarOptimizer/GrammarOptimizer.h"
 #include "grammar/guideSetsCalculator/GuideSetsCalculator.h"
-#include "grammar/llValidator/LlValidator.h"
+#include "grammar/llTableBuilder/Ll1TableBuilder.h"
+#include "grammar/llTableBuilder/Ll1TablePrinter.h"
 #include "grammar/printGrammar/PrintGrammar.h"
-#include "grammar/leftFactorizer/LeftFactorizer.h"
-#include "grammar/leftRecursionEliminator/LeftRecursionEliminator.h"
-#include "grammar/productiveRulesFilter/ProductiveRulesFilter.h"
-#include "grammar/reachableRulesFilter/ReachableRulesFilter.h"
 #include <iostream>
+#include <string>
+#include <vector>
 #include <windows.h>
 
 using namespace PrintGrammar;
 
-raw::Rules OptimizeArithmeticGrammar(raw::Rules rules, const std::string& startSymbol)
+namespace
 {
-	rules = LeftFactorizer(std::move(rules)).Factorize();
-    PrintRules(rules, "Сделал факторизацию");
-
-	rules = LeftRecursionEliminator(std::move(rules)).Eliminate();
-    PrintRules(rules, "Убрал левую рекурсию");
-
-    rules = ProductiveRulesFilter(std::move(rules)).FilterUnproductiveRules();
-    PrintRules(rules, "Убрал непродуктивные правила");
-
-    rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
-    PrintRules(rules, "Убрал недостижимые правила");
-
-	return rules;
+bool IsFlagActive(OptimizationFlags value, OptimizationFlags flag)
+{
+	return (static_cast<uint32_t>(value) & static_cast<uint32_t>(flag)) != 0;
 }
+
+void PrintAppliedOptimizations(OptimizationFlags flags)
+{
+	if (flags == OptimizationFlags::None)
+	{
+		std::cout << "  - Исходная грамматика уже является LL(1) (Без оптимизаций)" << std::endl;
+		return;
+	}
+
+	if (IsFlagActive(flags, OptimizationFlags::LeftFactorize))
+	{
+		std::cout << "  - Левая факторизация" << std::endl;
+	}
+
+	if (IsFlagActive(flags, OptimizationFlags::EliminateLeftRecursion))
+	{
+		std::cout << "  - Устранение левой рекурсии" << std::endl;
+	}
+
+	if (IsFlagActive(flags, OptimizationFlags::FilterUnreachable))
+	{
+		std::cout << "  - Удаление недостижимых правил" << std::endl;
+	}
+
+	if (IsFlagActive(flags, OptimizationFlags::FilterUnproductive))
+	{
+		std::cout << "  - Удаление непродуктивных правил" << std::endl;
+	}
+
+	if (IsFlagActive(flags, OptimizationFlags::DeleteUnitRules))
+	{
+		std::cout << "  - Удаление цепных правил" << std::endl;
+	}
+
+	if (IsFlagActive(flags, OptimizationFlags::DeleteEmptyRules))
+	{
+		std::cout << "  - Удаление пустых правил" << std::endl;
+	}
+}
+} // namespace
 
 int main()
 {
-    try
-    {
-        SetConsoleOutputCP(CP_UTF8);
-        SetConsoleCP(CP_UTF8);
+	try
+	{
+		SetConsoleOutputCP(CP_UTF8);
+		SetConsoleCP(CP_UTF8);
 
-        const std::string startSymbol = "S";
+		const std::string startSymbol = "S";
 
-        raw::Rules rawRules = {
-            MakeRule("S", {{"E", "#"}}),
-            MakeRule("E", {{"E", "+", "T"}, {"E", "-", "T"}, {"T"}}),
-            MakeRule("T", {{"T", "*", "F"}, {"T", "/", "F"}, {"F"}}),
-            MakeRule("F", {{"I"}, {"I", "^", "N"}, {"(", "E", ")"}}),
-            MakeRule("I", {{"a"}, {"b"}, {"c"}, {"d"}}),
-            MakeRule("N", {{"2"}, {"3"}, {"4"}})
-        };
+		raw::Rules rawRules = {
+			MakeRule("S", {{"E", "#"}}),
+			MakeRule("E", {{"E", "+", "T"}, {"E", "-", "T"}, {"T"}}),
+			MakeRule("T", {{"T", "*", "F"}, {"T", "/", "F"}, {"F"}}),
+			MakeRule("F", {{"I"}, {"I", "^", "N"}, {"(", "E", ")"}}),
+			MakeRule("I", {{"a"}, {"b"}, {"c"}, {"d"}}),
+			MakeRule("N", {{"2"}, {"3"}, {"4"}})};
 
-        PrintRules(rawRules, "Исходная грамматика");
+		PrintRules(rawRules, "Исходная грамматика:");
 
-        auto optimizedRules = OptimizeArithmeticGrammar(rawRules, startSymbol);
+		const auto result = GrammarOptimizer::FindBestLL1(rawRules, startSymbol);
 
-        GuideSetsCalculator calculator(optimizedRules, startSymbol);
-    	auto rulesWithGuides = calculator.Calculate();
-        LlValidator validator(rulesWithGuides);
+		std::cout << "Примененные оптимизации (с сохранением языка):" << std::endl;
+		PrintAppliedOptimizations(result.flags);
+		PrintRules(result.rules, "\nИтоговая грамматика:");
 
-        if (validator.IsValid())
-        {
-            std::cout << "[Result] Грамматика является LL(1)" << std::endl;
-        }
-        else
-        {
-            std::cout << "[Result] Грамматика НЕ является LL(1)" << std::endl;
-        }
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << "[Error] " << e.what() << std::endl;
-        return EXIT_FAILURE;
-    }
+		if (result.isFound)
+		{
+			std::cout << "[Result] Это LL(1) грамматика" << std::endl;
 
-    return EXIT_SUCCESS;
+			GuideSetsCalculator calculator(result.rules, startSymbol);
+			Rules rulesWithGuides = calculator.Calculate();
+
+			Ll1TableBuilder tableBuilder(rulesWithGuides);
+			const auto ll1Table = tableBuilder.Build();
+			Ll1TablePrinter::Print(ll1Table);
+		}
+		else
+		{
+			std::cout << "[Result]Это не LL(1) грамматика" << std::endl;
+		}
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "[Error] " << e.what() << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	return EXIT_SUCCESS;
 }

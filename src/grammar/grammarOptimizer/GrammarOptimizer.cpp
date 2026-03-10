@@ -1,15 +1,15 @@
 #include "GrammarOptimizer.h"
-#include "../emptyRulesDeleter/EmptyRulesDeleter.h"
-#include "../productiveRulesFilter/ProductiveRulesFilter.h"
-#include "../reachableRulesFilter/ReachableRulesFilter.h"
-#include "../unitRulesDeleter/UnitRulesDeleter.h"
+#include "src/grammar/emptyRulesDeleter/EmptyRulesDeleter.h"
+#include "src/grammar/guideSetsCalculator/GuideSetsCalculator.h"
 #include "src/grammar/leftFactorizer/LeftFactorizer.h"
 #include "src/grammar/leftRecursionEliminator/LeftRecursionEliminator.h"
-#include "src/grammar/printGrammar/PrintGrammar.h"
-#include "src/timer/ScopedTimer.h"
+#include "src/grammar/llValidator/LlValidator.h"
+#include "src/grammar/productiveRulesFilter/ProductiveRulesFilter.h"
+#include "src/grammar/reachableRulesFilter/ReachableRulesFilter.h"
+#include "src/grammar/unitRulesDeleter/UnitRulesDeleter.h"
 #include <algorithm>
-#include <iostream>
 #include <stdexcept>
+#include <vector>
 
 namespace
 {
@@ -25,119 +25,103 @@ void AssertIsStartSymbolPresent(const raw::Rules& rules, const std::string& star
 	}
 }
 
-bool AreAlternativesEqual(const raw::Alternatives& lhs, const raw::Alternatives& rhs)
+bool HasFlag(OptimizationFlags value, OptimizationFlags flag)
 {
-	if (lhs.size() != rhs.size())
+	return (static_cast<uint32_t>(value) & static_cast<uint32_t>(flag)) != 0;
+}
+
+bool IsGrammarValidLL1(const raw::Rules& rules, const std::string& startSymbol)
+{
+	if (rules.empty())
 	{
 		return false;
 	}
 
-	for (size_t i = 0; i < lhs.size(); ++i)
+	try
 	{
-		if (lhs[i] != rhs[i])
-		{
-			return false;
-		}
+		GuideSetsCalculator calculator(rules, startSymbol);
+		Rules rulesWithGuides = calculator.Calculate();
+		LlValidator validator(rulesWithGuides);
+		return validator.IsValid();
 	}
-
-	return true;
-}
-
-bool AreRulesEqual(const raw::Rules& lhs, const raw::Rules& rhs)
-{
-	if (lhs.size() != rhs.size())
+	catch (const std::exception&)
 	{
 		return false;
 	}
-
-	for (size_t i = 0; i < lhs.size(); ++i)
-	{
-		if (lhs[i].name != rhs[i].name)
-		{
-			return false;
-		}
-
-		if (!AreAlternativesEqual(lhs[i].alternatives, rhs[i].alternatives))
-		{
-			return false;
-		}
-	}
-
-	return true;
 }
 
-raw::Rules RunBaseOptimizations(raw::Rules currentRules, const std::string& startSymbol)
+std::vector<OptimizationFlags> GetOptimizationProfiles()
 {
-	currentRules = EmptyRulesDeleter(std::move(currentRules)).DeleteEmptyRules();
-	currentRules = UnitRulesDeleter(std::move(currentRules)).DeleteUnitRules();
-	currentRules = ProductiveRulesFilter(std::move(currentRules)).FilterUnproductiveRules();
-	currentRules = ReachableRulesFilter(std::move(currentRules), startSymbol).FilterUnreachableRules();
-	return currentRules;
+	return {
+		OptimizationFlags::None,
+		OptimizationFlags::LeftFactorize,
+		OptimizationFlags::EliminateLeftRecursion,
+		OptimizationFlags::EliminateLeftRecursion | OptimizationFlags::LeftFactorize,
+		OptimizationFlags::FilterUnreachable | OptimizationFlags::FilterUnproductive | OptimizationFlags::EliminateLeftRecursion | OptimizationFlags::LeftFactorize,
+		OptimizationFlags::DeleteUnitRules | OptimizationFlags::FilterUnreachable | OptimizationFlags::FilterUnproductive | OptimizationFlags::EliminateLeftRecursion | OptimizationFlags::LeftFactorize,
+		OptimizationFlags::DeleteEmptyRules | OptimizationFlags::DeleteUnitRules | OptimizationFlags::FilterUnreachable | OptimizationFlags::FilterUnproductive | OptimizationFlags::EliminateLeftRecursion | OptimizationFlags::LeftFactorize};
 }
 } // namespace
 
 namespace GrammarOptimizer
 {
-raw::Rules OptimizeForBottomUp(raw::Rules rules, const std::string& startSymbol)
+raw::Rules Optimize(raw::Rules rules, const std::string& startSymbol, OptimizationFlags flags)
 {
 	AssertIsStartSymbolPresent(rules, startSymbol);
 
-	bool changed;
-	do
+	if (HasFlag(flags, OptimizationFlags::DeleteEmptyRules))
 	{
-		raw::Rules previous = rules;
-		rules = RunBaseOptimizations(std::move(rules), startSymbol);
-		changed = !AreRulesEqual(rules, previous);
-	} while (changed);
+		rules = EmptyRulesDeleter(std::move(rules)).DeleteEmptyRules();
+	}
+
+	if (HasFlag(flags, OptimizationFlags::DeleteUnitRules))
+	{
+		rules = UnitRulesDeleter(std::move(rules)).DeleteUnitRules();
+	}
+
+	if (HasFlag(flags, OptimizationFlags::FilterUnproductive))
+	{
+		rules = ProductiveRulesFilter(std::move(rules)).FilterUnproductiveRules();
+	}
+
+	if (HasFlag(flags, OptimizationFlags::FilterUnreachable))
+	{
+		rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
+	}
+
+	if (HasFlag(flags, OptimizationFlags::EliminateLeftRecursion))
+	{
+		rules = LeftRecursionEliminator(std::move(rules)).Eliminate();
+	}
+
+	if (HasFlag(flags, OptimizationFlags::LeftFactorize))
+	{
+		rules = LeftFactorizer(std::move(rules)).Factorize();
+	}
+
+	if (HasFlag(flags, OptimizationFlags::FilterUnreachable) && (HasFlag(flags, OptimizationFlags::EliminateLeftRecursion) || HasFlag(flags, OptimizationFlags::LeftFactorize)))
+	{
+		rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
+	}
 
 	return rules;
 }
 
-raw::Rules OptimizeForLL1(raw::Rules rules, const std::string& startSymbol)
+AutoOptimizationResult FindBestLL1(const raw::Rules& rules, const std::string& startSymbol)
 {
 	AssertIsStartSymbolPresent(rules, startSymbol);
 
-	rules = UnitRulesDeleter(std::move(rules)).DeleteUnitRules();
-	rules = ProductiveRulesFilter(std::move(rules)).FilterUnproductiveRules();
-	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
-	rules = LeftRecursionEliminator(std::move(rules)).Eliminate();
-	rules = LeftFactorizer(std::move(rules)).Factorize();
-	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
+	const std::vector<OptimizationFlags> profiles = GetOptimizationProfiles();
 
-	return rules;
-}
+	for (const auto flags : profiles)
+	{
+		raw::Rules optimized = Optimize(rules, startSymbol, flags);
+		if (IsGrammarValidLL1(optimized, startSymbol))
+		{
+			return {true, flags, std::move(optimized)};
+		}
+	}
 
-raw::Rules OptimizeForLL1Log(raw::Rules rules, const std::string& startSymbol)
-{
-	AssertIsStartSymbolPresent(rules, startSymbol);
-
-	std::cout << "LL1 Optimization Steps\n";
-
-	std::cout << "Step 0: UnitRulesDeleter\n";
-	PrintGrammar::PrintRules(rules, "Before UnitRulesDeleter:");
-	rules = UnitRulesDeleter(std::move(rules)).DeleteUnitRules();
-	PrintGrammar::PrintRules(rules, "After UnitRulesDeleter:");
-
-	std::cout << "Step 1: ProductiveRulesFilter\n";
-	rules = ProductiveRulesFilter(std::move(rules)).FilterUnproductiveRules();
-	PrintGrammar::PrintRules(rules, "After ProductiveRulesFilter:");
-
-	std::cout << "Step 2: ReachableRulesFilter\n";
-	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
-	PrintGrammar::PrintRules(rules, "After ReachableRulesFilter:");
-
-	std::cout << "Step 3: LeftRecursionEliminator\n";
-	rules = LeftRecursionEliminator(std::move(rules)).Eliminate();
-	PrintGrammar::PrintRules(rules, "After LeftRecursionEliminator:");
-
-	std::cout << "Step 4: LeftFactorizer\n";
-	rules = LeftFactorizer(std::move(rules)).Factorize();
-	PrintGrammar::PrintRules(rules, "After LeftFactorizer:");
-
-	std::cout << "Step 5: ReachableRulesFilter (cleanup)\n";
-	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
-	PrintGrammar::PrintRules(rules, "Final Grammar:");
-
-	return rules;
+	return {false, OptimizationFlags::None, {}};
 }
 } // namespace GrammarOptimizer

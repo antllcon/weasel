@@ -5,8 +5,10 @@
 #include "../unitRulesDeleter/UnitRulesDeleter.h"
 #include "src/grammar/leftFactorizer/LeftFactorizer.h"
 #include "src/grammar/leftRecursionEliminator/LeftRecursionEliminator.h"
+#include "src/grammar/printGrammar/PrintGrammar.h"
 #include "src/timer/ScopedTimer.h"
 #include <algorithm>
+#include <iostream>
 #include <stdexcept>
 
 namespace
@@ -101,6 +103,40 @@ raw::Rules OptimizeForLL1(raw::Rules rules, const std::string& startSymbol)
 	rules = LeftRecursionEliminator(std::move(rules)).Eliminate();
 	rules = LeftFactorizer(std::move(rules)).Factorize();
 	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
+
+	return rules;
+}
+
+raw::Rules OptimizeForLL1Log(raw::Rules rules, const std::string& startSymbol)
+{
+	AssertIsStartSymbolPresent(rules, startSymbol);
+
+	std::cout << "LL1 Optimization Steps\n";
+
+	std::cout << "Step 0: UnitRulesDeleter\n";
+	PrintGrammar::PrintRules(rules, "Before UnitRulesDeleter:");
+	rules = UnitRulesDeleter(std::move(rules)).DeleteUnitRules();
+	PrintGrammar::PrintRules(rules, "After UnitRulesDeleter:");
+
+	std::cout << "Step 1: ProductiveRulesFilter\n";
+	rules = ProductiveRulesFilter(std::move(rules)).FilterUnproductiveRules();
+	PrintGrammar::PrintRules(rules, "After ProductiveRulesFilter:");
+
+	std::cout << "Step 2: ReachableRulesFilter\n";
+	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
+	PrintGrammar::PrintRules(rules, "After ReachableRulesFilter:");
+
+	std::cout << "Step 3: LeftRecursionEliminator\n";
+	rules = LeftRecursionEliminator(std::move(rules)).Eliminate();
+	PrintGrammar::PrintRules(rules, "After LeftRecursionEliminator:");
+
+	std::cout << "Step 4: LeftFactorizer\n";
+	rules = LeftFactorizer(std::move(rules)).Factorize();
+	PrintGrammar::PrintRules(rules, "After LeftFactorizer:");
+
+	std::cout << "Step 5: ReachableRulesFilter (cleanup)\n";
+	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
+	PrintGrammar::PrintRules(rules, "Final Grammar:");
 
 	return rules;
 }

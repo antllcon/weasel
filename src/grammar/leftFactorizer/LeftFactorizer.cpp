@@ -18,7 +18,7 @@ bool IsValidPrefixSymbol(const std::string& symbol)
 	return symbol != EMPTY_SYMBOL;
 }
 
-raw::Alternative FindLongestCommonPrefix(const raw::Alternatives& alts)
+raw::Alternative FindLongestCommonPrefix(const raw::Alternatives& alts, const std::string&)
 {
 	raw::Alternative bestPrefix;
 
@@ -66,6 +66,13 @@ bool StartsWith(const raw::Alternative& alt, const raw::Alternative& prefix)
 std::string GenerateUniqueName(const std::string& baseName, const raw::Rules& existingRules, const raw::Rules& newRules)
 {
 	std::string candidate = baseName;
+
+	auto isBaseTaken = [&baseName](const raw::Rule& r) { return r.name == baseName; };
+	if (!std::ranges::any_of(existingRules, isBaseTaken) && !std::ranges::any_of(newRules, isBaseTaken))
+	{
+		return baseName;
+	}
+
 	while (true)
 	{
 		if (!candidate.empty() && candidate.back() == '>')
@@ -85,9 +92,19 @@ std::string GenerateUniqueName(const std::string& baseName, const raw::Rules& ex
 	}
 }
 
+bool HasCommonPrefix(const raw::Alternatives& alts)
+{
+	return !FindLongestCommonPrefix(alts, "").empty();
+}
+
 bool FactorizeOnce(raw::Rule& rule, const raw::Rules& allRules, raw::Rules& newRules)
 {
-	raw::Alternative prefix = FindLongestCommonPrefix(rule.alternatives);
+	if (!HasCommonPrefix(rule.alternatives))
+	{
+		return false;
+	}
+
+	raw::Alternative prefix = FindLongestCommonPrefix(rule.alternatives, rule.name);
 	if (prefix.empty())
 	{
 		return false;
@@ -108,7 +125,7 @@ bool FactorizeOnce(raw::Rule& rule, const raw::Rules& allRules, raw::Rules& newR
 		}
 	}
 
-	const std::string primeName = GenerateUniqueName(rule.name, allRules, newRules);
+	const std::string primeName = GenerateUniqueName(rule.name + "'", allRules, newRules);
 	raw::Rule primeRule{primeName, {}};
 
 	for (auto& alt : factoredAlts)
@@ -119,18 +136,32 @@ bool FactorizeOnce(raw::Rule& rule, const raw::Rules& allRules, raw::Rules& newR
 			suffix.push_back(EMPTY_SYMBOL);
 		}
 
-		if (std::ranges::find(primeRule.alternatives, suffix) == primeRule.alternatives.end())
+		bool isDuplicate = false;
+		for (const auto& existing : primeRule.alternatives)
+		{
+			if (existing == suffix)
+			{
+				isDuplicate = true;
+				break;
+			}
+		}
+
+		if (!isDuplicate)
 		{
 			primeRule.alternatives.push_back(std::move(suffix));
 		}
 	}
 
-	raw::Alternative newAlt = std::move(prefix);
+	raw::Alternative newAlt = prefix;
 	newAlt.push_back(primeName);
 	remainingAlts.push_back(std::move(newAlt));
 
 	rule.alternatives = std::move(remainingAlts);
-	newRules.push_back(std::move(primeRule));
+
+	if (!primeRule.alternatives.empty())
+	{
+		newRules.push_back(std::move(primeRule));
+	}
 
 	return true;
 }
@@ -147,11 +178,14 @@ raw::Rules LeftFactorizer::Factorize()
 
 	raw::Rules result = std::move(m_rules);
 	bool changed = true;
+	size_t iterationCount = 0;
+	const size_t MAX_ITERATIONS = 1000;
 
-	while (changed)
+	while (changed && iterationCount < MAX_ITERATIONS)
 	{
 		changed = false;
 		raw::Rules newRules;
+		++iterationCount;
 
 		for (auto& rule : result)
 		{
@@ -165,6 +199,11 @@ raw::Rules LeftFactorizer::Factorize()
 		{
 			result.push_back(std::move(newRule));
 		}
+	}
+
+	if (iterationCount >= MAX_ITERATIONS)
+	{
+		throw std::runtime_error("Левая факторизация: превышено максимальное количество итераций");
 	}
 
 	return result;

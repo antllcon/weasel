@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <vector>
 
+enum class ActionType;
 inline const std::string END_SYMBOL = "#";
 inline const std::string EMPTY_SYMBOL = "e";
 
@@ -57,12 +58,6 @@ struct GrammarEntry
 };
 
 using GrammarEntriesSet = std::unordered_set<GrammarEntry, GrammarEntry::Hasher>;
-
-enum class ActionType
-{
-	Shift,
-	Rule
-};
 
 struct Action
 {

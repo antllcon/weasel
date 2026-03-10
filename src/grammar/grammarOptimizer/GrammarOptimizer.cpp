@@ -61,6 +61,40 @@ std::vector<OptimizationFlags> GetOptimizationProfiles()
 		OptimizationFlags::DeleteUnitRules | OptimizationFlags::FilterUnreachable | OptimizationFlags::FilterUnproductive | OptimizationFlags::EliminateLeftRecursion | OptimizationFlags::LeftFactorize,
 		OptimizationFlags::DeleteEmptyRules | OptimizationFlags::DeleteUnitRules | OptimizationFlags::FilterUnreachable | OptimizationFlags::FilterUnproductive | OptimizationFlags::EliminateLeftRecursion | OptimizationFlags::LeftFactorize};
 }
+
+std::vector<OptimizationFlags> GenerateAllFlagCombinations()
+{
+	constexpr OptimizationFlags allFlags[] = {
+		OptimizationFlags::DeleteEmptyRules,
+		OptimizationFlags::DeleteUnitRules,
+		OptimizationFlags::FilterUnproductive,
+		OptimizationFlags::FilterUnreachable,
+		OptimizationFlags::EliminateLeftRecursion,
+		OptimizationFlags::LeftFactorize};
+
+	constexpr size_t flagCount = sizeof(allFlags) / sizeof(allFlags[0]);
+
+	std::vector<OptimizationFlags> combinations;
+
+	const uint32_t total = 1u << flagCount;
+
+	for (uint32_t mask = 0; mask < total; ++mask)
+	{
+		uint32_t value = 0;
+
+		for (size_t i = 0; i < flagCount; ++i)
+		{
+			if (mask & (1u << i))
+			{
+				value |= static_cast<uint32_t>(allFlags[i]);
+			}
+		}
+
+		combinations.push_back(static_cast<OptimizationFlags>(value));
+	}
+
+	return combinations;
+}
 } // namespace
 
 namespace GrammarOptimizer
@@ -111,17 +145,28 @@ AutoOptimizationResult FindBestLL1(const raw::Rules& rules, const std::string& s
 {
 	AssertIsStartSymbolPresent(rules, startSymbol);
 
-	const std::vector<OptimizationFlags> profiles = GetOptimizationProfiles();
+	if (IsGrammarValidLL1(rules, startSymbol))
+	{
+		return {true, OptimizationFlags::None, rules};
+	}
 
-	for (const auto flags : profiles)
+	std::vector<OptimizationFlags> combinations = GenerateAllFlagCombinations();
+
+	for (OptimizationFlags flags : combinations)
 	{
 		raw::Rules optimized = Optimize(rules, startSymbol, flags);
+
+		if (optimized.empty())
+		{
+			continue;
+		}
+
 		if (IsGrammarValidLL1(optimized, startSymbol))
 		{
 			return {true, flags, std::move(optimized)};
 		}
 	}
 
-	return {false, OptimizationFlags::None, {}};
+	return {false, OptimizationFlags::None, rules};
 }
 } // namespace GrammarOptimizer

@@ -67,13 +67,23 @@ int main()
 
 		const std::string startSymbol = "S";
 
+		// raw::Rules rawRules = {
+		// 	MakeRule("S", {{"E", "#"}}),
+		// 	MakeRule("E", {{"E", "+", "T"}, {"E", "-", "T"}, {"T"}}),
+		// 	MakeRule("T", {{"T", "*", "F"}, {"T", "/", "F"}, {"F"}}),
+		// 	MakeRule("F", {{"I"}, {"I", "^", "N"}, {"(", "E", ")"}}),
+		// 	MakeRule("I", {{"a"}, {"b"}, {"c"}, {"d"}}),
+		// 	MakeRule("N", {{"2"}, {"3"}, {"4"}})};
+		//
+		// raw::Rules rawRules = {
+		// 	MakeRule("S", {{"S", "a", "A", "b"}, {"S", "b"}, {"b", "A", "B", "a"}}),
+		// 	MakeRule("A", {{"a", "c", "A", "b"}, {"c", "A"}, {"e"}}),
+		// 	MakeRule("B", {{"b", "B"}, {"e"}})};
+
 		raw::Rules rawRules = {
-			MakeRule("S", {{"E", "#"}}),
-			MakeRule("E", {{"E", "+", "T"}, {"E", "-", "T"}, {"T"}}),
-			MakeRule("T", {{"T", "*", "F"}, {"T", "/", "F"}, {"F"}}),
-			MakeRule("F", {{"I"}, {"I", "^", "N"}, {"(", "E", ")"}}),
-			MakeRule("I", {{"a"}, {"b"}, {"c"}, {"d"}}),
-			MakeRule("N", {{"2"}, {"3"}, {"4"}})};
+			MakeRule("S", {{"f", "A", "S", "d"}, {"e"}}),
+			MakeRule("A", {{"A", "a"}, {"A", "b"}, {"d", "B"}, {"f"}}),
+			MakeRule("B", {{"b", "c", "B"}, {"A"}})};
 
 		PrintRules(rawRules, "Исходная грамматика:");
 
@@ -85,18 +95,18 @@ int main()
 
 		if (result.isFound)
 		{
-			std::cout << "[Result] Это LL(1) грамматика" << std::endl;
-
 			GuideSetsCalculator calculator(result.rules, startSymbol);
 			Rules rulesWithGuides = calculator.Calculate();
 
 			Ll1TableBuilder tableBuilder(rulesWithGuides);
 			const auto ll1Table = tableBuilder.Build();
 			Ll1TablePrinter::Print(ll1Table);
+
+			std::cout << "[Result] Это LL(1) грамматика" << std::endl;
 		}
 		else
 		{
-			std::cout << "[Result]Это не LL(1) грамматика" << std::endl;
+			std::cout << "[Result] Это не LL(1) грамматика" << std::endl;
 		}
 	}
 	catch (const std::exception& e)

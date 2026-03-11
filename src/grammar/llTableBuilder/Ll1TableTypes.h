@@ -6,12 +6,12 @@
 struct Ll1TableRow
 {
 	size_t index;
-	std::string guideSet;
-	bool shift;
-	std::optional<size_t> transition;
-	bool stack;
+	std::string name;
+	std::string guides;
 	bool error;
-	bool finalState;
+	std::optional<size_t> transition;
+	bool shift;
+	bool stack;
 };
 
 using Ll1Table = std::vector<Ll1TableRow>;

@@ -1,0 +1,3 @@
+S   ->  aAb #
+A   ->  cBd
+B   ->  e   |   fBg |   k

@@ -3,29 +3,29 @@
 
 \documentclass[12pt, a4paper]{article}
 
-% --- 1. Язык и шрифты ---
+%  1. Язык и шрифты
 \usepackage{fontspec}
-\setmainfont{Times New Roman} % Требует XeLaTeX
+\setmainfont{Times New Roman}
 \usepackage[russian]{babel}
 
-% --- 2. Поля и интервалы ---
+%  2. Поля и интервалы
 \usepackage[left=3cm, right=1.5cm, top=2cm, bottom=2cm]{geometry}
 \usepackage{setspace}
-\onehalfspacing % Полуторный интервал
+\onehalfspacing
 
-% --- 3. Абзацы ---
-\usepackage{indentfirst} % Отступ у первого абзаца
-\setlength{\parindent}{1.25cm} % Абзацный отступ 1.25 см
+%  3. Абзацы
+\usepackage{indentfirst}
+\setlength{\parindent}{1.25cm}
 
-% --- 4. Заголовки (пакет titlesec) ---
+%  4. Заголовки (пакет titlesec)
 \usepackage{titlesec}
 \usepackage{titletoc}
 
-% Настройка нумерованных разделов (с абзацного отступа, полужирный, без точки)
+% Настройка нумерованных разделов
 \titleformat{\section}[block]{\hspace{1.25cm}\bfseries\large}{\thesection}{1em}{}
 \titleformat{\subsection}[block]{\hspace{1.25cm}\bfseries\normalsize}{\thesubsection}{1em}{}
 
-% Команда для структурных элементов (Введение, Заключение и т.д. - по центру, капсом)
+% Команда для структурных элементов
 \newcommand{\structsection}[1]{
     \newpage
     \addcontentsline{toc}{section}{#1}
@@ -35,12 +35,12 @@
     \par\vspace{1em}
 }
 
-% --- 5. Оформление сносок ---
-\renewcommand{\footnotesize}{\fontsize{10pt}{12pt}\selectfont} % Сноски 10 пт
-\setlength{\footnotemargin}{1.25cm} % Отступ сноски (требует \usepackage[hang]{footmisc})
+%  5. Оформление сносок
 \usepackage[hang]{footmisc}
+\renewcommand{\footnotesize}{\fontsize{10pt}{12pt}\selectfont}
+\setlength{\footnotemargin}{1.25cm}
 
-% --- 6. Приложения ---
+%  6. Приложения
 \newcommand{\appendixsection}[2]{
     \newpage
     \begin{center}
@@ -52,35 +52,8 @@
     \par\vspace{1em}
 }
 
-\newpage
-\addcontentsline{toc}{section}{СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ}
-\begin{center}
-    \MakeUppercase{Список использованных источников}
-\end{center}
-\par\vspace{1em}
-
-% Вывод списка без стандартного заголовка biblatex
-\printbibliography[heading=none]
-
-% --- 7. Библиография (ГОСТ) ---
-\usepackage{csquotes} % Обязательно для работы biblatex с кавычками
-\usepackage[
-    backend=biber,
-    style=gost-numeric,
-    language=auto,
-    autolang=other,
-    sorting=ntvy,      % Сортировка: сначала русские, потом английские (по алфавиту)
-    doi=false,         % Скрытие лишних полей для чистоты
-    isbn=false,
-    url=false
-]{biblatex}
-
-% Подключение файла с библиографией
-\addbibresource{references.bib}
-
 \begin{document}
 
-% ================= ТИТУЛЬНЫЙ ЛИСТ =================
     \begin{titlepage}
         \begin{center}
             Автономная некоммерческая организация высшего образования \\
@@ -124,24 +97,22 @@
             \the\year
         \end{center}
     \end{titlepage}
-% ==================================================
 
-% Сброс счетчика страниц (титульный лист - это страница 1, но номер не ставится)
     \setcounter{page}{2}
 
-% ================= СОДЕРЖАНИЕ =====================
     \newpage
     \addcontentsline{toc}{section}{СОДЕРЖАНИЕ}
     \begin{center}
         СОДЕРЖАНИЕ
     \end{center}
     \tableofcontents
-% ==================================================
 
     \structsection{Введение}
     Текст введения. Здесь описывается актуальность, цель и задачи курсового проекта. Обратите внимание на абзацный отступ, который применяется автоматически ко всем абзацам.
 
     \newpage
+
+
     \section{Аналитическая часть}
     Описание используемых методов при разработке собственного языка программирования\footnote{Пример пояснения, оформленного в виде сноски 10 пт.}.
 
@@ -149,18 +120,14 @@
     Текст подраздела. Форматирование подразделов идет с абзацного отступа, полужирным шрифтом без точки в конце.
 
     \newpage
+
+
     \section{Техническая часть}
     Описание особенностей реализации программного продукта. Ссылки на литературу оформляются в квадратных скобках [1].
 
     \structsection{Заключение}
     В заключении подводятся итоги выполненной работы, описываются возникшие проблемы и степень их проработанности.
 
-    \structsection{Список использованных источников}
-    \begin{enumerate}
-        \item Фамилия И.О. Название книги. — М.: Издательство, 2023. — 123 с.
-    \end{enumerate}
-
-% ================= ПРИЛОЖЕНИЯ =====================
     \appendixsection{А}{Листинг кода}
     Здесь могут быть приведены схемы, оригинальные фрагменты кода и т.п.
 

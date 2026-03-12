@@ -1,9 +1,8 @@
 #pragma once
-
+#include "src/grammar/llTableBuilder/Ll1TableTypes.h"
 #include <string>
 #include <vector>
 
-struct ParseTableRow;
 struct ParseStep
 {
 	size_t stepNumber;
@@ -15,10 +14,10 @@ struct ParseStep
 class Ll1Parser
 {
 public:
-	Ll1Parser(std::vector<ParseTableRow> tableRows, std::string startSymbol);
-	std::vector<ParseStep> Parse(const std::vector<std::string>& tokens);
+	Ll1Parser(Ll1Table table, std::string startSymbol);
+	[[nodiscard]] std::vector<ParseStep> Parse(const std::vector<std::string>& tokens) const;
 
 private:
-	std::vector<ParseTableRow> m_rows;
+	Ll1Table m_table;
 	std::string m_start;
 };

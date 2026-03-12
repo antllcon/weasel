@@ -46,7 +46,7 @@ void Ll1TablePrinter::Print(const Ll1Table& table)
 	PrintSeparator();
 
 	std::cout << "|";
-	PrintCell("№     ", COL_INDEX);
+	PrintCell("№       ", COL_INDEX);
 	PrintCell("Rule ", COL_NAME);
 	PrintCell("Guide", COL_GUIDES);
 	PrintCell("Error", COL_ERROR);

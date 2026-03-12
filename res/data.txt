@@ -1,3 +1,11 @@
-S   ->  aAb #
-A   ->  cBd
-B   ->  e   |   fBg |   k
+Z -> S #
+S -> P = E | i E t S A
+A -> l S | e
+P -> I B
+B -> ( E ) | e
+E -> T C
+C -> + T C | e
+T -> F D
+D -> * F D | e
+F -> P | ( E )
+I -> a | b

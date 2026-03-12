@@ -5,8 +5,11 @@
 #include "grammar/llTableBuilder/Ll1TablePrinter.h"
 #include "grammar/parser/GrammarParser.h"
 #include "grammar/printGrammar/PrintGrammar.h"
+#include "grammar/tableBilder/Ll1Parser.h"
+#include "grammar/tableBilder/ParseStepsPrinter.h"
 #include <iostream>
 #include <string>
+#include <vector>
 #include <windows.h>
 
 using namespace PrintGrammar;
@@ -30,22 +33,25 @@ int main()
 		PrintAppliedOptimizations(result.flags);
 		PrintRules(result.rules, "Итоговая грамматика:");
 
-		if (result.isFound)
-		{
-			GuideSetsCalculator calculator(result.rules, startSymbol);
-			Rules rulesWithGuides = calculator.Calculate();
-			PrintRulesWithGuides(rulesWithGuides, "Направляющие множества грамматик:");
+		GuideSetsCalculator calculator(result.rules, startSymbol);
+		Rules rulesWithGuides = calculator.Calculate();
+		PrintRulesWithGuides(rulesWithGuides, "Направляющие множества грамматик:");
 
-			Ll1TableBuilder tableBuilder(rulesWithGuides);
-			const auto ll1Table = tableBuilder.Build();
-			Ll1TablePrinter::Print(ll1Table);
+		Ll1TableBuilder tableBuilder(rulesWithGuides);
+		const auto ll1Table = tableBuilder.Build();
+		Ll1TablePrinter::Print(ll1Table);
 
-			std::cout << "[Result] Это LL(1) грамматика" << std::endl;
-		}
-		else
+		std::string inputLine = "i(a)ta=b#";
+		std::vector<std::string> tokens;
+		for (char c : inputLine)
 		{
-			std::cout << "[Result] Это не LL(1) грамматика" << std::endl;
+			tokens.push_back(std::string(1, c));
 		}
+
+		Ll1Parser parser(ll1Table, startSymbol);
+		auto steps = parser.Parse(tokens);
+
+		ParseStepsPrinter::Print(steps, inputLine);
 	}
 	catch (const std::exception& e)
 	{

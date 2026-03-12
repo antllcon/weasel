@@ -52,9 +52,6 @@ std::vector<ParseTableRow> TableBuilder::BuildDetailed() const
 		headerIndex[rule.name] = header.idx;
 	}
 
-	// ---------- ШАГ 2 ----------
-	// строим RHS цепочки
-
 	for (size_t r = 0; r < m_rules.size(); ++r)
 	{
 		const auto& rule = m_rules[r];
@@ -69,7 +66,6 @@ std::vector<ParseTableRow> TableBuilder::BuildDetailed() const
 			size_t firstRhs = SIZE_MAX;
 			size_t prevRhs = SIZE_MAX;
 
-			// ε правило
 			if (alt.rule.size() == 1 && IsEmptySymbol(alt.rule[0]))
 			{
 				ParseTableRow row;

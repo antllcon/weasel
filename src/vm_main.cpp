@@ -1,7 +1,7 @@
 #include "diagnostics/CompilationException.h"
 #include "logger/logger/ConsoleLogger.h"
+#include "logger/timer/ScopedTimer.h"
 #include "src/console/ConsoleEncoding.h"
-#include "timer/ScopedTimer.h"
 #include "vm/assembler/TextAssembler.h"
 #include "vm/exception/BackendException.h"
 #include "vm/exception/VmException.h"
@@ -27,8 +27,8 @@ void PrintResult(const VirtualMachine& vm)
 	{
 		const Value topValue = vm.Peek(0);
 
-		std::cout << "[Result]\tRaw:    " << topValue.AsRaw() << std::endl;
-		std::cout << "        \tDouble: " << topValue.As<double>() << std::endl;
+		std::cout << "[Result]\tRaw:\t" << topValue.AsRaw() << std::endl;
+		std::cout << "        \tDouble:\t" << topValue.As<double>() << std::endl;
 	}
 	catch (const std::exception&)
 	{
@@ -82,12 +82,12 @@ void RunPipeline(std::filesystem::path filePath)
 
 int main(int argc, char* argv[])
 {
-	auto logger = std::make_shared<ConsoleLogger>(true);
+	auto logger = std::make_shared<ConsoleLogger>(true, false);
 
 	try
 	{
 		SetConsoleOutputCP(CP_UTF8);
-		ScopedTimer timer("Исполнение (VM)", std::cout);
+		ScopedTimer timer("Исполнение (VM)", logger);
 
 		AssertHasCorrectArgumentCount(argc);
 

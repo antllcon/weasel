@@ -1,3 +1,4 @@
+// src/vm/machine/VirtualMachine.cpp
 #include "VirtualMachine.h"
 #include <stdexcept>
 
@@ -44,6 +45,14 @@ void AssertIsStackDistanceValid(bool isValid)
 	}
 }
 
+void AssertIsImplemented(bool isImplemented)
+{
+	if (!isImplemented)
+	{
+		throw std::runtime_error("Инструкция еще не реализована в виртуальной машине");
+	}
+}
+
 uint8_t ReadByte(ExecutionContext& context)
 {
 	AssertIsIpValid(context.m_ip < context.m_chunk.GetCode().size());
@@ -77,6 +86,27 @@ void ExecuteAddDoubleInstruction(const ExecutionContext& context)
 	Push(context, Value(lhs + rhs));
 }
 
+void ExecuteSubtractDoubleInstruction(const ExecutionContext& context)
+{
+	const double rhs = Pop(context).AsDouble();
+	const double lhs = Pop(context).AsDouble();
+	Push(context, Value(lhs - rhs));
+}
+
+void ExecuteMultiplyDoubleInstruction(const ExecutionContext& context)
+{
+	const double rhs = Pop(context).AsDouble();
+	const double lhs = Pop(context).AsDouble();
+	Push(context, Value(lhs * rhs));
+}
+
+void ExecuteDivideDoubleInstruction(const ExecutionContext& context)
+{
+	const double rhs = Pop(context).AsDouble();
+	const double lhs = Pop(context).AsDouble();
+	Push(context, Value(lhs / rhs));
+}
+
 void ExecuteAddSingleInstruction(const ExecutionContext& context)
 {
 	const float rhs = Pop(context).AsSingle();
@@ -84,11 +114,32 @@ void ExecuteAddSingleInstruction(const ExecutionContext& context)
 	Push(context, Value(lhs + rhs));
 }
 
+void ExecuteSubtractSingleInstruction(const ExecutionContext& context)
+{
+	const float rhs = Pop(context).AsSingle();
+	const float lhs = Pop(context).AsSingle();
+	Push(context, Value(lhs - rhs));
+}
+
+void ExecuteMultiplySingleInstruction(const ExecutionContext& context)
+{
+	const float rhs = Pop(context).AsSingle();
+	const float lhs = Pop(context).AsSingle();
+	Push(context, Value(lhs * rhs));
+}
+
+void ExecuteDivideSingleInstruction(const ExecutionContext& context)
+{
+	const float rhs = Pop(context).AsSingle();
+	const float lhs = Pop(context).AsSingle();
+	Push(context, Value(lhs / rhs));
+}
+
 void ExecuteAddSNumberInstruction(const ExecutionContext& context)
 {
 	const int32_t rhs = Pop(context).AsSNumber();
 	const int32_t lhs = Pop(context).AsSNumber();
-	Push(context, Value(lhs + rhs));
+	Push(context, Value(static_cast<int32_t>(static_cast<uint32_t>(lhs) + static_cast<uint32_t>(rhs))));
 }
 
 void Run(ExecutionContext& context)
@@ -107,12 +158,42 @@ void Run(ExecutionContext& context)
 			ExecuteAddDoubleInstruction(context);
 			break;
 		}
+		case OpCode::SubtractDouble: {
+			ExecuteSubtractDoubleInstruction(context);
+			break;
+		}
+		case OpCode::MultiplyDouble: {
+			ExecuteMultiplyDoubleInstruction(context);
+			break;
+		}
+		case OpCode::DivideDouble: {
+			ExecuteDivideDoubleInstruction(context);
+			break;
+		}
 		case OpCode::AddSingle: {
 			ExecuteAddSingleInstruction(context);
 			break;
 		}
+		case OpCode::SubtractSingle: {
+			ExecuteSubtractSingleInstruction(context);
+			break;
+		}
+		case OpCode::MultiplySingle: {
+			ExecuteMultiplySingleInstruction(context);
+			break;
+		}
+		case OpCode::DivideSingle: {
+			ExecuteDivideSingleInstruction(context);
+			break;
+		}
 		case OpCode::AddSNumber: {
 			ExecuteAddSNumberInstruction(context);
+			break;
+		}
+		case OpCode::BitAndULittle:
+		case OpCode::Jump:
+		case OpCode::JumpIfFalse: {
+			AssertIsImplemented(false);
 			break;
 		}
 		case OpCode::Return: {

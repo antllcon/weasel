@@ -68,6 +68,17 @@ uint8_t ReadByte(ExecutionContext& context)
 	return context.m_chunk.GetCode()[context.m_ip++];
 }
 
+uint32_t ReadUint32(ExecutionContext& context)
+{
+	AssertIsIpValid(context.m_ip + 3 < context.m_chunk.GetCode().size());
+	uint32_t value = 0;
+	value |= static_cast<uint32_t>(context.m_chunk.GetCode()[context.m_ip++]);
+	value |= static_cast<uint32_t>(context.m_chunk.GetCode()[context.m_ip++]) << 8;
+	value |= static_cast<uint32_t>(context.m_chunk.GetCode()[context.m_ip++]) << 16;
+	value |= static_cast<uint32_t>(context.m_chunk.GetCode()[context.m_ip++]) << 24;
+	return value;
+}
+
 void Push(const ExecutionContext& context, const Value& value)
 {
 	context.m_stack.push_back(value);
@@ -207,10 +218,55 @@ void ExecuteConstantInstruction(ExecutionContext& context)
 	Push(context, constant);
 }
 
-void ExecuteDupInstruction(ExecutionContext& context)
+void ExecuteDupInstruction(const ExecutionContext& context)
 {
 	AssertIsStackNotEmpty(context.m_stack.empty());
 	Push(context, context.m_stack.back());
+}
+
+void ExecuteLoadLocalInstruction(ExecutionContext& context)
+{
+	const uint32_t index = ReadUint32(context);
+	AssertIsStackDistanceValid(index < context.m_stack.size());
+	Push(context, context.m_stack[index]);
+}
+
+void ExecuteStoreLocalInstruction(ExecutionContext& context)
+{
+	const uint32_t index = ReadUint32(context);
+	AssertIsStackDistanceValid(index < context.m_stack.size());
+	context.m_stack[index] = Pop(context);
+}
+
+void ExecuteJumpInstruction(ExecutionContext& context)
+{
+	const uint32_t targetIp = ReadUint32(context);
+	AssertIsIpValid(targetIp < context.m_chunk.GetCode().size());
+	context.m_ip = targetIp;
+}
+
+void ExecuteJumpIfFalseInstruction(ExecutionContext& context)
+{
+	const uint32_t targetIp = ReadUint32(context);
+	AssertIsIpValid(targetIp <= context.m_chunk.GetCode().size());
+	const bool condition = Pop(context).As<bool>();
+
+	if (!condition)
+	{
+		context.m_ip = targetIp;
+	}
+}
+
+void ExecuteJumpIfTrueInstruction(ExecutionContext& context)
+{
+	const uint32_t targetIp = ReadUint32(context);
+	AssertIsIpValid(targetIp <= context.m_chunk.GetCode().size());
+	const bool condition = Pop(context).As<bool>();
+
+	if (condition)
+	{
+		context.m_ip = targetIp;
+	}
 }
 
 void Run(ExecutionContext& context)
@@ -438,10 +494,21 @@ void Run(ExecutionContext& context)
 			break;
 
 		case OpCode::LoadLocal:
+			ExecuteLoadLocalInstruction(context);
+			break;
 		case OpCode::StoreLocal:
+			ExecuteStoreLocalInstruction(context);
+			break;
 		case OpCode::Jump:
+			ExecuteJumpInstruction(context);
+			break;
 		case OpCode::JumpIfFalse:
+			ExecuteJumpIfFalseInstruction(context);
+			break;
 		case OpCode::JumpIfTrue:
+			ExecuteJumpIfTrueInstruction(context);
+			break;
+
 		case OpCode::Call:
 			AssertIsImplemented(false);
 			break;

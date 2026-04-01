@@ -9,6 +9,7 @@ class Chunk
 {
 public:
 	void WriteByte(uint8_t byte, uint32_t line);
+	void WriteUint32(uint32_t value, uint32_t line);
 	void WriteOpCode(OpCode code, uint32_t line);
 	uint8_t AddConstant(Value value);
 	uint8_t AddString(const std::string& text);

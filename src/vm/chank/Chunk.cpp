@@ -34,6 +34,14 @@ void Chunk::WriteByte(uint8_t byte, uint32_t line)
 	m_lines.push_back(line);
 }
 
+void Chunk::WriteUint32(uint32_t value, uint32_t line)
+{
+	WriteByte(static_cast<uint8_t>(value & 0xFF), line);
+	WriteByte(static_cast<uint8_t>(value >> 8 & 0xFF), line);
+	WriteByte(static_cast<uint8_t>(value >> 16 & 0xFF), line);
+	WriteByte(static_cast<uint8_t>(value >> 24 & 0xFF), line);
+}
+
 void Chunk::WriteOpCode(OpCode code, uint32_t line)
 {
 	m_code.push_back(static_cast<uint8_t>(code));

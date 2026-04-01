@@ -1,6 +1,7 @@
-// src/vm/machine/VirtualMachine.cpp
 #include "VirtualMachine.h"
+#include <cmath>
 #include <stdexcept>
+#include <type_traits>
 
 namespace
 {
@@ -53,6 +54,14 @@ void AssertIsImplemented(bool isImplemented)
 	}
 }
 
+void AssertIsNotDivisionByZero(bool isZero)
+{
+	if (isZero)
+	{
+		throw std::runtime_error("Деление на ноль");
+	}
+}
+
 uint8_t ReadByte(ExecutionContext& context)
 {
 	AssertIsIpValid(context.m_ip < context.m_chunk.GetCode().size());
@@ -72,6 +81,125 @@ Value Pop(const ExecutionContext& context)
 	return value;
 }
 
+template <typename T>
+void ExecuteAdd(const ExecutionContext& context)
+{
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	Push(context, Value(static_cast<T>(lhs + rhs)));
+}
+
+template <typename T>
+void ExecuteSub(const ExecutionContext& context)
+{
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	Push(context, Value(static_cast<T>(lhs - rhs)));
+}
+
+template <typename T>
+void ExecuteMul(const ExecutionContext& context)
+{
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	Push(context, Value(static_cast<T>(lhs * rhs)));
+}
+
+template <typename T>
+void ExecuteDiv(const ExecutionContext& context)
+{
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	AssertIsNotDivisionByZero(rhs == 0);
+	Push(context, Value(static_cast<T>(lhs / rhs)));
+}
+
+template <typename T>
+void ExecuteRem(const ExecutionContext& context)
+{
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	AssertIsNotDivisionByZero(rhs == 0);
+
+	if constexpr (std::is_floating_point_v<T>)
+	{
+		Push(context, Value(static_cast<T>(std::fmod(lhs, rhs))));
+	}
+	else
+	{
+		Push(context, Value(static_cast<T>(lhs % rhs)));
+	}
+}
+
+template <typename T>
+void ExecuteEq(const ExecutionContext& context)
+{
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	Push(context, Value(lhs == rhs));
+}
+
+template <typename T>
+void ExecuteLt(const ExecutionContext& context)
+{
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	Push(context, Value(lhs < rhs));
+}
+
+template <typename T>
+void ExecuteBitAnd(const ExecutionContext& context)
+{
+	static_assert(std::is_integral_v<T>);
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	Push(context, Value(static_cast<T>(lhs & rhs)));
+}
+
+template <typename T>
+void ExecuteBitOr(const ExecutionContext& context)
+{
+	static_assert(std::is_integral_v<T>);
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	Push(context, Value(static_cast<T>(lhs | rhs)));
+}
+
+template <typename T>
+void ExecuteBitXor(const ExecutionContext& context)
+{
+	static_assert(std::is_integral_v<T>);
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	Push(context, Value(static_cast<T>(lhs ^ rhs)));
+}
+
+template <typename T>
+void ExecuteBitNot(const ExecutionContext& context)
+{
+	static_assert(std::is_integral_v<T>);
+	const T operand = Pop(context).As<T>();
+	Push(context, Value(static_cast<T>(~operand)));
+}
+
+template <typename T>
+void ExecuteShl(const ExecutionContext& context)
+{
+	static_assert(std::is_integral_v<T>);
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	Push(context, Value(static_cast<T>(lhs << rhs)));
+}
+
+template <typename T>
+void ExecuteShr(const ExecutionContext& context)
+{
+	static_assert(std::is_integral_v<T>);
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	Push(context, Value(static_cast<T>(lhs >> rhs)));
+}
+
 void ExecuteConstantInstruction(ExecutionContext& context)
 {
 	const uint8_t index = ReadByte(context);
@@ -79,67 +207,10 @@ void ExecuteConstantInstruction(ExecutionContext& context)
 	Push(context, constant);
 }
 
-void ExecuteAddDoubleInstruction(const ExecutionContext& context)
+void ExecuteDupInstruction(ExecutionContext& context)
 {
-	const double rhs = Pop(context).AsDouble();
-	const double lhs = Pop(context).AsDouble();
-	Push(context, Value(lhs + rhs));
-}
-
-void ExecuteSubtractDoubleInstruction(const ExecutionContext& context)
-{
-	const double rhs = Pop(context).AsDouble();
-	const double lhs = Pop(context).AsDouble();
-	Push(context, Value(lhs - rhs));
-}
-
-void ExecuteMultiplyDoubleInstruction(const ExecutionContext& context)
-{
-	const double rhs = Pop(context).AsDouble();
-	const double lhs = Pop(context).AsDouble();
-	Push(context, Value(lhs * rhs));
-}
-
-void ExecuteDivideDoubleInstruction(const ExecutionContext& context)
-{
-	const double rhs = Pop(context).AsDouble();
-	const double lhs = Pop(context).AsDouble();
-	Push(context, Value(lhs / rhs));
-}
-
-void ExecuteAddSingleInstruction(const ExecutionContext& context)
-{
-	const float rhs = Pop(context).AsSingle();
-	const float lhs = Pop(context).AsSingle();
-	Push(context, Value(lhs + rhs));
-}
-
-void ExecuteSubtractSingleInstruction(const ExecutionContext& context)
-{
-	const float rhs = Pop(context).AsSingle();
-	const float lhs = Pop(context).AsSingle();
-	Push(context, Value(lhs - rhs));
-}
-
-void ExecuteMultiplySingleInstruction(const ExecutionContext& context)
-{
-	const float rhs = Pop(context).AsSingle();
-	const float lhs = Pop(context).AsSingle();
-	Push(context, Value(lhs * rhs));
-}
-
-void ExecuteDivideSingleInstruction(const ExecutionContext& context)
-{
-	const float rhs = Pop(context).AsSingle();
-	const float lhs = Pop(context).AsSingle();
-	Push(context, Value(lhs / rhs));
-}
-
-void ExecuteAddSNumberInstruction(const ExecutionContext& context)
-{
-	const int32_t rhs = Pop(context).AsSNumber();
-	const int32_t lhs = Pop(context).AsSNumber();
-	Push(context, Value(static_cast<int32_t>(static_cast<uint32_t>(lhs) + static_cast<uint32_t>(rhs))));
+	AssertIsStackNotEmpty(context.m_stack.empty());
+	Push(context, context.m_stack.back());
 }
 
 void Run(ExecutionContext& context)
@@ -150,58 +221,236 @@ void Run(ExecutionContext& context)
 
 		switch (instruction)
 		{
-		case OpCode::Constant: {
+		case OpCode::Constant:
 			ExecuteConstantInstruction(context);
 			break;
-		}
-		case OpCode::AddDouble: {
-			ExecuteAddDoubleInstruction(context);
+
+		case OpCode::AddI8:
+			ExecuteAdd<int8_t>(context);
 			break;
-		}
-		case OpCode::SubtractDouble: {
-			ExecuteSubtractDoubleInstruction(context);
+		case OpCode::AddU8:
+			ExecuteAdd<uint8_t>(context);
 			break;
-		}
-		case OpCode::MultiplyDouble: {
-			ExecuteMultiplyDoubleInstruction(context);
+		case OpCode::AddI16:
+			ExecuteAdd<int16_t>(context);
 			break;
-		}
-		case OpCode::DivideDouble: {
-			ExecuteDivideDoubleInstruction(context);
+		case OpCode::AddU16:
+			ExecuteAdd<uint16_t>(context);
 			break;
-		}
-		case OpCode::AddSingle: {
-			ExecuteAddSingleInstruction(context);
+		case OpCode::AddI32:
+			ExecuteAdd<int32_t>(context);
 			break;
-		}
-		case OpCode::SubtractSingle: {
-			ExecuteSubtractSingleInstruction(context);
+		case OpCode::AddU32:
+			ExecuteAdd<uint32_t>(context);
 			break;
-		}
-		case OpCode::MultiplySingle: {
-			ExecuteMultiplySingleInstruction(context);
+		case OpCode::AddI64:
+			ExecuteAdd<int64_t>(context);
 			break;
-		}
-		case OpCode::DivideSingle: {
-			ExecuteDivideSingleInstruction(context);
+		case OpCode::AddU64:
+			ExecuteAdd<uint64_t>(context);
 			break;
-		}
-		case OpCode::AddSNumber: {
-			ExecuteAddSNumberInstruction(context);
+		case OpCode::AddF32:
+			ExecuteAdd<float>(context);
 			break;
-		}
-		case OpCode::BitAndULittle:
+		case OpCode::AddF64:
+			ExecuteAdd<double>(context);
+			break;
+
+		case OpCode::SubI8:
+			ExecuteSub<int8_t>(context);
+			break;
+		case OpCode::SubU8:
+			ExecuteSub<uint8_t>(context);
+			break;
+		case OpCode::SubI16:
+			ExecuteSub<int16_t>(context);
+			break;
+		case OpCode::SubU16:
+			ExecuteSub<uint16_t>(context);
+			break;
+		case OpCode::SubI32:
+			ExecuteSub<int32_t>(context);
+			break;
+		case OpCode::SubU32:
+			ExecuteSub<uint32_t>(context);
+			break;
+		case OpCode::SubI64:
+			ExecuteSub<int64_t>(context);
+			break;
+		case OpCode::SubU64:
+			ExecuteSub<uint64_t>(context);
+			break;
+		case OpCode::SubF32:
+			ExecuteSub<float>(context);
+			break;
+		case OpCode::SubF64:
+			ExecuteSub<double>(context);
+			break;
+
+		case OpCode::MulI8:
+			ExecuteMul<int8_t>(context);
+			break;
+		case OpCode::MulU8:
+			ExecuteMul<uint8_t>(context);
+			break;
+		case OpCode::MulI16:
+			ExecuteMul<int16_t>(context);
+			break;
+		case OpCode::MulU16:
+			ExecuteMul<uint16_t>(context);
+			break;
+		case OpCode::MulI32:
+			ExecuteMul<int32_t>(context);
+			break;
+		case OpCode::MulU32:
+			ExecuteMul<uint32_t>(context);
+			break;
+		case OpCode::MulI64:
+			ExecuteMul<int64_t>(context);
+			break;
+		case OpCode::MulU64:
+			ExecuteMul<uint64_t>(context);
+			break;
+		case OpCode::MulF32:
+			ExecuteMul<float>(context);
+			break;
+		case OpCode::MulF64:
+			ExecuteMul<double>(context);
+			break;
+
+		case OpCode::DivI8:
+			ExecuteDiv<int8_t>(context);
+			break;
+		case OpCode::DivU8:
+			ExecuteDiv<uint8_t>(context);
+			break;
+		case OpCode::DivI16:
+			ExecuteDiv<int16_t>(context);
+			break;
+		case OpCode::DivU16:
+			ExecuteDiv<uint16_t>(context);
+			break;
+		case OpCode::DivI32:
+			ExecuteDiv<int32_t>(context);
+			break;
+		case OpCode::DivU32:
+			ExecuteDiv<uint32_t>(context);
+			break;
+		case OpCode::DivI64:
+			ExecuteDiv<int64_t>(context);
+			break;
+		case OpCode::DivU64:
+			ExecuteDiv<uint64_t>(context);
+			break;
+		case OpCode::DivF32:
+			ExecuteDiv<float>(context);
+			break;
+		case OpCode::DivF64:
+			ExecuteDiv<double>(context);
+			break;
+
+		case OpCode::EqI8:
+			ExecuteEq<int8_t>(context);
+			break;
+		case OpCode::EqU8:
+			ExecuteEq<uint8_t>(context);
+			break;
+		case OpCode::EqI16:
+			ExecuteEq<int16_t>(context);
+			break;
+		case OpCode::EqU16:
+			ExecuteEq<uint16_t>(context);
+			break;
+		case OpCode::EqI32:
+			ExecuteEq<int32_t>(context);
+			break;
+		case OpCode::EqU32:
+			ExecuteEq<uint32_t>(context);
+			break;
+		case OpCode::EqI64:
+			ExecuteEq<int64_t>(context);
+			break;
+		case OpCode::EqU64:
+			ExecuteEq<uint64_t>(context);
+			break;
+		case OpCode::EqF32:
+			ExecuteEq<float>(context);
+			break;
+		case OpCode::EqF64:
+			ExecuteEq<double>(context);
+			break;
+
+		case OpCode::LtI8:
+			ExecuteLt<int8_t>(context);
+			break;
+		case OpCode::LtU8:
+			ExecuteLt<uint8_t>(context);
+			break;
+		case OpCode::LtI16:
+			ExecuteLt<int16_t>(context);
+			break;
+		case OpCode::LtU16:
+			ExecuteLt<uint16_t>(context);
+			break;
+		case OpCode::LtI32:
+			ExecuteLt<int32_t>(context);
+			break;
+		case OpCode::LtU32:
+			ExecuteLt<uint32_t>(context);
+			break;
+		case OpCode::LtI64:
+			ExecuteLt<int64_t>(context);
+			break;
+		case OpCode::LtU64:
+			ExecuteLt<uint64_t>(context);
+			break;
+		case OpCode::LtF32:
+			ExecuteLt<float>(context);
+			break;
+		case OpCode::LtF64:
+			ExecuteLt<double>(context);
+			break;
+
+		case OpCode::BitAnd:
+			ExecuteBitAnd<uint64_t>(context);
+			break;
+		case OpCode::BitOr:
+			ExecuteBitOr<uint64_t>(context);
+			break;
+		case OpCode::BitXor:
+			ExecuteBitXor<uint64_t>(context);
+			break;
+		case OpCode::BitNot:
+			ExecuteBitNot<uint64_t>(context);
+			break;
+		case OpCode::Shl:
+			ExecuteShl<uint64_t>(context);
+			break;
+		case OpCode::Shr:
+			ExecuteShr<uint64_t>(context);
+			break;
+
+		case OpCode::Pop:
+			Pop(context);
+			break;
+		case OpCode::Dup:
+			ExecuteDupInstruction(context);
+			break;
+
+		case OpCode::LoadLocal:
+		case OpCode::StoreLocal:
 		case OpCode::Jump:
-		case OpCode::JumpIfFalse: {
+		case OpCode::JumpIfFalse:
+		case OpCode::JumpIfTrue:
+		case OpCode::Call:
 			AssertIsImplemented(false);
 			break;
-		}
-		case OpCode::Return: {
+
+		case OpCode::Return:
 			return;
-		}
-		default: {
+
+		default:
 			AssertIsUnknownOpCode(true);
-		}
 		}
 	}
 }
@@ -216,10 +465,7 @@ void VirtualMachine::Interpret(const Chunk& chunk)
 {
 	m_stack.clear();
 
-	ExecutionContext context{
-		chunk,
-		m_stack,
-		0};
+	ExecutionContext context{chunk, m_stack, 0};
 
 	Run(context);
 }

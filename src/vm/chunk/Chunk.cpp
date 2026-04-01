@@ -1,5 +1,5 @@
 #include "Chunk.h"
-#include <stdexcept>
+#include "src/vm/exception/BackendException.h"
 
 namespace
 {
@@ -7,7 +7,7 @@ void AssertIsConstantIndexValid(size_t size)
 {
 	if (size > 255)
 	{
-		throw std::runtime_error("Превышен лимит констант в одном блоке (максимум 256)");
+		throw BackendException(CompilerPhase::Backend, "ICE_CHUNK_CONST_LIMIT", "Превышен лимит констант в одном блоке (максимум 256)");
 	}
 }
 
@@ -15,7 +15,7 @@ void AssertIsStringIndexValid(size_t size)
 {
 	if (size > 255)
 	{
-		throw std::runtime_error("Превышен лимит строк в одном блоке (максимум 256)");
+		throw BackendException(CompilerPhase::Backend, "ICE_CHUNK_STR_LIMIT", "Превышен лимит строк в одном блоке (максимум 256)");
 	}
 }
 
@@ -23,10 +23,10 @@ void AssertIsOffsetValid(bool isValid)
 {
 	if (!isValid)
 	{
-		throw std::runtime_error("Смещение инструкции выходит за пределы массива строк кода");
+		throw BackendException(CompilerPhase::Backend, "ICE_CHUNK_OFFSET_OOB", "Смещение инструкции выходит за пределы массива строк кода");
 	}
 }
-}
+} // namespace
 
 void Chunk::WriteByte(uint8_t byte, uint32_t line)
 {

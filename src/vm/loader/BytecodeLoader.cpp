@@ -1,7 +1,7 @@
 #include "BytecodeLoader.h"
-#include "src/vm/chank/Chunk.h"
+#include "src/vm/chunk/Chunk.h"
+#include "src/vm/exception/BackendException.h"
 #include <fstream>
-#include <stdexcept>
 
 namespace
 {
@@ -9,7 +9,7 @@ void AssertIsFileOpened(bool isOpen)
 {
 	if (!isOpen)
 	{
-		throw std::runtime_error("Не удалось открыть бинарный файл байт-кода");
+		throw BackendException(CompilerPhase::VirtualMachine, "ENV_FILE_NOT_FOUND", "Не удалось открыть бинарный файл байт-кода");
 	}
 }
 
@@ -17,7 +17,7 @@ void AssertIsMagicValid(uint32_t magic)
 {
 	if (magic != 0x314C5357)
 	{
-		throw std::runtime_error("Неверный формат файла или неподдерживаемая версия байт-кода");
+		throw BackendException(CompilerPhase::VirtualMachine, "ENV_INVALID_MAGIC", "Неверный формат файла или неподдерживаемая версия байт-кода");
 	}
 }
 
@@ -25,7 +25,7 @@ void AssertIsStringLengthValid(uint32_t length)
 {
 	if (length > 1048576)
 	{
-		throw std::runtime_error("Превышен максимально допустимый размер строки в пуле");
+		throw BackendException(CompilerPhase::VirtualMachine, "ENV_STR_TOO_LONG", "Превышен максимально допустимый размер строки в пуле");
 	}
 }
 

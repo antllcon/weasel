@@ -1,7 +1,10 @@
+#include "diagnostics/CompilationException.h"
 #include "logger/logger/ConsoleLogger.h"
 #include "src/console/ConsoleEncoding.h"
 #include "timer/ScopedTimer.h"
 #include "vm/assembler/TextAssembler.h"
+#include "vm/exception/BackendException.h"
+#include "vm/exception/VmException.h"
 #include "vm/loader/BytecodeLoader.h"
 #include "vm/machine/VirtualMachine.h"
 #include "vm/value/Value.h"
@@ -24,17 +27,55 @@ void PrintResult(const VirtualMachine& vm)
 	{
 		const Value topValue = vm.Peek(0);
 
-		std::cout << "[Result] Raw:    " << topValue.AsRaw() << "\n";
-		std::cout << "         Double: " << topValue.As<double>() << "\n";
-		std::cout << "         Single: " << topValue.As<float>() << "\n";
-		std::cout << "         I64:    " << topValue.As<int64_t>() << "\n";
-		std::cout << "         I32:    " << topValue.As<int32_t>() << "\n";
-		std::cout << "         U64:    " << topValue.As<uint64_t>() << "\n";
-		std::cout << "         U32:    " << topValue.As<uint32_t>() << std::endl;
+		std::cout << "[Result]\tRaw:    " << topValue.AsRaw() << std::endl;
+		std::cout << "        \tDouble: " << topValue.As<double>() << std::endl;
 	}
 	catch (const std::exception&)
 	{
 		std::cout << "[Result] Стек пуст" << std::endl;
+	}
+}
+
+void RunPipeline(std::filesystem::path filePath)
+{
+	try
+	{
+		if (filePath.extension() == ".wes")
+		{
+			std::filesystem::path binaryPath = filePath;
+			binaryPath.replace_extension(".wesbc");
+
+			std::cout << "[Assembler]\tКомпиляция " << filePath.filename() << " -> " << binaryPath.filename() << std::endl;
+			TextAssembler::AssembleToBinary(filePath, binaryPath);
+
+			filePath = binaryPath;
+		}
+
+		std::cout << "[Loader]\tЗагрузка бинарного файла " << filePath.filename() << std::endl;
+		const Chunk chunk = BytecodeLoader::LoadFile(filePath);
+
+		VirtualMachine vm;
+		vm.Interpret(chunk);
+		PrintResult(vm);
+	}
+	catch (const VmException& e)
+	{
+		DiagnosticData data;
+		data.phase = CompilerPhase::VirtualMachine;
+		data.errorCode = e.GetErrorCode();
+		data.message = e.GetErrorMessage();
+		data.line = e.GetLine();
+		data.filePath = filePath.string();
+		throw CompilationException(data);
+	}
+	catch (const BackendException& e)
+	{
+		DiagnosticData data;
+		data.phase = e.GetPhase();
+		data.errorCode = e.GetErrorCode();
+		data.message = e.GetErrorMessage();
+		data.filePath = filePath.string();
+		throw CompilationException(data);
 	}
 }
 } // namespace
@@ -46,33 +87,15 @@ int main(int argc, char* argv[])
 	try
 	{
 		SetConsoleOutputCP(CP_UTF8);
-		ConsoleEncoding console;
-		ScopedTimer timer("MyPhase", std::cout);
+		ScopedTimer timer("Исполнение (VM)", std::cout);
 
 		AssertHasCorrectArgumentCount(argc);
-		std::filesystem::path filePath = argv[1];
 
-		if (filePath.extension() == ".wes")
-		{
-			std::filesystem::path binaryPath = filePath;
-			binaryPath.replace_extension(".wesbc");
-
-			std::cout << "[Asmblr] Компиляция " << filePath.filename() << " -> " << binaryPath.filename() << std::endl;
-			TextAssembler::AssembleToBinary(filePath, binaryPath);
-
-			filePath = binaryPath;
-		}
-
-		std::cout << "[Loader] Загрузка бинарного файла " << filePath.filename() << std::endl;
-		const Chunk chunk = BytecodeLoader::LoadFile(filePath);
-
-		VirtualMachine vm;
-		vm.Interpret(chunk);
-		PrintResult(vm);
+		RunPipeline(argv[1]);
 	}
 	catch (const std::exception& e)
 	{
-		std::cerr << "[Error] " << e.what() << std::endl;
+		std::cout << e.what() << std::endl;
 		return EXIT_FAILURE;
 	}
 

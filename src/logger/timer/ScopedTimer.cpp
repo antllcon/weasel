@@ -21,7 +21,7 @@ std::string FormatMessage(
 {
 	std::ostringstream stream;
 
-	stream << "[Timer] "
+	stream << "[Timer]\t"
 		   << phase
 		   << ": "
 		   << std::fixed

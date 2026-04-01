@@ -116,6 +116,12 @@ const std::unordered_map<std::string, OpCode> MNEMONICS = {
 	{"jmp_f", OpCode::JumpIfFalse},
 	{"jmp_t", OpCode::JumpIfTrue},
 
+	{"alloc_st", OpCode::AllocateStruct},
+	{"get_fld", OpCode::GetField},
+	{"set_fld", OpCode::StoreField},
+	{"retain", OpCode::Retain},
+	{"release", OpCode::Release},
+
 	{"call", OpCode::Call},
 	{"ret", OpCode::Return}};
 
@@ -163,7 +169,7 @@ std::string StripComments(const std::string& line)
 
 std::string TrimWhitespace(const std::string& line)
 {
-	const char* whitespace = " \t\n\r\f\v";
+	auto whitespace = " \t\n\r\f\v";
 	const size_t start = line.find_first_not_of(whitespace);
 	if (start == std::string::npos)
 	{
@@ -222,7 +228,19 @@ bool Takes8BitArg(OpCode code)
 
 bool Takes32BitArg(OpCode code)
 {
-	return code == OpCode::LoadLocal || code == OpCode::StoreLocal || code == OpCode::Jump || code == OpCode::JumpIfFalse || code == OpCode::JumpIfTrue;
+	return code == OpCode::LoadLocal ||
+		   code == OpCode::StoreLocal ||
+		   code == OpCode::Jump ||
+		   code == OpCode::JumpIfFalse ||
+		   code == OpCode::JumpIfTrue ||
+		   code == OpCode::AllocateStruct ||
+		   code == OpCode::GetField ||
+		   code == OpCode::StoreField;
+}
+
+bool TakesTwo32BitArgs(OpCode code)
+{
+	return code == OpCode::Call;
 }
 
 void WriteUint8(std::ofstream& stream, uint8_t value)
@@ -256,10 +274,10 @@ void WriteBinary(const std::filesystem::path& path, const std::vector<uint64_t>&
 	WriteUint32(file, 0);
 
 	WriteUint32(file, static_cast<uint32_t>(bytes.size()));
-	for (const ChunkByte& chunkByte : bytes)
+	for (const auto& [m_value, m_line] : bytes)
 	{
-		WriteUint8(file, chunkByte.m_value);
-		WriteUint32(file, chunkByte.m_line);
+		WriteUint8(file, m_value);
+		WriteUint32(file, m_line);
 	}
 }
 } // namespace
@@ -323,9 +341,31 @@ void TextAssembler::AssembleToBinary(const std::filesystem::path& inputPath, con
 					{
 						const uint32_t arg = static_cast<uint32_t>(std::stoul(tokens[1]));
 						bytes.push_back({static_cast<uint8_t>(arg & 0xFF), currentLine});
-						bytes.push_back({static_cast<uint8_t>((arg >> 8) & 0xFF), currentLine});
-						bytes.push_back({static_cast<uint8_t>((arg >> 16) & 0xFF), currentLine});
-						bytes.push_back({static_cast<uint8_t>((arg >> 24) & 0xFF), currentLine});
+						bytes.push_back({static_cast<uint8_t>(arg >> 8 & 0xFF), currentLine});
+						bytes.push_back({static_cast<uint8_t>(arg >> 16 & 0xFF), currentLine});
+						bytes.push_back({static_cast<uint8_t>(arg >> 24 & 0xFF), currentLine});
+					}
+					catch (const std::exception&)
+					{
+						AssertIsInvalidNumberFormat(true);
+					}
+				}
+				else if (TakesTwo32BitArgs(opCode) && tokens.size() >= 3)
+				{
+					try
+					{
+						const uint32_t arg1 = static_cast<uint32_t>(std::stoul(tokens[1]));
+						const uint32_t arg2 = static_cast<uint32_t>(std::stoul(tokens[2]));
+
+						bytes.push_back({static_cast<uint8_t>(arg1 & 0xFF), currentLine});
+						bytes.push_back({static_cast<uint8_t>(arg1 >> 8 & 0xFF), currentLine});
+						bytes.push_back({static_cast<uint8_t>(arg1 >> 16 & 0xFF), currentLine});
+						bytes.push_back({static_cast<uint8_t>(arg1 >> 24 & 0xFF), currentLine});
+
+						bytes.push_back({static_cast<uint8_t>(arg2 & 0xFF), currentLine});
+						bytes.push_back({static_cast<uint8_t>(arg2 >> 8 & 0xFF), currentLine});
+						bytes.push_back({static_cast<uint8_t>(arg2 >> 16 & 0xFF), currentLine});
+						bytes.push_back({static_cast<uint8_t>(arg2 >> 24 & 0xFF), currentLine});
 					}
 					catch (const std::exception&)
 					{

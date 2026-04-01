@@ -1,4 +1,6 @@
 #include "VirtualMachine.h"
+#include "../exception/VmException.h"
+#include "src/vm/memory/HeapObject.h"
 #include <cmath>
 #include <stdexcept>
 #include <type_traits>
@@ -6,71 +8,88 @@
 namespace
 {
 inline constexpr uint16_t STACK_RESERVE = 256u;
+inline constexpr uint16_t MAX_FRAMES = 256u;
 
 struct ExecutionContext
 {
 	const Chunk& m_chunk;
 	std::vector<Value>& m_stack;
+	std::vector<VirtualMachine::CallFrame>& m_frames;
 	uint32_t m_ip;
+	uint32_t m_stackOffset;
 };
 
-void AssertIsStackNotEmpty(bool isEmpty)
+uint32_t ExtractCurrentLine(const ExecutionContext& context)
 {
-	if (isEmpty)
+	const uint32_t errorIp = context.m_ip > 0 ? context.m_ip - 1 : 0;
+	return context.m_chunk.GetLine(errorIp);
+}
+
+void AssertIsStackNotEmpty(const ExecutionContext& context)
+{
+	if (context.m_stack.empty())
 	{
-		throw std::runtime_error("Стек пуст, невозможно извлечь значение");
+		throw VmException("E_VM_STACK_EMPTY", "Стек пуст, невозможно извлечь значение", context.m_ip, ExtractCurrentLine(context));
 	}
 }
 
-void AssertIsIpValid(bool isValid)
+void AssertIsIpValid(uint32_t targetIp, const ExecutionContext& context)
 {
-	if (!isValid)
+	if (targetIp >= context.m_chunk.GetCode().size())
 	{
-		throw std::runtime_error("Указатель инструкций вышел за пределы памяти");
+		throw VmException("E_VM_IP_OUT_OF_BOUNDS", "Указатель инструкций вышел за пределы памяти", context.m_ip, ExtractCurrentLine(context));
 	}
 }
 
-void AssertIsUnknownOpCode(bool isUnknown)
+void AssertIsUnknownOpCode(bool isUnknown, const ExecutionContext& context)
 {
 	if (isUnknown)
 	{
-		throw std::runtime_error("Обнаружен неизвестный код операции");
+		throw VmException("E_VM_UNKNOWN_OPCODE", "Обнаружен неизвестный код операции", context.m_ip, ExtractCurrentLine(context));
 	}
 }
 
-void AssertIsStackDistanceValid(bool isValid)
+void AssertIsStackDistanceValid(bool isValid, const ExecutionContext& context)
 {
 	if (!isValid)
 	{
-		throw std::runtime_error("Попытка доступа к элементу за пределами стека");
+		throw VmException("E_VM_STACK_OOB", "Попытка доступа к элементу за пределами стека", context.m_ip, ExtractCurrentLine(context));
 	}
 }
 
-void AssertIsImplemented(bool isImplemented)
-{
-	if (!isImplemented)
-	{
-		throw std::runtime_error("Инструкция еще не реализована в виртуальной машине");
-	}
-}
-
-void AssertIsNotDivisionByZero(bool isZero)
+void AssertIsNotDivisionByZero(bool isZero, const ExecutionContext& context)
 {
 	if (isZero)
 	{
-		throw std::runtime_error("Деление на ноль");
+		throw VmException("E_VM_DIV_BY_ZERO", "Деление на ноль", context.m_ip, ExtractCurrentLine(context));
+	}
+}
+
+void AssertIsCallStackOverflow(const ExecutionContext& context)
+{
+	if (context.m_frames.size() >= MAX_FRAMES)
+	{
+		throw VmException("E_VM_CALL_STACK_OVERFLOW", "Превышен лимит вложенности вызовов функций", context.m_ip, ExtractCurrentLine(context));
+	}
+}
+
+void AssertIsCallArgumentCountValid(uint32_t argCount, const ExecutionContext& context)
+{
+	if (context.m_stack.size() < argCount)
+	{
+		throw VmException("E_VM_ARGS_COUNT", "Недостаточно аргументов на стеке для вызова функции", context.m_ip, ExtractCurrentLine(context));
 	}
 }
 
 uint8_t ReadByte(ExecutionContext& context)
 {
-	AssertIsIpValid(context.m_ip < context.m_chunk.GetCode().size());
+	AssertIsIpValid(context.m_ip, context);
 	return context.m_chunk.GetCode()[context.m_ip++];
 }
 
 uint32_t ReadUint32(ExecutionContext& context)
 {
-	AssertIsIpValid(context.m_ip + 3 < context.m_chunk.GetCode().size());
+	AssertIsIpValid(context.m_ip + 3, context);
 	uint32_t value = 0;
 	value |= static_cast<uint32_t>(context.m_chunk.GetCode()[context.m_ip++]);
 	value |= static_cast<uint32_t>(context.m_chunk.GetCode()[context.m_ip++]) << 8;
@@ -86,7 +105,7 @@ void Push(const ExecutionContext& context, const Value& value)
 
 Value Pop(const ExecutionContext& context)
 {
-	AssertIsStackNotEmpty(context.m_stack.empty());
+	AssertIsStackNotEmpty(context);
 	const Value value = context.m_stack.back();
 	context.m_stack.pop_back();
 	return value;
@@ -121,8 +140,13 @@ void ExecuteDiv(const ExecutionContext& context)
 {
 	const T rhs = Pop(context).As<T>();
 	const T lhs = Pop(context).As<T>();
-	AssertIsNotDivisionByZero(rhs == 0);
-	Push(context, Value(static_cast<T>(lhs / rhs)));
+
+	AssertIsNotDivisionByZero(rhs, context);
+
+	if (rhs != 0)
+	{
+		Push(context, Value(static_cast<T>(lhs / rhs)));
+	}
 }
 
 template <typename T>
@@ -130,15 +154,19 @@ void ExecuteRem(const ExecutionContext& context)
 {
 	const T rhs = Pop(context).As<T>();
 	const T lhs = Pop(context).As<T>();
-	AssertIsNotDivisionByZero(rhs == 0);
 
-	if constexpr (std::is_floating_point_v<T>)
+	AssertIsNotDivisionByZero(rhs, context);
+
+	if (rhs != 0)
 	{
-		Push(context, Value(static_cast<T>(std::fmod(lhs, rhs))));
-	}
-	else
-	{
-		Push(context, Value(static_cast<T>(lhs % rhs)));
+		if constexpr (std::is_floating_point_v<T>)
+		{
+			Push(context, Value(static_cast<T>(std::fmod(lhs, rhs))));
+		}
+		else
+		{
+			Push(context, Value(static_cast<T>(lhs % rhs)));
+		}
 	}
 }
 
@@ -220,35 +248,37 @@ void ExecuteConstantInstruction(ExecutionContext& context)
 
 void ExecuteDupInstruction(const ExecutionContext& context)
 {
-	AssertIsStackNotEmpty(context.m_stack.empty());
+	AssertIsStackNotEmpty(context);
 	Push(context, context.m_stack.back());
 }
 
 void ExecuteLoadLocalInstruction(ExecutionContext& context)
 {
 	const uint32_t index = ReadUint32(context);
-	AssertIsStackDistanceValid(index < context.m_stack.size());
-	Push(context, context.m_stack[index]);
+	const uint32_t absoluteIndex = context.m_stackOffset + index;
+	AssertIsStackDistanceValid(absoluteIndex < context.m_stack.size(), context);
+	Push(context, context.m_stack[absoluteIndex]);
 }
 
 void ExecuteStoreLocalInstruction(ExecutionContext& context)
 {
 	const uint32_t index = ReadUint32(context);
-	AssertIsStackDistanceValid(index < context.m_stack.size());
-	context.m_stack[index] = Pop(context);
+	const uint32_t absoluteIndex = context.m_stackOffset + index;
+	AssertIsStackDistanceValid(absoluteIndex < context.m_stack.size(), context);
+	context.m_stack[absoluteIndex] = Pop(context);
 }
 
 void ExecuteJumpInstruction(ExecutionContext& context)
 {
 	const uint32_t targetIp = ReadUint32(context);
-	AssertIsIpValid(targetIp < context.m_chunk.GetCode().size());
+	AssertIsIpValid(targetIp, context);
 	context.m_ip = targetIp;
 }
 
 void ExecuteJumpIfFalseInstruction(ExecutionContext& context)
 {
 	const uint32_t targetIp = ReadUint32(context);
-	AssertIsIpValid(targetIp <= context.m_chunk.GetCode().size());
+	AssertIsIpValid(targetIp, context);
 	const bool condition = Pop(context).As<bool>();
 
 	if (!condition)
@@ -260,12 +290,86 @@ void ExecuteJumpIfFalseInstruction(ExecutionContext& context)
 void ExecuteJumpIfTrueInstruction(ExecutionContext& context)
 {
 	const uint32_t targetIp = ReadUint32(context);
-	AssertIsIpValid(targetIp <= context.m_chunk.GetCode().size());
+	AssertIsIpValid(targetIp, context);
 	const bool condition = Pop(context).As<bool>();
 
 	if (condition)
 	{
 		context.m_ip = targetIp;
+	}
+}
+
+void ExecuteCallInstruction(ExecutionContext& context)
+{
+	const uint32_t targetIp = ReadUint32(context);
+	const uint32_t argCount = ReadUint32(context);
+
+	AssertIsCallStackOverflow(context);
+	AssertIsCallArgumentCountValid(argCount, context);
+
+	context.m_frames.push_back({context.m_ip, context.m_stackOffset});
+
+	context.m_ip = targetIp;
+	context.m_stackOffset = static_cast<uint32_t>(context.m_stack.size()) - argCount;
+}
+
+bool ExecuteReturnInstruction(ExecutionContext& context)
+{
+	const Value result = Pop(context);
+
+	if (context.m_frames.empty())
+	{
+		Push(context, result);
+		return true;
+	}
+
+	context.m_stack.resize(context.m_stackOffset);
+	Push(context, result);
+
+	const auto [m_returnIp, m_stackOffset] = context.m_frames.back();
+	context.m_frames.pop_back();
+
+	context.m_ip = m_returnIp;
+	context.m_stackOffset = m_stackOffset;
+
+	return false;
+}
+
+void ExecuteAllocateStructInstruction(ExecutionContext& context)
+{
+	const uint32_t fieldCount = ReadUint32(context);
+	auto* object = new HeapObject(fieldCount);
+	Push(context, Value(reinterpret_cast<uint64_t>(object)));
+}
+
+void ExecuteGetFieldInstruction(ExecutionContext& context)
+{
+	const uint32_t index = ReadUint32(context);
+	const auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+	Push(context, object->GetField(index));
+}
+
+void ExecuteStoreFieldInstruction(ExecutionContext& context)
+{
+	const uint32_t index = ReadUint32(context);
+	const Value value = Pop(context);
+	auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+	object->SetField(index, value);
+}
+
+void ExecuteRetainInstruction(const ExecutionContext& context)
+{
+	auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+	object->Retain();
+	Push(context, Value(reinterpret_cast<uint64_t>(object)));
+}
+
+void ExecuteReleaseInstruction(const ExecutionContext& context)
+{
+	auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+	if (object->Release())
+	{
+		delete object;
 	}
 }
 
@@ -405,6 +509,31 @@ void Run(ExecutionContext& context)
 			ExecuteDiv<double>(context);
 			break;
 
+		case OpCode::RemI8:
+			ExecuteRem<int8_t>(context);
+			break;
+		case OpCode::RemU8:
+			ExecuteRem<uint8_t>(context);
+			break;
+		case OpCode::RemI16:
+			ExecuteRem<int16_t>(context);
+			break;
+		case OpCode::RemU16:
+			ExecuteRem<uint16_t>(context);
+			break;
+		case OpCode::RemI32:
+			ExecuteRem<int32_t>(context);
+			break;
+		case OpCode::RemU32:
+			ExecuteRem<uint32_t>(context);
+			break;
+		case OpCode::RemI64:
+			ExecuteRem<int64_t>(context);
+			break;
+		case OpCode::RemU64:
+			ExecuteRem<uint64_t>(context);
+			break;
+
 		case OpCode::EqI8:
 			ExecuteEq<int8_t>(context);
 			break;
@@ -509,15 +638,35 @@ void Run(ExecutionContext& context)
 			ExecuteJumpIfTrueInstruction(context);
 			break;
 
+		case OpCode::AllocateStruct:
+			ExecuteAllocateStructInstruction(context);
+			break;
+		case OpCode::GetField:
+			ExecuteGetFieldInstruction(context);
+			break;
+		case OpCode::StoreField:
+			ExecuteStoreFieldInstruction(context);
+			break;
+		case OpCode::Retain:
+			ExecuteRetainInstruction(context);
+			break;
+		case OpCode::Release:
+			ExecuteReleaseInstruction(context);
+			break;
+
 		case OpCode::Call:
-			AssertIsImplemented(false);
+			ExecuteCallInstruction(context);
 			break;
 
 		case OpCode::Return:
-			return;
+			if (ExecuteReturnInstruction(context))
+			{
+				return;
+			}
+			break;
 
 		default:
-			AssertIsUnknownOpCode(true);
+			AssertIsUnknownOpCode(true, context);
 		}
 	}
 }
@@ -526,19 +675,25 @@ void Run(ExecutionContext& context)
 VirtualMachine::VirtualMachine()
 {
 	m_stack.reserve(STACK_RESERVE);
+	m_frames.reserve(MAX_FRAMES);
 }
 
 void VirtualMachine::Interpret(const Chunk& chunk)
 {
 	m_stack.clear();
+	m_frames.clear();
 
-	ExecutionContext context{chunk, m_stack, 0};
+	ExecutionContext context{chunk, m_stack, m_frames, 0, 0};
 
 	Run(context);
 }
 
 Value VirtualMachine::Peek(size_t distance) const
 {
-	AssertIsStackDistanceValid(distance < m_stack.size());
+	if (distance >= m_stack.size())
+	{
+		throw std::runtime_error("Попытка доступа к элементу за пределами стека через публичный API");
+	}
+
 	return m_stack[m_stack.size() - 1 - distance];
 }

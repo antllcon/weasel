@@ -21,13 +21,13 @@ endif ()
 add_library(core_lib STATIC ${SRC_FILES} ${HEADER_FILES})
 target_include_directories(core_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(weaselc src/main.cpp)
-target_link_libraries(weaselc PRIVATE core_lib)
-set_target_properties(weaselc PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/res")
+add_executable(wesc src/main.cpp)
+target_link_libraries(wesc PRIVATE core_lib)
+set_target_properties(wesc PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/res")
 
-add_executable(weaselvm src/vm_main.cpp)
-target_link_libraries(weaselvm PRIVATE core_lib)
-set_target_properties(weaselvm PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/res")
+add_executable(wesvm src/vm_main.cpp)
+target_link_libraries(wesvm PRIVATE core_lib)
+set_target_properties(wesvm PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/res")
 
 option(BUILD_TESTING "Build the tests" ON)
 

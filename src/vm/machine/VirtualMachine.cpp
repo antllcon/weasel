@@ -3,14 +3,13 @@
 
 namespace
 {
-inline constexpr size_t STACK_RESERVE = 256;
+inline constexpr uint16_t STACK_RESERVE = 256u;
 
 struct ExecutionContext
 {
 	const Chunk& m_chunk;
 	std::vector<Value>& m_stack;
-	Value& m_lastResult;
-	size_t m_ip;
+	uint32_t m_ip;
 };
 
 void AssertIsStackNotEmpty(bool isEmpty)
@@ -37,21 +36,29 @@ void AssertIsUnknownOpCode(bool isUnknown)
 	}
 }
 
+void AssertIsStackDistanceValid(bool isValid)
+{
+	if (!isValid)
+	{
+		throw std::runtime_error("Попытка доступа к элементу за пределами стека");
+	}
+}
+
 uint8_t ReadByte(ExecutionContext& context)
 {
 	AssertIsIpValid(context.m_ip < context.m_chunk.GetCode().size());
 	return context.m_chunk.GetCode()[context.m_ip++];
 }
 
-void Push(ExecutionContext& context, const Value& value)
+void Push(const ExecutionContext& context, const Value& value)
 {
 	context.m_stack.push_back(value);
 }
 
-Value Pop(ExecutionContext& context)
+Value Pop(const ExecutionContext& context)
 {
 	AssertIsStackNotEmpty(context.m_stack.empty());
-	Value value = context.m_stack.back();
+	const Value value = context.m_stack.back();
 	context.m_stack.pop_back();
 	return value;
 }
@@ -63,53 +70,32 @@ void ExecuteConstantInstruction(ExecutionContext& context)
 	Push(context, constant);
 }
 
-void ExecuteReturnInstruction(ExecutionContext& context)
+void ExecuteAddDoubleInstruction(const ExecutionContext& context)
 {
-	if (!context.m_stack.empty())
-	{
-		context.m_lastResult = Pop(context);
-	}
+	const double rhs = Pop(context).AsDouble();
+	const double lhs = Pop(context).AsDouble();
+	Push(context, Value(lhs + rhs));
 }
 
-void ExecuteAddInstruction(ExecutionContext& context)
+void ExecuteAddSingleInstruction(const ExecutionContext& context)
 {
-	const Value rhs = Pop(context);
-	const Value lhs = Pop(context);
-	Push(context, lhs + rhs);
+	const float rhs = Pop(context).AsSingle();
+	const float lhs = Pop(context).AsSingle();
+	Push(context, Value(lhs + rhs));
 }
 
-void ExecuteSubtractInstruction(ExecutionContext& context)
+void ExecuteAddSNumberInstruction(const ExecutionContext& context)
 {
-	const Value rhs = Pop(context);
-	const Value lhs = Pop(context);
-	Push(context, lhs - rhs);
-}
-
-void ExecuteMultiplyInstruction(ExecutionContext& context)
-{
-	const Value rhs = Pop(context);
-	const Value lhs = Pop(context);
-	Push(context, lhs * rhs);
-}
-
-void ExecuteDivideInstruction(ExecutionContext& context)
-{
-	const Value rhs = Pop(context);
-	const Value lhs = Pop(context);
-	Push(context, lhs / rhs);
-}
-
-void ExecuteNegateInstruction(ExecutionContext& context)
-{
-	const Value value = Pop(context);
-	Push(context, -value);
+	const int32_t rhs = Pop(context).AsSNumber();
+	const int32_t lhs = Pop(context).AsSNumber();
+	Push(context, Value(lhs + rhs));
 }
 
 void Run(ExecutionContext& context)
 {
 	for (;;)
 	{
-		const OpCode instruction = static_cast<OpCode>(ReadByte(context));
+		const auto instruction = static_cast<OpCode>(ReadByte(context));
 
 		switch (instruction)
 		{
@@ -117,28 +103,19 @@ void Run(ExecutionContext& context)
 			ExecuteConstantInstruction(context);
 			break;
 		}
-		case OpCode::Add: {
-			ExecuteAddInstruction(context);
+		case OpCode::AddDouble: {
+			ExecuteAddDoubleInstruction(context);
 			break;
 		}
-		case OpCode::Subtract: {
-			ExecuteSubtractInstruction(context);
+		case OpCode::AddSingle: {
+			ExecuteAddSingleInstruction(context);
 			break;
 		}
-		case OpCode::Multiply: {
-			ExecuteMultiplyInstruction(context);
-			break;
-		}
-		case OpCode::Divide: {
-			ExecuteDivideInstruction(context);
-			break;
-		}
-		case OpCode::Negate: {
-			ExecuteNegateInstruction(context);
+		case OpCode::AddSNumber: {
+			ExecuteAddSNumberInstruction(context);
 			break;
 		}
 		case OpCode::Return: {
-			ExecuteReturnInstruction(context);
 			return;
 		}
 		default: {
@@ -150,13 +127,8 @@ void Run(ExecutionContext& context)
 } // namespace
 
 VirtualMachine::VirtualMachine()
-	: m_lastResult(0.0)
 {
 	m_stack.reserve(STACK_RESERVE);
-}
-
-VirtualMachine::~VirtualMachine()
-{
 }
 
 void VirtualMachine::Interpret(const Chunk& chunk)
@@ -166,13 +138,13 @@ void VirtualMachine::Interpret(const Chunk& chunk)
 	ExecutionContext context{
 		chunk,
 		m_stack,
-		m_lastResult,
 		0};
 
 	Run(context);
 }
 
-Value VirtualMachine::GetLastResult() const
+Value VirtualMachine::Peek(size_t distance) const
 {
-	return m_lastResult;
+	AssertIsStackDistanceValid(distance < m_stack.size());
+	return m_stack[m_stack.size() - 1 - distance];
 }

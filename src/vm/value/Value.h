@@ -1,28 +1,20 @@
 #pragma once
-
-#include <string>
-#include <variant>
+#include <cstdint>
 
 class Value
 {
 public:
 	Value();
-	Value(double value);
-	Value(const std::string& value);
+	explicit Value(uint64_t value);
+	explicit Value(double value);
+	explicit Value(float value);
+	explicit Value(int32_t value);
 
-	Value operator+(const Value& rhs) const;
-	Value operator-(const Value& rhs) const;
-	Value operator*(const Value& rhs) const;
-	Value operator/(const Value& rhs) const;
-	Value operator-() const;
-	bool operator==(const Value& rhs) const;
-
-	template <typename Visitor>
-	auto visit(Visitor&& visitor) const
-	{
-		return std::visit(std::forward<Visitor>(visitor), m_data);
-	}
+	uint64_t AsRaw() const;
+	double AsDouble() const;
+	float AsSingle() const;
+	int32_t AsSNumber() const;
 
 private:
-	std::variant<double, std::string> m_data;
+	uint64_t m_data;
 };

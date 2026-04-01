@@ -1,6 +1,7 @@
-#include "grammar/GrammarTypes.h"
+#include "libs/console/ConsoleEncoding.h"
+#include "vm/assembler/TextAssembler.h"
+#include "vm/loader/BytecodeLoader.h"
 #include "vm/machine/VirtualMachine.h"
-#include "vm/parser/BytecodeParser.h"
 #include "vm/value/Value.h"
 #include <iostream>
 #include <windows.h>
@@ -11,15 +12,22 @@ void AssertHasCorrectArgumentCount(int argc)
 {
 	if (argc != 2)
 	{
-		throw std::runtime_error("Использование: start [name.wesbc]");
+		throw std::runtime_error("Запускай так: wesvm [file.wes | file.wesbc]");
 	}
 }
 
-void PrintResult(const Value& result)
+void PrintResult(const VirtualMachine& vm)
 {
-	result.visit([](auto&& val) {
-	   std::cout << "[Result] " << val << std::endl;
-	});
+	try
+	{
+		const Value topValue = vm.Peek(0);
+		std::cout << "[Result] Raw: " << topValue.AsRaw()
+				  << " | Double: " << topValue.AsDouble() << std::endl;
+	}
+	catch (const std::exception&)
+	{
+		std::cout << "[Result] Стек пуст" << std::endl;
+	}
 }
 } // namespace
 
@@ -27,17 +35,28 @@ int main(int argc, char* argv[])
 {
 	try
 	{
-		SetConsoleOutputCP(CP_UTF8);
-		SetConsoleCP(CP_UTF8);
+		ConsoleEncoding console;
 
 		AssertHasCorrectArgumentCount(argc);
+		std::filesystem::path filePath = argv[1];
 
-		const std::filesystem::path filePath = argv[1];
-		const Chunk chunk = BytecodeParser::ParseFile(filePath);
+		if (filePath.extension() == ".wes")
+		{
+			std::filesystem::path binaryPath = filePath;
+			binaryPath.replace_extension(".wesbc");
+
+			std::cout << "[Assembler] Компиляция " << filePath.filename() << " -> " << binaryPath.filename() << std::endl;
+			TextAssembler::AssembleToBinary(filePath, binaryPath);
+
+			filePath = binaryPath;
+		}
+
+		std::cout << "[Loader] Загрузка бинарного файла " << filePath.filename() << std::endl;
+		const Chunk chunk = BytecodeLoader::LoadFile(filePath);
 
 		VirtualMachine vm;
 		vm.Interpret(chunk);
-		PrintResult(vm.GetLastResult());
+		PrintResult(vm);
 	}
 	catch (const std::exception& e)
 	{

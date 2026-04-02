@@ -357,6 +357,28 @@ void ExecuteStoreFieldInstruction(ExecutionContext& context)
 	object->SetField(index, value);
 }
 
+void ExecuteAllocateArrayInstruction(const ExecutionContext& context)
+{
+	const uint32_t length = Pop(context).As<uint32_t>();
+	auto* object = new HeapObject(length);
+	Push(context, Value(reinterpret_cast<uint64_t>(object)));
+}
+
+void ExecuteLoadElementInstruction(const ExecutionContext& context)
+{
+	const uint32_t index = Pop(context).As<uint32_t>();
+	const auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+	Push(context, object->GetField(index));
+}
+
+void ExecuteStoreElementInstruction(const ExecutionContext& context)
+{
+	const Value value = Pop(context);
+	const uint32_t index = Pop(context).As<uint32_t>();
+	auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+	object->SetField(index, value);
+}
+
 void ExecuteRetainInstruction(const ExecutionContext& context)
 {
 	auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
@@ -646,6 +668,17 @@ void Run(ExecutionContext& context)
 			break;
 		case OpCode::StoreField:
 			ExecuteStoreFieldInstruction(context);
+
+		case OpCode::AllocateArray:
+			ExecuteAllocateArrayInstruction(context);
+			break;
+		case OpCode::LoadElement:
+			ExecuteLoadElementInstruction(context);
+			break;
+		case OpCode::StoreElement:
+			ExecuteStoreElementInstruction(context);
+			break;
+
 			break;
 		case OpCode::Retain:
 			ExecuteRetainInstruction(context);

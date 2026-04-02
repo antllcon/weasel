@@ -25,6 +25,17 @@ enum class OpCode : uint8_t
 	JumpIfFalse,
 	JumpIfTrue,
 
+	AllocateStruct,
+	GetField,
+	StoreField,
+
+	AllocateArray,
+	LoadElement,
+	StoreElement,
+
+	Retain,
+	Release,
+
 	Call,
 	Return
 };

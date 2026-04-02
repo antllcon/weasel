@@ -119,6 +119,11 @@ const std::unordered_map<std::string, OpCode> MNEMONICS = {
 	{"alloc_st", OpCode::AllocateStruct},
 	{"get_fld", OpCode::GetField},
 	{"set_fld", OpCode::StoreField},
+
+	{"alloc_arr", OpCode::AllocateArray},
+	{"ld_elem", OpCode::LoadElement},
+	{"st_elem", OpCode::StoreElement},
+
 	{"retain", OpCode::Retain},
 	{"release", OpCode::Release},
 
@@ -228,14 +233,7 @@ bool Takes8BitArg(OpCode code)
 
 bool Takes32BitArg(OpCode code)
 {
-	return code == OpCode::LoadLocal ||
-		   code == OpCode::StoreLocal ||
-		   code == OpCode::Jump ||
-		   code == OpCode::JumpIfFalse ||
-		   code == OpCode::JumpIfTrue ||
-		   code == OpCode::AllocateStruct ||
-		   code == OpCode::GetField ||
-		   code == OpCode::StoreField;
+	return code == OpCode::LoadLocal || code == OpCode::StoreLocal || code == OpCode::Jump || code == OpCode::JumpIfFalse || code == OpCode::JumpIfTrue || code == OpCode::AllocateStruct || code == OpCode::GetField || code == OpCode::StoreField;
 }
 
 bool TakesTwo32BitArgs(OpCode code)

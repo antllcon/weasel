@@ -199,14 +199,27 @@ std::vector<std::string> Tokenize(const std::string& line)
 	return tokens;
 }
 
-uint64_t ParseDoubleAsRaw(const std::string& text)
+uint64_t ParseConstantAsRaw(const std::string& text)
 {
 	try
 	{
-		const double value = std::stod(text);
-		uint64_t raw = 0;
-		std::memcpy(&raw, &value, sizeof(double));
-		return raw;
+		if (text.find('.') != std::string::npos || text.find('e') != std::string::npos || text.find('E') != std::string::npos)
+		{
+			const double value = std::stod(text);
+			uint64_t raw = 0;
+			std::memcpy(&raw, &value, sizeof(double));
+			return raw;
+		}
+
+		if (!text.empty() && text[0] == '-')
+		{
+			const int64_t value = std::stoll(text);
+			uint64_t raw = 0;
+			std::memcpy(&raw, &value, sizeof(int64_t));
+			return raw;
+		}
+
+		return std::stoull(text);
 	}
 	catch (const std::exception&)
 	{
@@ -290,6 +303,15 @@ void TextAssembler::AssembleToBinary(const std::filesystem::path& inputPath, con
 	std::vector<ChunkByte> bytes;
 	uint32_t currentLine = 1;
 
+	std::unordered_map<std::string, uint32_t> labels;
+
+	struct UnresolvedJump
+	{
+		size_t byteOffset;
+		std::string labelName;
+	};
+	std::vector<UnresolvedJump> unresolvedJumps;
+
 	std::string line;
 	while (std::getline(file, line))
 	{
@@ -297,6 +319,14 @@ void TextAssembler::AssembleToBinary(const std::filesystem::path& inputPath, con
 
 		if (processedLine.empty())
 		{
+			currentLine++;
+			continue;
+		}
+
+		if (processedLine.back() == ':')
+		{
+			const std::string labelName = processedLine.substr(0, processedLine.size() - 1);
+			labels[labelName] = static_cast<uint32_t>(bytes.size());
 			currentLine++;
 			continue;
 		}
@@ -311,7 +341,7 @@ void TextAssembler::AssembleToBinary(const std::filesystem::path& inputPath, con
 		}
 		else if (state == ParseState::ConstSection)
 		{
-			constants.push_back(ParseDoubleAsRaw(processedLine));
+			constants.push_back(ParseConstantAsRaw(processedLine));
 		}
 		else if (state == ParseState::CodeSection)
 		{
@@ -335,24 +365,55 @@ void TextAssembler::AssembleToBinary(const std::filesystem::path& inputPath, con
 				}
 				else if (Takes32BitArg(opCode) && tokens.size() >= 2)
 				{
-					try
+					if (opCode == OpCode::Jump || opCode == OpCode::JumpIfFalse || opCode == OpCode::JumpIfTrue)
 					{
-						const uint32_t arg = static_cast<uint32_t>(std::stoul(tokens[1]));
-						bytes.push_back({static_cast<uint8_t>(arg & 0xFF), currentLine});
-						bytes.push_back({static_cast<uint8_t>(arg >> 8 & 0xFF), currentLine});
-						bytes.push_back({static_cast<uint8_t>(arg >> 16 & 0xFF), currentLine});
-						bytes.push_back({static_cast<uint8_t>(arg >> 24 & 0xFF), currentLine});
+						try
+						{
+							const uint32_t arg = static_cast<uint32_t>(std::stoul(tokens[1]));
+							bytes.push_back({static_cast<uint8_t>(arg & 0xFF), currentLine});
+							bytes.push_back({static_cast<uint8_t>(arg >> 8 & 0xFF), currentLine});
+							bytes.push_back({static_cast<uint8_t>(arg >> 16 & 0xFF), currentLine});
+							bytes.push_back({static_cast<uint8_t>(arg >> 24 & 0xFF), currentLine});
+						}
+						catch (const std::invalid_argument&)
+						{
+							unresolvedJumps.push_back({bytes.size(), tokens[1]});
+							bytes.push_back({0, currentLine});
+							bytes.push_back({0, currentLine});
+							bytes.push_back({0, currentLine});
+							bytes.push_back({0, currentLine});
+						}
 					}
-					catch (const std::exception&)
+					else
 					{
-						AssertIsInvalidNumberFormat(true);
+						try
+						{
+							const uint32_t arg = static_cast<uint32_t>(std::stoul(tokens[1]));
+							bytes.push_back({static_cast<uint8_t>(arg & 0xFF), currentLine});
+							bytes.push_back({static_cast<uint8_t>(arg >> 8 & 0xFF), currentLine});
+							bytes.push_back({static_cast<uint8_t>(arg >> 16 & 0xFF), currentLine});
+							bytes.push_back({static_cast<uint8_t>(arg >> 24 & 0xFF), currentLine});
+						}
+						catch (const std::exception&)
+						{
+							AssertIsInvalidNumberFormat(true);
+						}
 					}
 				}
 				else if (TakesTwo32BitArgs(opCode) && tokens.size() >= 3)
 				{
 					try
 					{
-						const uint32_t arg1 = static_cast<uint32_t>(std::stoul(tokens[1]));
+						uint32_t arg1 = 0;
+						try
+						{
+							arg1 = static_cast<uint32_t>(std::stoul(tokens[1]));
+						}
+						catch (const std::invalid_argument&)
+						{
+							unresolvedJumps.push_back({bytes.size(), tokens[1]});
+						}
+
 						const uint32_t arg2 = static_cast<uint32_t>(std::stoul(tokens[2]));
 
 						bytes.push_back({static_cast<uint8_t>(arg1 & 0xFF), currentLine});
@@ -378,6 +439,20 @@ void TextAssembler::AssembleToBinary(const std::filesystem::path& inputPath, con
 		}
 
 		currentLine++;
+	}
+
+	for (const auto& [byteOffset, labelName] : unresolvedJumps)
+	{
+		if (!labels.contains(labelName))
+		{
+			throw std::runtime_error("Обнаружена неизвестная метка перехода");
+		}
+
+		const uint32_t targetAddress = labels[labelName];
+		bytes[byteOffset].m_value = static_cast<uint8_t>(targetAddress & 0xFF);
+		bytes[byteOffset + 1].m_value = static_cast<uint8_t>(targetAddress >> 8 & 0xFF);
+		bytes[byteOffset + 2].m_value = static_cast<uint8_t>(targetAddress >> 16 & 0xFF);
+		bytes[byteOffset + 3].m_value = static_cast<uint8_t>(targetAddress >> 24 & 0xFF);
 	}
 
 	WriteBinary(outputPath, constants, bytes);

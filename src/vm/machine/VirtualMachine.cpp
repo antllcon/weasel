@@ -679,7 +679,6 @@ void Run(ExecutionContext& context)
 			ExecuteStoreElementInstruction(context);
 			break;
 
-			break;
 		case OpCode::Retain:
 			ExecuteRetainInstruction(context);
 			break;

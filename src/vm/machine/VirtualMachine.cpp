@@ -7,7 +7,7 @@
 
 namespace
 {
-inline constexpr uint16_t STACK_RESERVE = 256u;
+inline constexpr uint32_t MAX_STACK = 65536u;
 inline constexpr uint16_t MAX_FRAMES = 256u;
 
 struct ExecutionContext
@@ -15,6 +15,8 @@ struct ExecutionContext
 	const Chunk& m_chunk;
 	std::vector<Value>& m_stack;
 	std::vector<VirtualMachine::CallFrame>& m_frames;
+	HeapTracker& m_tracker;
+	uint32_t& m_stackTop;
 	uint32_t m_ip;
 	uint32_t m_stackOffset;
 };
@@ -27,9 +29,25 @@ uint32_t ExtractCurrentLine(const ExecutionContext& context)
 
 void AssertIsStackNotEmpty(const ExecutionContext& context)
 {
-	if (context.m_stack.empty())
+	if (context.m_stackTop == 0)
 	{
-		throw VmException("E_VM_STACK_EMPTY", "Стек пуст, невозможно извлечь значение", context.m_ip, ExtractCurrentLine(context));
+		throw VmException(
+			"E_VM_STACK_EMPTY",
+			"Стек пуст, невозможно извлечь значение",
+			context.m_ip,
+			ExtractCurrentLine(context));
+	}
+}
+
+void AssertIsStackNotFull(const ExecutionContext& context)
+{
+	if (context.m_stackTop >= context.m_stack.size())
+	{
+		throw VmException(
+			"E_VM_STACK_OVERFLOW",
+			"Переполнение стека виртуальной машины",
+			context.m_ip,
+			ExtractCurrentLine(context));
 	}
 }
 
@@ -37,7 +55,11 @@ void AssertIsIpValid(uint32_t targetIp, const ExecutionContext& context)
 {
 	if (targetIp >= context.m_chunk.GetCode().size())
 	{
-		throw VmException("E_VM_IP_OUT_OF_BOUNDS", "Указатель инструкций вышел за пределы памяти", context.m_ip, ExtractCurrentLine(context));
+		throw VmException(
+			"E_VM_IP_OUT_OF_BOUNDS",
+			"Указатель инструкций вышел за пределы памяти",
+			context.m_ip,
+			ExtractCurrentLine(context));
 	}
 }
 
@@ -45,7 +67,11 @@ void AssertIsUnknownOpCode(bool isUnknown, const ExecutionContext& context)
 {
 	if (isUnknown)
 	{
-		throw VmException("E_VM_UNKNOWN_OPCODE", "Обнаружен неизвестный код операции", context.m_ip, ExtractCurrentLine(context));
+		throw VmException(
+			"E_VM_UNKNOWN_OPCODE",
+			"Обнаружен неизвестный код операции",
+			context.m_ip,
+			ExtractCurrentLine(context));
 	}
 }
 
@@ -53,7 +79,11 @@ void AssertIsStackDistanceValid(bool isValid, const ExecutionContext& context)
 {
 	if (!isValid)
 	{
-		throw VmException("E_VM_STACK_OOB", "Попытка доступа к элементу за пределами стека", context.m_ip, ExtractCurrentLine(context));
+		throw VmException(
+			"E_VM_STACK_OOB",
+			"Попытка доступа к элементу за пределами стека",
+			context.m_ip,
+			ExtractCurrentLine(context));
 	}
 }
 
@@ -61,7 +91,11 @@ void AssertIsNotDivisionByZero(bool isZero, const ExecutionContext& context)
 {
 	if (isZero)
 	{
-		throw VmException("E_VM_DIV_BY_ZERO", "Деление на ноль", context.m_ip, ExtractCurrentLine(context));
+		throw VmException(
+			"E_VM_DIV_BY_ZERO",
+			"Деление на ноль",
+			context.m_ip,
+			ExtractCurrentLine(context));
 	}
 }
 
@@ -69,15 +103,23 @@ void AssertIsCallStackOverflow(const ExecutionContext& context)
 {
 	if (context.m_frames.size() >= MAX_FRAMES)
 	{
-		throw VmException("E_VM_CALL_STACK_OVERFLOW", "Превышен лимит вложенности вызовов функций", context.m_ip, ExtractCurrentLine(context));
+		throw VmException(
+			"E_VM_CALL_STACK_OVERFLOW",
+			"Превышен лимит вложенности вызовов функций",
+			context.m_ip,
+			ExtractCurrentLine(context));
 	}
 }
 
 void AssertIsCallArgumentCountValid(uint32_t argCount, const ExecutionContext& context)
 {
-	if (context.m_stack.size() < argCount)
+	if (context.m_stackTop < argCount)
 	{
-		throw VmException("E_VM_ARGS_COUNT", "Недостаточно аргументов на стеке для вызова функции", context.m_ip, ExtractCurrentLine(context));
+		throw VmException(
+			"E_VM_ARGS_COUNT",
+			"Недостаточно аргументов на стеке для вызова функции",
+			context.m_ip,
+			ExtractCurrentLine(context));
 	}
 }
 
@@ -98,21 +140,20 @@ uint32_t ReadUint32(ExecutionContext& context)
 	return value;
 }
 
-void Push(const ExecutionContext& context, const Value& value)
+void Push(ExecutionContext& context, const Value& value)
 {
-	context.m_stack.push_back(value);
+	AssertIsStackNotFull(context);
+	context.m_stack[context.m_stackTop++] = value;
 }
 
-Value Pop(const ExecutionContext& context)
+Value Pop(ExecutionContext& context)
 {
 	AssertIsStackNotEmpty(context);
-	const Value value = context.m_stack.back();
-	context.m_stack.pop_back();
-	return value;
+	return context.m_stack[--context.m_stackTop];
 }
 
 template <typename T>
-void ExecuteAdd(const ExecutionContext& context)
+void ExecuteAdd(ExecutionContext& context)
 {
 	const T rhs = Pop(context).As<T>();
 	const T lhs = Pop(context).As<T>();
@@ -120,7 +161,7 @@ void ExecuteAdd(const ExecutionContext& context)
 }
 
 template <typename T>
-void ExecuteSub(const ExecutionContext& context)
+void ExecuteSub(ExecutionContext& context)
 {
 	const T rhs = Pop(context).As<T>();
 	const T lhs = Pop(context).As<T>();
@@ -128,7 +169,7 @@ void ExecuteSub(const ExecutionContext& context)
 }
 
 template <typename T>
-void ExecuteMul(const ExecutionContext& context)
+void ExecuteMul(ExecutionContext& context)
 {
 	const T rhs = Pop(context).As<T>();
 	const T lhs = Pop(context).As<T>();
@@ -136,7 +177,7 @@ void ExecuteMul(const ExecutionContext& context)
 }
 
 template <typename T>
-void ExecuteDiv(const ExecutionContext& context)
+void ExecuteDiv(ExecutionContext& context)
 {
 	const T rhs = Pop(context).As<T>();
 	const T lhs = Pop(context).As<T>();
@@ -150,7 +191,7 @@ void ExecuteDiv(const ExecutionContext& context)
 }
 
 template <typename T>
-void ExecuteRem(const ExecutionContext& context)
+void ExecuteRem(ExecutionContext& context)
 {
 	const T rhs = Pop(context).As<T>();
 	const T lhs = Pop(context).As<T>();
@@ -171,7 +212,7 @@ void ExecuteRem(const ExecutionContext& context)
 }
 
 template <typename T>
-void ExecuteEq(const ExecutionContext& context)
+void ExecuteEq(ExecutionContext& context)
 {
 	const T rhs = Pop(context).As<T>();
 	const T lhs = Pop(context).As<T>();
@@ -179,7 +220,7 @@ void ExecuteEq(const ExecutionContext& context)
 }
 
 template <typename T>
-void ExecuteLt(const ExecutionContext& context)
+void ExecuteLt(ExecutionContext& context)
 {
 	const T rhs = Pop(context).As<T>();
 	const T lhs = Pop(context).As<T>();
@@ -187,7 +228,7 @@ void ExecuteLt(const ExecutionContext& context)
 }
 
 template <typename T>
-void ExecuteBitAnd(const ExecutionContext& context)
+void ExecuteBitAnd(ExecutionContext& context)
 {
 	static_assert(std::is_integral_v<T>);
 	const T rhs = Pop(context).As<T>();
@@ -196,7 +237,7 @@ void ExecuteBitAnd(const ExecutionContext& context)
 }
 
 template <typename T>
-void ExecuteBitOr(const ExecutionContext& context)
+void ExecuteBitOr(ExecutionContext& context)
 {
 	static_assert(std::is_integral_v<T>);
 	const T rhs = Pop(context).As<T>();
@@ -205,7 +246,7 @@ void ExecuteBitOr(const ExecutionContext& context)
 }
 
 template <typename T>
-void ExecuteBitXor(const ExecutionContext& context)
+void ExecuteBitXor(ExecutionContext& context)
 {
 	static_assert(std::is_integral_v<T>);
 	const T rhs = Pop(context).As<T>();
@@ -214,7 +255,7 @@ void ExecuteBitXor(const ExecutionContext& context)
 }
 
 template <typename T>
-void ExecuteBitNot(const ExecutionContext& context)
+void ExecuteBitNot(ExecutionContext& context)
 {
 	static_assert(std::is_integral_v<T>);
 	const T operand = Pop(context).As<T>();
@@ -222,7 +263,7 @@ void ExecuteBitNot(const ExecutionContext& context)
 }
 
 template <typename T>
-void ExecuteShl(const ExecutionContext& context)
+void ExecuteShl(ExecutionContext& context)
 {
 	static_assert(std::is_integral_v<T>);
 	const T rhs = Pop(context).As<T>();
@@ -231,7 +272,7 @@ void ExecuteShl(const ExecutionContext& context)
 }
 
 template <typename T>
-void ExecuteShr(const ExecutionContext& context)
+void ExecuteShr(ExecutionContext& context)
 {
 	static_assert(std::is_integral_v<T>);
 	const T rhs = Pop(context).As<T>();
@@ -246,17 +287,17 @@ void ExecuteConstantInstruction(ExecutionContext& context)
 	Push(context, constant);
 }
 
-void ExecuteDupInstruction(const ExecutionContext& context)
+void ExecuteDupInstruction(ExecutionContext& context)
 {
 	AssertIsStackNotEmpty(context);
-	Push(context, context.m_stack.back());
+	Push(context, context.m_stack[context.m_stackTop - 1]);
 }
 
 void ExecuteLoadLocalInstruction(ExecutionContext& context)
 {
 	const uint32_t index = ReadUint32(context);
 	const uint32_t absoluteIndex = context.m_stackOffset + index;
-	AssertIsStackDistanceValid(absoluteIndex < context.m_stack.size(), context);
+	AssertIsStackDistanceValid(absoluteIndex < context.m_stackTop, context);
 	Push(context, context.m_stack[absoluteIndex]);
 }
 
@@ -264,7 +305,7 @@ void ExecuteStoreLocalInstruction(ExecutionContext& context)
 {
 	const uint32_t index = ReadUint32(context);
 	const uint32_t absoluteIndex = context.m_stackOffset + index;
-	AssertIsStackDistanceValid(absoluteIndex < context.m_stack.size(), context);
+	AssertIsStackDistanceValid(absoluteIndex < context.m_stackTop, context);
 	context.m_stack[absoluteIndex] = Pop(context);
 }
 
@@ -310,7 +351,7 @@ void ExecuteCallInstruction(ExecutionContext& context)
 	context.m_frames.push_back({context.m_ip, context.m_stackOffset});
 
 	context.m_ip = targetIp;
-	context.m_stackOffset = static_cast<uint32_t>(context.m_stack.size()) - argCount;
+	context.m_stackOffset = context.m_stackTop - argCount;
 }
 
 bool ExecuteReturnInstruction(ExecutionContext& context)
@@ -323,7 +364,7 @@ bool ExecuteReturnInstruction(ExecutionContext& context)
 		return true;
 	}
 
-	context.m_stack.resize(context.m_stackOffset);
+	context.m_stackTop = context.m_stackOffset;
 	Push(context, result);
 
 	const auto [m_returnIp, m_stackOffset] = context.m_frames.back();
@@ -339,6 +380,7 @@ void ExecuteAllocateStructInstruction(ExecutionContext& context)
 {
 	const uint32_t fieldCount = ReadUint32(context);
 	auto* object = new HeapObject(fieldCount);
+	context.m_tracker.Track(object);
 	Push(context, Value(reinterpret_cast<uint64_t>(object)));
 }
 
@@ -357,21 +399,22 @@ void ExecuteStoreFieldInstruction(ExecutionContext& context)
 	object->SetField(index, value);
 }
 
-void ExecuteAllocateArrayInstruction(const ExecutionContext& context)
+void ExecuteAllocateArrayInstruction(ExecutionContext& context)
 {
 	const uint32_t length = Pop(context).As<uint32_t>();
 	auto* object = new HeapObject(length);
+	context.m_tracker.Track(object);
 	Push(context, Value(reinterpret_cast<uint64_t>(object)));
 }
 
-void ExecuteLoadElementInstruction(const ExecutionContext& context)
+void ExecuteLoadElementInstruction(ExecutionContext& context)
 {
 	const uint32_t index = Pop(context).As<uint32_t>();
 	const auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
 	Push(context, object->GetField(index));
 }
 
-void ExecuteStoreElementInstruction(const ExecutionContext& context)
+void ExecuteStoreElementInstruction(ExecutionContext& context)
 {
 	const Value value = Pop(context);
 	const uint32_t index = Pop(context).As<uint32_t>();
@@ -379,18 +422,19 @@ void ExecuteStoreElementInstruction(const ExecutionContext& context)
 	object->SetField(index, value);
 }
 
-void ExecuteRetainInstruction(const ExecutionContext& context)
+void ExecuteRetainInstruction(ExecutionContext& context)
 {
 	auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
 	object->Retain();
 	Push(context, Value(reinterpret_cast<uint64_t>(object)));
 }
 
-void ExecuteReleaseInstruction(const ExecutionContext& context)
+void ExecuteReleaseInstruction(ExecutionContext& context)
 {
 	auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
 	if (object->Release())
 	{
+		context.m_tracker.Untrack(object);
 		delete object;
 	}
 }
@@ -668,6 +712,7 @@ void Run(ExecutionContext& context)
 			break;
 		case OpCode::StoreField:
 			ExecuteStoreFieldInstruction(context);
+			break;
 
 		case OpCode::AllocateArray:
 			ExecuteAllocateArrayInstruction(context);
@@ -705,27 +750,29 @@ void Run(ExecutionContext& context)
 } // namespace
 
 VirtualMachine::VirtualMachine()
+	: m_stackTop(0)
 {
-	m_stack.reserve(STACK_RESERVE);
+	m_stack.resize(MAX_STACK);
 	m_frames.reserve(MAX_FRAMES);
 }
 
 void VirtualMachine::Interpret(const Chunk& chunk)
 {
-	m_stack.clear();
+	m_stackTop = 0;
 	m_frames.clear();
+	m_tracker.Clear();
 
-	ExecutionContext context{chunk, m_stack, m_frames, 0, 0};
+	ExecutionContext context{chunk, m_stack, m_frames, m_tracker, m_stackTop, 0, 0};
 
 	Run(context);
 }
 
 Value VirtualMachine::Peek(size_t distance) const
 {
-	if (distance >= m_stack.size())
+	if (distance >= m_stackTop)
 	{
 		throw std::runtime_error("Попытка доступа к элементу за пределами стека через публичный API");
 	}
 
-	return m_stack[m_stack.size() - 1 - distance];
+	return m_stack[m_stackTop - 1 - distance];
 }

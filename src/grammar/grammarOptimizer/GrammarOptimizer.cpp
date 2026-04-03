@@ -189,4 +189,30 @@ AutoOptimizationResult FindBestLL1(const raw::Rules& rules, const std::string& s
 
 	return {false, OptimizationFlags::None, augmentedRules, newStartSymbol};
 }
+
+raw::Rules OptimizeForLalr(raw::Rules rules, const std::string& startSymbol)
+{
+	AssertIsStartSymbolPresent(rules, startSymbol);
+
+	rules = ProductiveRulesFilter(std::move(rules)).FilterUnproductiveRules();
+	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
+
+	return rules;
+}
+
+raw::Rules AugmentGrammarLalr(raw::Rules rules, const std::string& startSymbol, std::string& outNewStart)
+{
+	outNewStart = "Z";
+	while (std::ranges::any_of(rules, [&](const raw::Rule& r) { return r.name == outNewStart; }))
+	{
+		outNewStart += "'";
+	}
+
+	raw::Rule rootRule;
+	rootRule.name = outNewStart;
+	rootRule.alternatives.push_back({startSymbol});
+
+	rules.insert(rules.begin(), std::move(rootRule));
+	return rules;
+}
 } // namespace GrammarOptimizer

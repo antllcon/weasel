@@ -1,13 +1,12 @@
 #include "grammar/GrammarTypes.h"
 #include "grammar/grammarOptimizer/GrammarOptimizer.h"
-#include "grammar/guideSetsCalculator/GuideSetsCalculator.h"
-#include "grammar/llTableBuilder/Ll1TableBuilder.h"
-#include "grammar/llTableBuilder/Ll1TablePrinter.h"
+#include "grammar/lalrTableBuilder/Lalr1Parser.h"
+#include "grammar/lalrTableBuilder/Lalr1TableBuilder.h"
+#include "grammar/lalrTableBuilder/Lalr1TablePrinter.h"
+#include "grammar/lalrTableBuilder/LalrParseStepsPrinter.h"
 #include "grammar/parser/GrammarConsistencyChecker.h"
 #include "grammar/parser/GrammarParser.h"
 #include "grammar/printGrammar/PrintGrammar.h"
-#include "grammar/tableBilder/Ll1Parser.h"
-#include "grammar/tableBilder/ParseStepsPrinter.h"
 #include "lexer/Lexer.h"
 #include "lexer/token/Token.h"
 
@@ -23,35 +22,36 @@ namespace
 {
 std::vector<std::string> LexerToGrammarTokens(const std::string& input)
 {
-	// 1. Прогоняем строку через твой лексер
 	auto tokens = Lexer::Tokenize(input);
 	std::vector<std::string> grammarTokens;
 
-	// 2. Мапим типы токенов на терминалы грамматики
 	for (const auto& token : tokens)
 	{
 		switch (token.type)
 		{
 		case TokenType::Identifier:
-			grammarTokens.push_back("id"); // Было "P"
+			if (token.value == "a" || token.value == "b" || token.value == "c")
+			{
+				grammarTokens.push_back(std::string(token.value));
+			}
+			else
+			{
+				grammarTokens.push_back("id");
+			}
 			break;
 		case TokenType::Integer:
 		case TokenType::Float:
-			grammarTokens.push_back("num"); // Было "NUM"
+			grammarTokens.push_back("num");
 			break;
 		case TokenType::String:
-			grammarTokens.push_back("str"); // Было "STR"
+			grammarTokens.push_back("str");
 			break;
 		case TokenType::Keyword:
-			// Ключевые слова (true, false, and, orr, not) забираем как есть
 			grammarTokens.push_back(std::string(token.value));
 			break;
 		case TokenType::EndOfFile:
-			// Твой лексер съедает символ '#' как комментарий,
-			// поэтому конец строки (EOF) мы вручную превращаем в маркер конца '#'
 			grammarTokens.push_back("#");
 			break;
-
 		case TokenType::OpPlus:
 			grammarTokens.push_back("+");
 			break;
@@ -101,7 +101,6 @@ std::vector<std::string> LexerToGrammarTokens(const std::string& input)
 			grammarTokens.push_back(".");
 			break;
 		default:
-			// Можно игнорировать или кидать ошибку для неподдерживаемых токенов
 			break;
 		}
 	}
@@ -124,33 +123,25 @@ int main()
 		const std::string startSymbol = rawRules.empty() ? "S" : rawRules.front().name;
 		PrintRules(rawRules, "Исходная грамматика:");
 
-		const auto result = GrammarOptimizer::FindBestLL1(rawRules, startSymbol);
-		if (!result.isFound) {
-			throw std::runtime_error("Грамматика не LL(1) даже после оптимизаций!");
-		}
+		rawRules = GrammarOptimizer::OptimizeForLalr(std::move(rawRules), startSymbol);
 
-		const std::string newStartSymbol = result.startSymbol;
+		std::string newStartSymbol;
+		rawRules = GrammarOptimizer::AugmentGrammarLalr(std::move(rawRules), startSymbol, newStartSymbol);
 
-		std::cout << "Примененные оптимизации (с сохранением языка):" << std::endl;
-		std::cout << "  - Добавлен стартовый маркер (Z -> S #)" << std::endl;
-		PrintAppliedOptimizations(result.flags);
-		PrintRules(result.rules, "Итоговая грамматика:");
+		PrintRules(rawRules, "Подготовленная грамматика для LALR(1):");
 
-		GuideSetsCalculator calculator(result.rules, newStartSymbol);
-		Rules rulesWithGuides = calculator.Calculate();
-		PrintRulesWithGuides(rulesWithGuides, "Направляющие множества грамматик:");
+		Lalr1TableBuilder tableBuilder(rawRules, newStartSymbol);
+		const auto lalrTable = tableBuilder.Build();
 
-		Ll1TableBuilder tableBuilder(rulesWithGuides);
-		const auto ll1Table = tableBuilder.Build();
-		Ll1TablePrinter::Print(ll1Table);
+		Lalr1TablePrinter::Print(lalrTable);
 
-		std::string inputLine = "a <= b <= c";
+		std::string inputLine = "a a b b";
 		std::vector<std::string> tokens = LexerToGrammarTokens(inputLine);
 
-		Ll1Parser parser(ll1Table, newStartSymbol);
+		Lalr1Parser parser(lalrTable);
 		auto steps = parser.Parse(tokens);
 
-		ParseStepsPrinter::Print(steps, inputLine);
+		LalrParseStepsPrinter::Print(steps, inputLine);
 	}
 	catch (const std::exception& e)
 	{

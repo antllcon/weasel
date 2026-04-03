@@ -38,4 +38,7 @@ struct AutoOptimizationResult
 [[nodiscard]] AutoOptimizationResult FindBestLL1(
 	const raw::Rules& rules,
 	const std::string& startSymbol);
+
+[[nodiscard]] raw::Rules OptimizeForLalr(raw::Rules rules, const std::string& startSymbol);
+[[nodiscard]] raw::Rules AugmentGrammarLalr(raw::Rules rules, const std::string& startSymbol, std::string& outNewStart);
 } // namespace GrammarOptimizer

@@ -504,6 +504,32 @@ void ExecuteCallNativeInstruction(ExecutionContext& context)
 	Push(context, result);
 }
 
+void ExecuteLoadStringInstruction(ExecutionContext& context)
+{
+	const uint32_t index = ReadUint32(context);
+	const std::string& text = context.m_chunk.GetStrings()[index];
+
+	// TODO: Для простоты пока создаем структуру, где в первом поле лежит указатель на строку
+	// В будущем мы сделаем HeapObject более универсальным для строк и буферов
+	auto* stringObject = new HeapObject(1);
+	context.m_tracker.Track(stringObject);
+
+	stringObject->SetField(0, Value(reinterpret_cast<uint64_t>(&text)));
+
+	Push(context, Value(reinterpret_cast<uint64_t>(stringObject)));
+}
+
+void ExecutePanicInstruction(ExecutionContext& context)
+{
+	const uint32_t errorCode = Pop(context).As<uint32_t>();
+
+	throw VmException(
+		"E_VM_RUNTIME_PANIC",
+		"Критическая ошибка выполнения (Runtime Panic). Код: " + std::to_string(errorCode),
+		context.m_ip,
+		ExtractCurrentLine(context));
+}
+
 void Run(ExecutionContext& context)
 {
 	for (;;)
@@ -809,6 +835,14 @@ void Run(ExecutionContext& context)
 
 		case OpCode::CallNative:
 			ExecuteCallNativeInstruction(context);
+			break;
+
+		case OpCode::LoadString:
+			ExecuteLoadStringInstruction(context);
+			break;
+
+		case OpCode::Panic:
+			ExecutePanicInstruction(context);
 			break;
 
 		case OpCode::Return:

@@ -133,7 +133,10 @@ const std::unordered_map<std::string, OpCode> MNEMONICS = {
 	{"call", OpCode::Call},
 	{"ret", OpCode::Return},
 
-	{"call_nat", OpCode::CallNative}};
+	{"call_nat", OpCode::CallNative},
+
+	{"ld_str", OpCode::LoadString},
+	{"panic", OpCode::Panic}};
 
 void AssertIsFileOpened(bool isOpen)
 {
@@ -251,7 +254,7 @@ bool Takes8BitArg(OpCode code)
 
 bool Takes32BitArg(OpCode code)
 {
-	return code == OpCode::LoadLocal || code == OpCode::StoreLocal || code == OpCode::Jump || code == OpCode::JumpIfFalse || code == OpCode::JumpIfTrue || code == OpCode::AllocateStruct || code == OpCode::GetField || code == OpCode::StoreField || code == OpCode::CallClosure;
+	return code == OpCode::LoadLocal || code == OpCode::StoreLocal || code == OpCode::Jump || code == OpCode::JumpIfFalse || code == OpCode::JumpIfTrue || code == OpCode::AllocateStruct || code == OpCode::GetField || code == OpCode::StoreField || code == OpCode::CallClosure || code == OpCode::LoadString;
 }
 
 bool TakesTwo32BitArgs(OpCode code)

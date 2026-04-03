@@ -42,5 +42,8 @@ enum class OpCode : uint8_t
 	AllocateClosure,
 	CallClosure,
 
-	CallNative
+	CallNative,
+
+	LoadString,
+	Panic
 };

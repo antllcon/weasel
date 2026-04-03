@@ -1,2 +1,4 @@
-S -> S a S b
-S -> e
+F -> function I ( I ) S end
+S -> ; I := E S | e
+E -> E * I | E + I | I
+I -> a | b

@@ -127,8 +127,13 @@ const std::unordered_map<std::string, OpCode> MNEMONICS = {
 	{"retain", OpCode::Retain},
 	{"release", OpCode::Release},
 
+	{"alloc_cls", OpCode::AllocateClosure},
+	{"call_cls", OpCode::CallClosure},
+
 	{"call", OpCode::Call},
-	{"ret", OpCode::Return}};
+	{"ret", OpCode::Return},
+
+	{"call_nat", OpCode::CallNative}};
 
 void AssertIsFileOpened(bool isOpen)
 {
@@ -246,12 +251,12 @@ bool Takes8BitArg(OpCode code)
 
 bool Takes32BitArg(OpCode code)
 {
-	return code == OpCode::LoadLocal || code == OpCode::StoreLocal || code == OpCode::Jump || code == OpCode::JumpIfFalse || code == OpCode::JumpIfTrue || code == OpCode::AllocateStruct || code == OpCode::GetField || code == OpCode::StoreField;
+	return code == OpCode::LoadLocal || code == OpCode::StoreLocal || code == OpCode::Jump || code == OpCode::JumpIfFalse || code == OpCode::JumpIfTrue || code == OpCode::AllocateStruct || code == OpCode::GetField || code == OpCode::StoreField || code == OpCode::CallClosure;
 }
 
 bool TakesTwo32BitArgs(OpCode code)
 {
-	return code == OpCode::Call;
+	return code == OpCode::Call || code == OpCode::AllocateClosure || code == OpCode::CallNative;
 }
 
 void WriteUint8(std::ofstream& stream, uint8_t value)

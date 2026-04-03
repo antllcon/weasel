@@ -28,11 +28,11 @@ void PrintGrammar::PrintRules(const raw::Rules& rules, const std::string& title)
 		{
 			for (const auto& symbol : alternatives[i])
 			{
-				std::cout << symbol;
+				std::cout << symbol << " ";
 			}
 			if (i + 1 < alternatives.size())
 			{
-				std::cout << " | ";
+				std::cout << "| ";
 			}
 		}
 		std::cout << std::endl;

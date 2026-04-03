@@ -15,6 +15,7 @@ struct ExecutionContext
 	const Chunk& m_chunk;
 	std::vector<Value>& m_stack;
 	std::vector<VirtualMachine::CallFrame>& m_frames;
+	const std::vector<VirtualMachine::NativeCallback>& m_natives;
 	HeapTracker& m_tracker;
 	uint32_t& m_stackTop;
 	uint32_t m_ip;
@@ -25,6 +26,18 @@ uint32_t ExtractCurrentLine(const ExecutionContext& context)
 {
 	const uint32_t errorIp = context.m_ip > 0 ? context.m_ip - 1 : 0;
 	return context.m_chunk.GetLine(errorIp);
+}
+
+void AssertIsNativeFunctionFound(bool isFound, const ExecutionContext& context)
+{
+	if (!isFound)
+	{
+		throw VmException(
+			"E_VM_NATIVE_NOT_FOUND",
+			"Вызов незарегистрированной нативной функции",
+			context.m_ip,
+			ExtractCurrentLine(context));
+	}
 }
 
 void AssertIsStackNotEmpty(const ExecutionContext& context)
@@ -439,6 +452,58 @@ void ExecuteReleaseInstruction(ExecutionContext& context)
 	}
 }
 
+void ExecuteAllocateClosureInstruction(ExecutionContext& context)
+{
+	const uint32_t targetIp = ReadUint32(context);
+	const uint32_t captureCount = ReadUint32(context);
+
+	auto* closure = new HeapObject(captureCount + 1);
+	context.m_tracker.Track(closure);
+
+	closure->SetField(0, Value(static_cast<uint64_t>(targetIp)));
+
+	for (uint32_t i = captureCount; i > 0; --i)
+	{
+		closure->SetField(i, Pop(context));
+	}
+
+	Push(context, Value(reinterpret_cast<uint64_t>(closure)));
+}
+
+void ExecuteCallClosureInstruction(ExecutionContext& context)
+{
+	const uint32_t argCount = ReadUint32(context);
+
+	AssertIsCallStackOverflow(context);
+	AssertIsCallArgumentCountValid(argCount + 1, context);
+
+	const uint32_t absoluteIndex = context.m_stackTop - argCount - 1;
+	auto* closure = reinterpret_cast<HeapObject*>(context.m_stack[absoluteIndex].AsRaw());
+	const uint32_t targetIp = static_cast<uint32_t>(closure->GetField(0).AsRaw());
+
+	context.m_frames.push_back({context.m_ip, context.m_stackOffset});
+
+	context.m_ip = targetIp;
+	context.m_stackOffset = absoluteIndex;
+}
+
+void ExecuteCallNativeInstruction(ExecutionContext& context)
+{
+	const uint32_t nativeId = ReadUint32(context);
+	const uint32_t argCount = ReadUint32(context);
+
+	AssertIsCallArgumentCountValid(argCount, context);
+	AssertIsNativeFunctionFound(nativeId < context.m_natives.size() && context.m_natives[nativeId], context);
+
+	const uint32_t absoluteIndex = context.m_stackTop - argCount;
+	const std::span<const Value> args(&context.m_stack[absoluteIndex], argCount);
+
+	const Value result = context.m_natives[nativeId](args);
+
+	context.m_stackTop -= argCount;
+	Push(context, result);
+}
+
 void Run(ExecutionContext& context)
 {
 	for (;;)
@@ -735,6 +800,17 @@ void Run(ExecutionContext& context)
 			ExecuteCallInstruction(context);
 			break;
 
+		case OpCode::AllocateClosure:
+			ExecuteAllocateClosureInstruction(context);
+			break;
+		case OpCode::CallClosure:
+			ExecuteCallClosureInstruction(context);
+			break;
+
+		case OpCode::CallNative:
+			ExecuteCallNativeInstruction(context);
+			break;
+
 		case OpCode::Return:
 			if (ExecuteReturnInstruction(context))
 			{
@@ -756,13 +832,22 @@ VirtualMachine::VirtualMachine()
 	m_frames.reserve(MAX_FRAMES);
 }
 
+void VirtualMachine::RegisterNativeFunction(uint32_t id, NativeCallback callback)
+{
+	if (id >= m_natives.size())
+	{
+		m_natives.resize(id + 1);
+	}
+	m_natives[id] = std::move(callback);
+}
+
 void VirtualMachine::Interpret(const Chunk& chunk)
 {
 	m_stackTop = 0;
 	m_frames.clear();
 	m_tracker.Clear();
 
-	ExecutionContext context{chunk, m_stack, m_frames, m_tracker, m_stackTop, 0, 0};
+	ExecutionContext context{chunk, m_stack, m_frames, m_natives, m_tracker, m_stackTop, 0, 0};
 
 	Run(context);
 }

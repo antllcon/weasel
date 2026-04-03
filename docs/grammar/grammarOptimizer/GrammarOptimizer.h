@@ -27,6 +27,7 @@ struct AutoOptimizationResult
 	bool isFound;
 	OptimizationFlags flags;
 	raw::Rules rules;
+	std::string startSymbol;
 };
 
 [[nodiscard]] raw::Rules Optimize(

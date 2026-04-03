@@ -23,7 +23,7 @@ void AssertIsRuleFound(bool isFound)
 
 std::string FormatGuideSet(const Guides& guides)
 {
-	std::vector<std::string> sorted(guides.begin(), guides.end());
+	std::vector sorted(guides.begin(), guides.end());
 	std::ranges::sort(sorted);
 
 	std::string result;
@@ -60,6 +60,15 @@ Guides GetNonterminalGuides(const Rules& rules, const std::string& ntName)
 	return result;
 }
 
+const Rule* FindRule(const Rules& rules, const std::string& name)
+{
+	for (const auto& r : rules)
+	{
+		if (r.name == name) return &r;
+	}
+	return nullptr;
+}
+
 std::unordered_map<std::string, size_t> BuildHeaderIndexMap(const Rules& rules)
 {
 	std::unordered_map<std::string, size_t> headerMap;
@@ -83,9 +92,13 @@ std::map<std::pair<std::string, size_t>, size_t> BuildBodyIndexMap(const Rules& 
 	{
 		for (size_t i = 0; i < rule.alternatives.size(); ++i)
 		{
-			bodyMap[{rule.name, i}] = currentIndex;
-			const size_t bodySize = rule.alternatives[i].rule.empty() ? 1 : rule.alternatives[i].rule.size();
-			currentIndex += bodySize;
+			bool isEpsilon = rule.alternatives[i].rule.empty() || (rule.alternatives[i].rule.size() == 1 && rule.alternatives[i].rule[0] == EMPTY_SYMBOL);
+
+			if (!isEpsilon)
+			{
+				bodyMap[{rule.name, i}] = currentIndex;
+				currentIndex += rule.alternatives[i].rule.size();
+			}
 		}
 	}
 
@@ -103,7 +116,18 @@ void AddHeaderRows(Ll1Table& table, const Rules& rules, const std::map<std::pair
 			row.name = rule.name;
 			row.guides = FormatGuideSet(rule.alternatives[i].guides);
 			row.error = (i == rule.alternatives.size() - 1);
-			row.transition = bodyMap.at({rule.name, i});
+
+			bool isEpsilon = rule.alternatives[i].rule.empty() || (rule.alternatives[i].rule.size() == 1 && rule.alternatives[i].rule[0] == EMPTY_SYMBOL);
+
+			if (isEpsilon)
+			{
+				row.transition = std::nullopt;
+			}
+			else
+			{
+				row.transition = bodyMap.at({rule.name, i});
+			}
+
 			row.shift = false;
 			row.stack = false;
 
@@ -112,36 +136,31 @@ void AddHeaderRows(Ll1Table& table, const Rules& rules, const std::map<std::pair
 	}
 }
 
-void AddBodyRows(Ll1Table& table, const Rules& rules, const std::unordered_map<std::string, size_t>& headerMap)
+void AddBodyRows(Ll1Table& table, const Rules& rules, const std::unordered_map<std::string, size_t>& headerMap, const std::map<std::pair<std::string, size_t>, size_t>& bodyMap)
 {
 	for (const auto& rule : rules)
 	{
 		for (const auto& alt : rule.alternatives)
 		{
-			const size_t bodySize = alt.rule.empty() ? 1 : alt.rule.size();
+			bool isAltEpsilon = alt.rule.empty() || (alt.rule.size() == 1 && alt.rule[0] == EMPTY_SYMBOL);
+			if (isAltEpsilon) continue;
+
+			const size_t bodySize = alt.rule.size();
 
 			for (size_t i = 0; i < bodySize; ++i)
 			{
 				Ll1TableRow row;
 				row.index = table.size() + 1;
 
-				std::string symbol = alt.rule.empty() ? EMPTY_SYMBOL : alt.rule[i];
+				std::string symbol = alt.rule[i];
 				row.name = symbol;
 				const bool isLast = (i == bodySize - 1);
 
-				if (symbol == EMPTY_SYMBOL)
-				{
-					row.guides = FormatGuideSet(alt.guides);
-					row.error = true;
-					row.transition = std::nullopt;
-					row.shift = false;
-					row.stack = false;
-				}
-				else if (IsTerm(symbol) || symbol == END_SYMBOL)
+				if (IsTerm(symbol) || symbol == END_SYMBOL)
 				{
 					row.guides = symbol;
 					row.error = true;
-					row.transition = isLast ? std::nullopt : std::optional<size_t>(row.index + 1);
+					row.transition = isLast ? std::nullopt : std::optional(row.index + 1);
 					row.shift = true;
 					row.stack = false;
 				}
@@ -153,7 +172,19 @@ void AddBodyRows(Ll1Table& table, const Rules& rules, const std::unordered_map<s
 					const auto it = headerMap.find(symbol);
 					AssertIsRuleFound(it != headerMap.end());
 
-					row.transition = it->second;
+					size_t targetTransition = it->second;
+
+					const Rule* targetRule = FindRule(rules, symbol);
+					if (targetRule && targetRule->alternatives.size() == 1)
+					{
+						bool isTargetEpsilon = targetRule->alternatives[0].rule.empty() || (targetRule->alternatives[0].rule.size() == 1 && targetRule->alternatives[0].rule[0] == EMPTY_SYMBOL);
+						if (!isTargetEpsilon)
+						{
+							targetTransition = bodyMap.at({symbol, 0});
+						}
+					}
+
+					row.transition = targetTransition;
 					row.shift = false;
 					row.stack = !isLast;
 				}
@@ -179,15 +210,15 @@ Ll1Table Ll1TableBuilder::Build() const
 	const auto headerMap = BuildHeaderIndexMap(m_rules);
 
 	size_t totalHeaders = 0;
-	for (const auto& rule : m_rules)
+	for (const auto& [name, alternatives] : m_rules)
 	{
-		totalHeaders += rule.alternatives.size();
+		totalHeaders += alternatives.size();
 	}
 
 	const auto bodyMap = BuildBodyIndexMap(m_rules, totalHeaders + 1);
 
 	AddHeaderRows(table, m_rules, bodyMap);
-	AddBodyRows(table, m_rules, headerMap);
+	AddBodyRows(table, m_rules, headerMap, bodyMap);
 
 	return table;
 }

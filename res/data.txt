@@ -1,11 +1,15 @@
-Z -> S #
-S -> P = E | i E t S A
-A -> l S | e
-P -> I B
-B -> ( E ) | e
-E -> T C
-C -> + T C | e
-T -> F D
-D -> * F D | e
-F -> P | ( E )
-I -> a | b
+A -> B C
+C -> orr B C | e
+B -> D E
+E -> and D E | e
+D -> not D | true | false | F
+F -> G H G | G
+H -> < | > | <= | >= | == | ><
+G -> J K
+K -> + J K | - J K | e
+J -> L M
+M -> N L M | e
+N -> * | / | %
+L -> - L | ( A ) | O | num | str | vec
+O -> id Q
+Q -> e | . id ( ) Q | . id ( A ) Q | [ G ] Q

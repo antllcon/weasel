@@ -48,38 +48,35 @@ std::vector<std::string> TokenizeAlternative(const std::string& altStr)
 			continue;
 		}
 
-		if (altStr[i] == '<')
+		if (std::isalpha(static_cast<unsigned char>(altStr[i])))
 		{
 			const size_t start = i;
-			while (i < length && altStr[i] != '>')
+			while (i < length && (std::isalnum(static_cast<unsigned char>(altStr[i])) || altStr[i] == '_'))
 			{
 				i++;
 			}
-			if (i < length)
+			while (i < length && altStr[i] == '\'')
 			{
 				i++;
 			}
 			symbols.push_back(altStr.substr(start, i - start));
 		}
-		else if (std::isupper(static_cast<unsigned char>(altStr[i])))
+		else if (std::ispunct(static_cast<unsigned char>(altStr[i])))
 		{
-			const size_t start = i;
-			i++;
-			while (i < length && (std::isdigit(static_cast<unsigned char>(altStr[i])) || altStr[i] == '\''))
+			if (altStr[i] == '(' || altStr[i] == ')' || altStr[i] == '[' || altStr[i] == ']')
 			{
+				symbols.push_back(std::string(1, altStr[i]));
 				i++;
 			}
-			symbols.push_back(altStr.substr(start, i - start));
-		}
-		else if (std::islower(static_cast<unsigned char>(altStr[i])))
-		{
-			const size_t start = i;
-			i++;
-			while (i < length && (std::islower(static_cast<unsigned char>(altStr[i])) || std::isdigit(static_cast<unsigned char>(altStr[i]))))
+			else
 			{
-				i++;
+				const size_t start = i;
+				while (i < length && std::ispunct(static_cast<unsigned char>(altStr[i])) && altStr[i] != '(' && altStr[i] != ')' && altStr[i] != '[' && altStr[i] != ']')
+				{
+					i++;
+				}
+				symbols.push_back(altStr.substr(start, i - start));
 			}
-			symbols.push_back(altStr.substr(start, i - start));
 		}
 		else
 		{

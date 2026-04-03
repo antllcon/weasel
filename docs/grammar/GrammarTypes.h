@@ -80,11 +80,6 @@ inline bool IsTerm(const std::string& term)
 		return false;
 	}
 
-	if (term.front() == '<')
-	{
-		return false;
-	}
-
 	if (std::isupper(static_cast<unsigned char>(term[0])))
 	{
 		return false;

@@ -50,6 +50,7 @@ bool IsGrammarValidLL1(const raw::Rules& rules, const std::string& startSymbol)
 	}
 }
 
+// TODO: мб рандомные штуки
 std::vector<OptimizationFlags> GetOptimizationProfiles()
 {
 	return {
@@ -72,11 +73,11 @@ std::vector<OptimizationFlags> GenerateAllFlagCombinations()
 		OptimizationFlags::EliminateLeftRecursion,
 		OptimizationFlags::LeftFactorize};
 
-	constexpr size_t flagCount = sizeof(allFlags) / sizeof(allFlags[0]);
+	constexpr size_t flagCount = std::size(allFlags);
 
 	std::vector<OptimizationFlags> combinations;
 
-	const uint32_t total = 1u << flagCount;
+	constexpr uint32_t total = 1u << flagCount;
 
 	for (uint32_t mask = 0; mask < total; ++mask)
 	{
@@ -84,7 +85,7 @@ std::vector<OptimizationFlags> GenerateAllFlagCombinations()
 
 		for (size_t i = 0; i < flagCount; ++i)
 		{
-			if (mask & (1u << i))
+			if (mask & 1u << i)
 			{
 				value |= static_cast<uint32_t>(allFlags[i]);
 			}
@@ -94,6 +95,22 @@ std::vector<OptimizationFlags> GenerateAllFlagCombinations()
 	}
 
 	return combinations;
+}
+
+raw::Rules AugmentGrammar(raw::Rules rules, const std::string& startSymbol, std::string& outNewStart)
+{
+	outNewStart = "Z";
+	while (std::ranges::any_of(rules, [&](const raw::Rule& r) { return r.name == outNewStart; }))
+	{
+		outNewStart += "'";
+	}
+
+	raw::Rule rootRule;
+	rootRule.name = outNewStart;
+	rootRule.alternatives.push_back({startSymbol, END_SYMBOL});
+
+	rules.insert(rules.begin(), rootRule);
+	return rules;
 }
 } // namespace
 
@@ -145,28 +162,31 @@ AutoOptimizationResult FindBestLL1(const raw::Rules& rules, const std::string& s
 {
 	AssertIsStartSymbolPresent(rules, startSymbol);
 
-	if (IsGrammarValidLL1(rules, startSymbol))
+	std::string newStartSymbol;
+	raw::Rules augmentedRules = AugmentGrammar(rules, startSymbol, newStartSymbol);
+
+	if (IsGrammarValidLL1(augmentedRules, newStartSymbol))
 	{
-		return {true, OptimizationFlags::None, rules};
+		return {true, OptimizationFlags::None, augmentedRules, newStartSymbol};
 	}
 
 	std::vector<OptimizationFlags> combinations = GenerateAllFlagCombinations();
 
 	for (OptimizationFlags flags : combinations)
 	{
-		raw::Rules optimized = Optimize(rules, startSymbol, flags);
+		raw::Rules optimized = Optimize(augmentedRules, newStartSymbol, flags);
 
 		if (optimized.empty())
 		{
 			continue;
 		}
 
-		if (IsGrammarValidLL1(optimized, startSymbol))
+		if (IsGrammarValidLL1(optimized, newStartSymbol))
 		{
-			return {true, flags, std::move(optimized)};
+			return {true, flags, std::move(optimized), newStartSymbol};
 		}
 	}
 
-	return {false, OptimizationFlags::None, rules};
+	return {false, OptimizationFlags::None, augmentedRules, newStartSymbol};
 }
 } // namespace GrammarOptimizer

@@ -1,0 +1,98 @@
+import math.wes
+import render.wes
+
+aliass upixel <- u number
+
+define u number MASK_R := 0xFF000000
+define u number MASK_G := 0x00FF0000
+define u number MASK_B := 0x0000FF00
+
+enumer Filter
+[
+    GRAYSCALE,
+    INVERT,
+    NONE
+]
+
+struct UColor
+[
+    u bitten r
+    u bitten g
+    u bitten b
+]
+
+UColor <- unpack(val upixel p)
+{
+    var u bitten r_val := (p bnd MASK_R) >> 24
+    var u bitten g_val := (p bnd MASK_G) >> 16
+    var u bitten b_val := (p bnd MASK_B) >> 8
+
+    return [r_val, g_val, b_val]
+}
+
+upixel <- pack(val UColor c)
+{
+    val u number r_num := c.r.number() << 24
+    val u number g_num := c.g.number() << 16
+    val u number b_num := c.b.number() << 8
+
+    return r_num bor g_num bor b_num bor 0x000000FF
+}
+
+voided <- FilterWorker(
+    val   buffer image,
+    val u number start,
+    val u number end,
+    val   Filter mode)
+{
+    var u number index := start
+
+    run (index < end)
+    {
+        var rpoint ptr := &image[index]
+        val upixel pix := *ptr
+
+        var UColor col := pix.unpack()
+
+        when (mode)
+        {
+            Filter.GRAYSCALE -> {
+                val u bitten avg := (col.r + col.g + col.b) / 3
+                col.r := avg
+                col.g := avg
+                col.b := avg
+            }
+            Filter.INVERT -> {
+                col.r := bnt col.r
+                col.g := bnt col.g
+                col.b := bnt col.b
+            }
+            else -> {}
+        }
+
+        *ptr := col.pack()
+        index := index + 1
+    }
+
+    return
+}
+
+voided <- FilterParallel(
+    val   buffer image,
+    val u number size,
+    val   Filter mode)
+{
+    val u number chunk := size / 4
+
+    var thread t1 := launch(FilterWorker, image, chunk * 0, chunk * 1, mode)
+    var thread t2 := launch(FilterWorker, image, chunk * 1, chunk * 2, mode)
+    var thread t3 := launch(FilterWorker, image, chunk * 2, chunk * 3, mode)
+    var thread t4 := launch(FilterWorker, image, chunk * 3, size,      mode)
+
+    t1.awaits()
+    t2.awaits()
+    t3.awaits()
+    t4.awaits()
+
+    return
+}

@@ -33,3 +33,12 @@ S -> ; I = E S | e
 E -> E * I | E + I | I
 I -> a | b
 ```
+
+```txt
+S -> T else F;
+T -> E
+T -> i;
+F -> E
+E -> E + i
+E -> i
+```

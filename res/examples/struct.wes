@@ -1,0 +1,24 @@
+.const
+47
+10
+
+.code
+math:
+    allocate_struct 2
+
+    duplicate
+    const 0
+    set_fld 0
+
+    duplicate
+    const 1
+    set_fld 1
+
+    duplicate
+    get_fld 0
+
+    pop
+    retain
+    release
+
+    ret

@@ -6,24 +6,24 @@
 2       # cst 3: старт
 
 .code
-cst 0
-alloc_arr   # [0] arr_ptr
-cst 0       # [1] N = cst 0
-cst 3       # [2] p = 2
-cst 1       # [3] i = 1
+const 0
+allocate_array   # [0] arr_ptr
+const 0       # [1] N = cst 0
+const 3       # [2] p = 2
+const 1       # [3] i = 1
 
 outer_loop:
 ld_loc 2
 ld_loc 1
 lt_i32
-jmp_f count_primes
+jump_false count_primes
 
 ld_loc 0
 ld_loc 2
 ld_elem
-cst 2
+const 2
 eq_i32
-jmp_f skip_inner
+jump_false skip_inner
 
 ld_loc 2
 ld_loc 2
@@ -34,56 +34,56 @@ inner_loop:
 ld_loc 3
 ld_loc 1
 lt_i32
-jmp_f skip_inner
+jump_false skip_inner
 
 ld_loc 0
 ld_loc 3
-cst 1
+const 1
 st_elem
 
 ld_loc 3
 ld_loc 2
 add_i32
 st_loc 3
-jmp inner_loop
+jump inner_loop
 
 skip_inner:
 ld_loc 2
-cst 1
+const 1
 add_i32
 st_loc 2
-jmp outer_loop
+jump outer_loop
 
 count_primes:
-cst 3
+const 3
 st_loc 2
-cst 2
+const 2
 st_loc 3
 
 count_loop:
 ld_loc 2
 ld_loc 1
 lt_i32
-jmp_f end_prog
+jump_false end_prog
 
 ld_loc 0
 ld_loc 2
 ld_elem
-cst 2
+const 2
 eq_i32
-jmp_f skip_inc
+jump_false skip_inc
 
 ld_loc 3
-cst 1
+const 1
 add_i32
 st_loc 3
 
 skip_inc:
 ld_loc 2
-cst 1
+const 1
 add_i32
 st_loc 2
-jmp count_loop
+jump count_loop
 
 end_prog:
 ret

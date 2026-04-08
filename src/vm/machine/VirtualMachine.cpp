@@ -195,7 +195,7 @@ void ExecuteDiv(ExecutionContext& context)
 	const T rhs = Pop(context).As<T>();
 	const T lhs = Pop(context).As<T>();
 
-	AssertIsNotDivisionByZero(rhs, context);
+	AssertIsNotDivisionByZero(rhs == 0, context);
 
 	if (rhs != 0)
 	{
@@ -209,7 +209,7 @@ void ExecuteRem(ExecutionContext& context)
 	const T rhs = Pop(context).As<T>();
 	const T lhs = Pop(context).As<T>();
 
-	AssertIsNotDivisionByZero(rhs, context);
+	AssertIsNotDivisionByZero(rhs == 0, context);
 
 	if (rhs != 0)
 	{

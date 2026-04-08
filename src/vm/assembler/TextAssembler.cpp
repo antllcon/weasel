@@ -23,7 +23,7 @@ struct ChunkByte
 };
 
 const std::unordered_map<std::string, OpCode> MNEMONICS = {
-	{"cst", OpCode::Constant},
+	{"const", OpCode::Constant},
 
 	{"add_i8", OpCode::AddI8},
 	{"add_u8", OpCode::AddU8},
@@ -110,17 +110,17 @@ const std::unordered_map<std::string, OpCode> MNEMONICS = {
 	{"ld_loc", OpCode::LoadLocal},
 	{"st_loc", OpCode::StoreLocal},
 	{"pop", OpCode::Pop},
-	{"dup", OpCode::Dup},
+	{"duplicate", OpCode::Dup},
 
-	{"jmp", OpCode::Jump},
-	{"jmp_f", OpCode::JumpIfFalse},
-	{"jmp_t", OpCode::JumpIfTrue},
+	{"jump", OpCode::Jump},
+	{"jump_false", OpCode::JumpIfFalse},
+	{"jump_true", OpCode::JumpIfTrue},
 
-	{"alloc_st", OpCode::AllocateStruct},
+	{"allocate_struct", OpCode::AllocateStruct},
 	{"get_fld", OpCode::GetField},
 	{"set_fld", OpCode::StoreField},
 
-	{"alloc_arr", OpCode::AllocateArray},
+	{"allocate_array", OpCode::AllocateArray},
 	{"ld_elem", OpCode::LoadElement},
 	{"st_elem", OpCode::StoreElement},
 

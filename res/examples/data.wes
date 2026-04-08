@@ -1,0 +1,24 @@
+.const
+5
+99
+0
+
+.code
+_start:
+    const 0
+    allocate_array
+
+    call fill_array 1
+    ret
+
+fill_array:
+    ld_loc 0
+    const 2
+    const 1
+    st_elem
+
+    ld_loc 0
+    const 2
+    ld_elem
+
+    ret

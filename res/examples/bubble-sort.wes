@@ -1,0 +1,48 @@
+.const
+0
+1
+2
+10
+30
+20
+
+.code
+start:
+    const 2
+    allocate_array
+
+    duplicate
+    const 0
+    const 3
+    st_elem
+
+    duplicate
+    const 1
+    const 4
+    st_elem
+
+    const 5
+
+    alloc_cls multiply_element 1
+
+    ld_loc 1
+    ld_loc 0
+    const 1
+
+    call_cls 2
+    ret
+
+# loc 0: сам объект замыкания (closure_ptr)
+# loc 1: array_ptr (первый аргумент)
+# loc 2: index (второй аргумент)
+multiply_element:
+
+    ld_loc 0
+    get_fld 1
+
+    ld_loc 1
+    ld_loc 2
+    ld_elem
+
+    mul_i32
+    ret

@@ -3,7 +3,7 @@
 
 .code
 native:
-    ld_str 0            # Стек: [str_ptr]
+    load-string 0            # Стек: [str_ptr]
 
     call_nat 0 1        # Стек: [native_result]
     pop                 # Стек: [] (игнорируем результат)

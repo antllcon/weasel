@@ -101,24 +101,24 @@ const std::unordered_map<std::string, OpCode> MNEMONICS = {
 	{"lt_f64", OpCode::LtF64},
 
 	{"bit_and", OpCode::BitAnd},
-	{"bit_or", OpCode::BitOr},
+	{"bit_orr", OpCode::BitOr},
 	{"bit_xor", OpCode::BitXor},
 	{"bit_not", OpCode::BitNot},
-	{"shl", OpCode::Shl},
-	{"shr", OpCode::Shr},
+	{"shift-left", OpCode::Shl},
+	{"shift-right", OpCode::Shr},
 
-	{"ld_loc", OpCode::LoadLocal},
-	{"st_loc", OpCode::StoreLocal},
+	{"load-local", OpCode::LoadLocal},
+	{"store-local", OpCode::StoreLocal},
 	{"pop", OpCode::Pop},
-	{"duplicate", OpCode::Dup},
+	{"dup", OpCode::Dup},
 
 	{"jump", OpCode::Jump},
 	{"jump_false", OpCode::JumpIfFalse},
 	{"jump_true", OpCode::JumpIfTrue},
 
 	{"allocate_struct", OpCode::AllocateStruct},
-	{"get_fld", OpCode::GetField},
-	{"set_fld", OpCode::StoreField},
+	{"load-field", OpCode::GetField},
+	{"store-field", OpCode::StoreField},
 
 	{"allocate_array", OpCode::AllocateArray},
 	{"ld_elem", OpCode::LoadElement},
@@ -135,7 +135,7 @@ const std::unordered_map<std::string, OpCode> MNEMONICS = {
 
 	{"call_nat", OpCode::CallNative},
 
-	{"ld_str", OpCode::LoadString},
+	{"load-string", OpCode::LoadString},
 	{"panic", OpCode::Panic}};
 
 void AssertIsFileOpened(bool isOpen)

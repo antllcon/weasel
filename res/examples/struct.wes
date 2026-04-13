@@ -8,14 +8,14 @@ math:
 
     duplicate
     const 0
-    set_fld 0
+    store-field 0
 
     duplicate
     const 1
-    set_fld 1
+    store-field 1
 
     duplicate
-    get_fld 0
+    load-field 0
 
     pop
     retain

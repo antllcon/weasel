@@ -8,7 +8,7 @@
 #include "grammar/parser/GrammarParser.h"
 #include "grammar/printGrammar/PrintGrammar.h"
 #include "lexer/Lexer.h"
-#include "lexer/token/Token.h"
+#include "lexer/Token.h"
 
 #include <filesystem>
 #include <iostream>
@@ -135,7 +135,7 @@ int main()
 
 		Lalr1TablePrinter::Print(lalrTable);
 
-		std::string inputLine = "a a b b";
+		std::string inputLine = "";
 		std::vector<std::string> tokens = LexerToGrammarTokens(inputLine);
 
 		Lalr1Parser parser(lalrTable);

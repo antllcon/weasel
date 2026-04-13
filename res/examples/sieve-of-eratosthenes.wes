@@ -13,42 +13,42 @@ const 3       # [2] p = 2
 const 1       # [3] i = 1
 
 outer_loop:
-ld_loc 2
-ld_loc 1
+load-local 2
+load-local 1
 lt_i32
 jump_false count_primes
 
-ld_loc 0
-ld_loc 2
+load-local 0
+load-local 2
 ld_elem
 const 2
 eq_i32
 jump_false skip_inner
 
-ld_loc 2
-ld_loc 2
+load-local 2
+load-local 2
 add_i32
 st_loc 3
 
 inner_loop:
-ld_loc 3
-ld_loc 1
+load-local 3
+load-local 1
 lt_i32
 jump_false skip_inner
 
-ld_loc 0
-ld_loc 3
+load-local 0
+load-local 3
 const 1
 st_elem
 
-ld_loc 3
-ld_loc 2
+load-local 3
+load-local 2
 add_i32
 st_loc 3
 jump inner_loop
 
 skip_inner:
-ld_loc 2
+load-local 2
 const 1
 add_i32
 st_loc 2
@@ -61,25 +61,25 @@ const 2
 st_loc 3
 
 count_loop:
-ld_loc 2
-ld_loc 1
+load-local 2
+load-local 1
 lt_i32
 jump_false end_prog
 
-ld_loc 0
-ld_loc 2
+load-local 0
+load-local 2
 ld_elem
 const 2
 eq_i32
 jump_false skip_inc
 
-ld_loc 3
+load-local 3
 const 1
 add_i32
 st_loc 3
 
 skip_inc:
-ld_loc 2
+load-local 2
 const 1
 add_i32
 st_loc 2

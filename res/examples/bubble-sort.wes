@@ -11,7 +11,7 @@ start:
     const 2
     allocate_array
 
-    duplicate
+    dup
     const 0
     const 3
     st_elem
@@ -25,8 +25,8 @@ start:
 
     alloc_cls multiply_element 1
 
-    ld_loc 1
-    ld_loc 0
+    load-local 1
+    load-local 0
     const 1
 
     call_cls 2
@@ -37,11 +37,11 @@ start:
 # loc 2: index (второй аргумент)
 multiply_element:
 
-    ld_loc 0
-    get_fld 1
+    load-local 0
+    load-field 1
 
-    ld_loc 1
-    ld_loc 2
+    load-local 1
+    load-local 2
     ld_elem
 
     mul_i32

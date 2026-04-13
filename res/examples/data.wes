@@ -12,12 +12,12 @@ _start:
     ret
 
 fill_array:
-    ld_loc 0
+    load-local 0
     const 2
     const 1
     st_elem
 
-    ld_loc 0
+    load-local 0
     const 2
     ld_elem
 

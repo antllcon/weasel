@@ -1,5 +1,5 @@
 #pragma once
-#include "Lalr1Parser.h"
+#include "LalrParser.h"
 #include <string>
 #include <vector>
 

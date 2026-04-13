@@ -1,6 +1,6 @@
 #pragma once
 #include "src/grammar/GrammarTypes.h"
-#include "src/grammar/lalrTableBuilder/Lalr1Types.h"
+#include "src/grammar/lalrTableBuilder/LalrTypes.h"
 #include <string>
 #include <vector>
 
@@ -13,10 +13,10 @@ struct LalrParseStep
 	std::string action;
 };
 
-class Lalr1Parser
+class LalrParser
 {
 public:
-	explicit Lalr1Parser(LalrTable table);
+	explicit LalrParser(LalrTable table);
 
 	[[nodiscard]] std::vector<LalrParseStep> Parse(const std::vector<std::string>& tokens) const;
 

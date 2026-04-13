@@ -1,4 +1,4 @@
-#include "Lalr1TableBuilder.h"
+#include "LalrTableBuilder.h"
 #include <algorithm>
 #include <queue>
 #include <stdexcept>
@@ -317,13 +317,13 @@ std::unordered_set<std::string> ExtractGrammarSymbols(const raw::Rules& rules)
 }
 } // namespace
 
-Lalr1TableBuilder::Lalr1TableBuilder(raw::Rules rules, std::string startSymbol)
+LalrTableBuilder::LalrTableBuilder(raw::Rules rules, std::string startSymbol)
 	: m_rules(std::move(rules))
 	, m_startSymbol(std::move(startSymbol))
 {
 }
 
-LalrTable Lalr1TableBuilder::Build() const
+LalrTable LalrTableBuilder::Build() const
 {
 	AssertIsGrammarNotEmpty(m_rules.empty());
 

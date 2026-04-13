@@ -1,4 +1,4 @@
-#include "Lalr1Parser.h"
+#include "LalrParser.h"
 #include <sstream>
 #include <stdexcept>
 
@@ -80,12 +80,12 @@ size_t GetAlternativeLength(const raw::Alternative& alt)
 }
 } // namespace
 
-Lalr1Parser::Lalr1Parser(LalrTable table)
+LalrParser::LalrParser(LalrTable table)
 	: m_table(std::move(table))
 {
 }
 
-std::vector<LalrParseStep> Lalr1Parser::Parse(const std::vector<std::string>& tokens) const
+std::vector<LalrParseStep> LalrParser::Parse(const std::vector<std::string>& tokens) const
 {
 	AssertIsTokensNotEmpty(tokens.empty());
 

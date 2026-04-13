@@ -1,12 +1,12 @@
 #pragma once
 #include "src/grammar/GrammarTypes.h"
-#include "src/grammar/lalrTableBuilder/Lalr1Types.h"
+#include "src/grammar/lalrTableBuilder/LalrTypes.h"
 #include <string>
 
-class Lalr1TableBuilder
+class LalrTableBuilder
 {
 public:
-	Lalr1TableBuilder(raw::Rules rules, std::string startSymbol);
+	LalrTableBuilder(raw::Rules rules, std::string startSymbol);
 
 	[[nodiscard]] LalrTable Build() const;
 

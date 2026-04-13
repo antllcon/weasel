@@ -1,4 +1,4 @@
-#include "Lalr1TablePrinter.h"
+#include "LalrTablePrinter.h"
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
@@ -91,7 +91,7 @@ void PrintLegend()
 
 } // namespace
 
-void Lalr1TablePrinter::Print(const LalrTable& table)
+void LalrTablePrinter::Print(const LalrTable& table)
 {
 	std::cout << "LALR(1) Таблица разбора" << std::endl;
 

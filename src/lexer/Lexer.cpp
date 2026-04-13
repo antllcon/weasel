@@ -1,28 +1,28 @@
 #include "Lexer.h"
-
 #include "src/diagnostics/CompilationException.h"
 
 #include <algorithm>
 #include <array>
 #include <cctype>
 #include <stdexcept>
+#include <utility>
 
 namespace
 {
-constexpr size_t AVERAGE_TOKEN_LENGTH = 5;
-constexpr size_t INITIAL_POSITION = 0;
-constexpr size_t INITIAL_LINE = 1;
+constexpr size_t AverageTokenLength = 5;
+constexpr size_t InitialPosition = 0;
+constexpr size_t InitialLine = 1;
 
 struct LexerState
 {
 	std::string_view source;
-	size_t pos = INITIAL_POSITION;
-	size_t line = INITIAL_LINE;
+	size_t pos = InitialPosition;
+	size_t line = InitialLine;
 };
 
-void AssertIsInputNotEmpty(bool isEmpty)
+void AssertIsInputNotEmpty(const std::string_view& input)
 {
-	if (isEmpty)
+	if (input.empty())
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Lexer,
@@ -338,31 +338,30 @@ Token GetNextToken(LexerState& state)
 
 	return ParseOperatorOrPunctuation(state);
 }
+
+std::vector<Token> CollectTokens(LexerState& state)
+{
+	std::vector<Token> tokens;
+	tokens.reserve(state.source.length() / AverageTokenLength);
+
+	while (true)
+	{
+		auto token = GetNextToken(state);
+		tokens.emplace_back(std::move(token));
+
+		if (token.type == TokenType::EndOfFile)
+		{
+			break;
+		}
+	}
+
+	return tokens;
+}
 } // namespace
 
 std::vector<Token> Lexer::Tokenize(std::string_view input)
 {
-	AssertIsInputNotEmpty(input.empty());
-
+	AssertIsInputNotEmpty(input);
 	LexerState state{input};
-	std::vector<Token> tokens;
-
-	const size_t estimatedTokens = input.length() / AVERAGE_TOKEN_LENGTH;
-	tokens.reserve(estimatedTokens);
-
-	bool isEof = false;
-
-	while (!isEof)
-	{
-		Token token = GetNextToken(state);
-
-		if (token.type == TokenType::EndOfFile)
-		{
-			isEof = true;
-		}
-
-		tokens.push_back(token);
-	}
-
-	return tokens;
+	return CollectTokens(state);
 }

@@ -1,3 +1,4 @@
+#include "libs/ConsoleUtfScope.h"
 #include "logger/console/ConsoleLogger.h"
 #include "logger/file/FileLogger.h"
 #include "src/cli/CommandLineParser.h"
@@ -24,31 +25,30 @@ std::shared_ptr<ILogger> CreateLogger(LogTarget target)
 
 int main(int argc, char* argv[])
 {
-	SetConsoleOutputCP(CP_UTF8);
-	SetConsoleCP(CP_UTF8);
+	ConsoleUtf8Scope consoleScope;
 
 	try
 	{
-		const auto options = CommandLineParser::Parse(argc, argv);
-		auto logger = CreateLogger(options.logTarget);
+		const auto [sourceFile, grammarFile, logTarget] = CommandLineParser::Parse(argc, argv);
+
+		const auto logger = CreateLogger(logTarget);
 
 		CompilerPipeline pipeline;
-		pipeline.InitGrammar(options.grammarFile, logger);
-
-		const auto success = pipeline.Compile(options.sourceFile, logger);
+		pipeline.InitGrammar(grammarFile, logger);
+		const auto success = pipeline.Compile(sourceFile, logger);
 
 		if (success)
 		{
-			if (logger) logger->Log("\n[Compiler]\tКонец компиляции");
+			if (logger) logger->Log("[Compiler]\tУспешная компиляция");
 			return EXIT_SUCCESS;
 		}
 
-		if (logger) logger->Log("\n[Compiler]\tЕсть ошибки на этапе компиляции");
+		if (logger) logger->Log("[Compiler]\tНе успешная компиляция");
 		return EXIT_FAILURE;
 	}
 	catch (const std::exception& e)
 	{
-		std::cerr << "[Error] " << e.what() << std::endl;
+		std::cerr << "[Error]\t" << e.what() << std::endl;
 		return EXIT_FAILURE;
 	}
 }

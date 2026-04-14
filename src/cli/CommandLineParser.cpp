@@ -1,5 +1,4 @@
 #include "CommandLineParser.h"
-
 #include <stdexcept>
 #include <string_view>
 #include <vector>
@@ -14,7 +13,7 @@ void AssertHasEnoughArguments(int argc)
 {
 	if (argc < 2)
 	{
-		throw std::runtime_error("Использование: wesc <файл.wes> [-l | -lf] [-g <файл.txt>]");
+		throw std::runtime_error("Проверь аргументы: wesc <name.wes> [-l | -lf] [-g <name.txt>]");
 	}
 }
 

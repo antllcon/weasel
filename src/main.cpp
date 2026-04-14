@@ -1,5 +1,6 @@
 #include "cli/ConsoleUtfScope.h"
 #include "grammar/LanguageContext/LanguageContextBuilder.h"
+#include "logger/timer/ScopedTimer.h"
 #include "src/cli/CommandLineParser.h"
 #include "src/compiler/CompilerPipeline.h"
 #include "src/logger/LoggerFactory.h"
@@ -14,6 +15,7 @@ int main(int argc, char* argv[])
 		const auto options = CommandLineParser::Parse(argc, argv);
 		const auto logger = LoggerFactory::Create(options.logTarget);
 
+		ScopedTimer timer("Время компиляции", logger);
 		const auto languageContext = LanguageContextBuilder::Build(options.grammarFile, logger);
 		const auto success = CompilerPipeline::Compile(options.sourceFile, languageContext, logger);
 

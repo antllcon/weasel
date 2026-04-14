@@ -33,7 +33,7 @@ struct Lr0ItemHasher
 {
 	size_t operator()(const Lr0Item& item) const
 	{
-		return std::hash<size_t>()(item.ruleIndex) ^ std::hash<size_t>()(item.altIndex) << 1 ^ (std::hash<size_t>()(item.dotPos) << 2);
+		return std::hash<size_t>()(item.ruleIndex) ^ std::hash<size_t>()(item.altIndex) << 1 ^ std::hash<size_t>()(item.dotPos) << 2;
 	}
 };
 

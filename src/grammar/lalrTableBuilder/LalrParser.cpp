@@ -4,7 +4,6 @@
 
 namespace
 {
-// TODO: переписать ошибки
 void AssertIsTokensNotEmpty(bool isEmpty)
 {
 	if (isEmpty)

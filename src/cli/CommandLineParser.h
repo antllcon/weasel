@@ -16,8 +16,7 @@ struct CompilerOptions
 	LogTarget logTarget = LogTarget::None;
 };
 
-class CommandLineParser
+namespace CommandLineParser
 {
-public:
-	[[nodiscard]] static CompilerOptions Parse(int argc, char* argv[]);
-};
+[[nodiscard]] CompilerOptions Parse(int argc, char* argv[]);
+}

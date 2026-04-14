@@ -1,27 +1,9 @@
-#include "libs/ConsoleUtfScope.h"
-#include "logger/console/ConsoleLogger.h"
-#include "logger/file/FileLogger.h"
+#include "cli/ConsoleUtfScope.h"
+#include "grammar/LanguageContext/LanguageContextBuilder.h"
 #include "src/cli/CommandLineParser.h"
 #include "src/compiler/CompilerPipeline.h"
+#include "src/logger/LoggerFactory.h"
 #include <iostream>
-#include <memory>
-#include <windows.h>
-
-namespace
-{
-std::shared_ptr<ILogger> CreateLogger(LogTarget target)
-{
-	switch (target)
-	{
-	case LogTarget::Console:
-		return std::make_shared<ConsoleLogger>(true, false);
-	case LogTarget::File:
-		return std::make_shared<FileLogger>("log.txt", true);
-	default:
-		return nullptr;
-	}
-}
-} // namespace
 
 int main(int argc, char* argv[])
 {
@@ -29,21 +11,19 @@ int main(int argc, char* argv[])
 
 	try
 	{
-		const auto [sourceFile, grammarFile, logTarget] = CommandLineParser::Parse(argc, argv);
+		const auto options = CommandLineParser::Parse(argc, argv);
+		const auto logger = LoggerFactory::Create(options.logTarget);
 
-		const auto logger = CreateLogger(logTarget);
-
-		CompilerPipeline pipeline;
-		pipeline.InitGrammar(grammarFile, logger);
-		const auto success = pipeline.Compile(sourceFile, logger);
+		const auto languageContext = LanguageContextBuilder::Build(options.grammarFile, logger);
+		const auto success = CompilerPipeline::Compile(options.sourceFile, languageContext, logger);
 
 		if (success)
 		{
-			if (logger) logger->Log("[Compiler]\tУспешная компиляция");
+			std::cout << "[Compiler]\tУспешная компиляция" << std::endl;
 			return EXIT_SUCCESS;
 		}
 
-		if (logger) logger->Log("[Compiler]\tНе успешная компиляция");
+		std::cout << "[Compiler]\tПроблемная компиляция" << std::endl;
 		return EXIT_FAILURE;
 	}
 	catch (const std::exception& e)

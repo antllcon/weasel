@@ -1,5 +1,6 @@
 #include "PrintGrammar.h"
-#include <iostream>
+
+#include <sstream>
 
 namespace
 {
@@ -14,110 +15,134 @@ raw::Rule PrintGrammar::MakeRule(const std::string& name, const raw::Alternative
 	return raw::Rule{name, alts};
 }
 
-void PrintGrammar::PrintRules(const raw::Rules& rules, const std::string& title)
+void PrintGrammar::PrintRules(const raw::Rules& rules, const std::shared_ptr<ILogger>& logger, const std::string& title)
 {
+	if (!logger)
+	{
+		return;
+	}
+
+	std::ostringstream ss;
+
 	if (!title.empty())
 	{
-		std::cout << title << std::endl;
+		ss << title << "\n";
 	}
 
 	for (const auto& [name, alternatives] : rules)
 	{
-		std::cout << name << " -> ";
+		ss << name << " -> ";
 		for (size_t i = 0; i < alternatives.size(); ++i)
 		{
 			for (const auto& symbol : alternatives[i])
 			{
-				std::cout << symbol << " ";
+				ss << symbol << " ";
 			}
 			if (i + 1 < alternatives.size())
 			{
-				std::cout << "| ";
+				ss << "| ";
 			}
 		}
-		std::cout << std::endl;
+		ss << "\n";
 	}
-	std::cout << std::endl;
+
+	logger->Log(ss.str());
 }
 
-void PrintGrammar::PrintRulesWithGuides(const Rules& rules, const std::string& title)
+void PrintGrammar::PrintRulesWithGuides(const Rules& rules, const std::shared_ptr<ILogger>& logger, const std::string& title)
 {
+	if (!logger)
+	{
+		return;
+	}
+
+	std::ostringstream ss;
+
 	if (!title.empty())
 	{
-		std::cout << title << std::endl;
+		ss << title << "\n";
 	}
 
 	for (const auto& rule : rules)
 	{
-		std::cout << rule.name << " -> ";
+		ss << rule.name << " -> ";
 		for (size_t i = 0; i < rule.alternatives.size(); ++i)
 		{
 			const auto& alt = rule.alternatives[i];
 			for (const auto& symbol : alt.rule)
 			{
-				std::cout << symbol;
+				ss << symbol;
 			}
 
-			std::cout << " { ";
+			ss << " { ";
 			bool isFirst = true;
 			for (const auto& term : alt.guides)
 			{
 				if (!isFirst)
 				{
-					std::cout << ", ";
+					ss << ", ";
 				}
-				std::cout << term;
+				ss << term;
 				isFirst = false;
 			}
-			std::cout << " }";
+			ss << " }";
 
 			if (i + 1 < rule.alternatives.size())
 			{
-				std::cout << " | ";
+				ss << " | ";
 			}
 		}
-		std::cout << std::endl;
+		ss << "\n";
 	}
-	std::cout << std::endl;
+
+	logger->Log(ss.str());
 }
 
-void PrintGrammar::PrintAppliedOptimizations(OptimizationFlags flags)
+void PrintGrammar::PrintAppliedOptimizations(OptimizationFlags flags, const std::shared_ptr<ILogger>& logger)
 {
+	if (!logger)
+	{
+		return;
+	}
+
+	std::ostringstream ss;
+
 	if (flags == OptimizationFlags::None)
 	{
-		std::cout << "  - Исходная грамматика уже является LL(1) (Без оптимизаций)" << std::endl;
+		ss << "  - Исходная грамматика уже является LL(1) (Без оптимизаций)\n";
+		logger->Log(ss.str());
 		return;
 	}
 
 	if (IsFlagActive(flags, OptimizationFlags::LeftFactorize))
 	{
-		std::cout << "  - Левая факторизация" << std::endl;
+		ss << "  - Левая факторизация\n";
 	}
 
 	if (IsFlagActive(flags, OptimizationFlags::EliminateLeftRecursion))
 	{
-		std::cout << "  - Устранение левой рекурсии" << std::endl;
+		ss << "  - Устранение левой рекурсии\n";
 	}
 
 	if (IsFlagActive(flags, OptimizationFlags::FilterUnreachable))
 	{
-		std::cout << "  - Удаление недостижимых правил" << std::endl;
+		ss << "  - Удаление недостижимых правил\n";
 	}
 
 	if (IsFlagActive(flags, OptimizationFlags::FilterUnproductive))
 	{
-		std::cout << "  - Удаление непродуктивных правил" << std::endl;
+		ss << "  - Удаление непродуктивных правил\n";
 	}
 
 	if (IsFlagActive(flags, OptimizationFlags::DeleteUnitRules))
 	{
-		std::cout << "  - Удаление цепных правил" << std::endl;
+		ss << "  - Удаление цепных правил\n";
 	}
 
 	if (IsFlagActive(flags, OptimizationFlags::DeleteEmptyRules))
 	{
-		std::cout << "  - Удаление пустых правил" << std::endl;
+		ss << "  - Удаление пустых правил\n";
 	}
 
-	std::cout << std::endl;
+	logger->Log(ss.str());
 }

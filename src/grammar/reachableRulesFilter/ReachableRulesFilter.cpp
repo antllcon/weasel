@@ -63,7 +63,7 @@ std::unordered_set<std::string> FindReachableSymbols(const raw::Rules& rules, co
 }
 } // namespace
 
-ReachableRulesFilter::ReachableRulesFilter(raw::Rules rules, std::string startSymbol)
+ReachableRulesFilter::ReachableRulesFilter(raw::Rules rules, std::string_view startSymbol)
 	: m_rules(std::move(rules))
 	, m_startSymbol(std::move(startSymbol))
 {

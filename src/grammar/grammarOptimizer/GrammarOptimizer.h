@@ -39,6 +39,6 @@ struct AutoOptimizationResult
 	const raw::Rules& rules,
 	const std::string& startSymbol);
 
-[[nodiscard]] raw::Rules OptimizeForLalr(raw::Rules rules, const std::string& startSymbol);
-[[nodiscard]] raw::Rules AugmentGrammarLalr(raw::Rules rules, const std::string& startSymbol, std::string& outNewStart);
+[[nodiscard]] raw::Rules OptimizeForLalr(raw::Rules rules, std::string_view startSymbol);
+[[nodiscard]] raw::Rules AugmentGrammarLalr(raw::Rules rules, std::string_view startSymbol, std::string& outNewStart);
 } // namespace GrammarOptimizer

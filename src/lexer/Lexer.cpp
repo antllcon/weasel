@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <stdexcept>
 #include <utility>
 
 namespace
@@ -16,11 +15,12 @@ constexpr size_t InitialLine = 1;
 struct LexerState
 {
 	std::string_view source;
+	DiagnosticEngine& engine;
 	size_t pos = InitialPosition;
 	size_t line = InitialLine;
 };
 
-void AssertIsInputNotEmpty(const std::string_view& input)
+void AssertIsInputNotEmpty(std::string_view input)
 {
 	if (input.empty())
 	{
@@ -33,34 +33,28 @@ void AssertIsInputNotEmpty(const std::string_view& input)
 	}
 }
 
-void AssertIsUnknownSymbol(bool isUnknown, char symbol, size_t line, size_t pos)
+void ReportUnknownSymbol(const LexerState& state, char symbol, size_t line, size_t pos)
 {
-	if (isUnknown)
-	{
-		throw CompilationException(DiagnosticData{
-			.phase = CompilerPhase::Lexer,
-			.errorCode = "LEX-002",
-			.message = "Встречен неизвестный или недопустимый символ",
-			.expected = "Валидный токен алфавита Weasel",
-			.actual = std::string(1, symbol),
-			.line = line,
-			.pos = pos});
-	}
+	state.engine.Report(DiagnosticData{
+		.phase = CompilerPhase::Lexer,
+		.errorCode = "LEX-002",
+		.message = "Встречен неизвестный или недопустимый символ",
+		.expected = "Валидный токен алфавита Weasel",
+		.actual = std::string(1, symbol),
+		.line = line,
+		.pos = pos});
 }
 
-void AssertIsStringTerminated(bool isTerminated, size_t line, size_t pos)
+void ReportUnterminatedString(const LexerState& state, size_t line, size_t pos)
 {
-	if (!isTerminated)
-	{
-		throw CompilationException(DiagnosticData{
-			.phase = CompilerPhase::Lexer,
-			.errorCode = "LEX-003",
-			.message = "Незакрытая строковая константа",
-			.expected = "\"",
-			.actual = "Конец файла (EOF)",
-			.line = line,
-			.pos = pos});
-	}
+	state.engine.Report(DiagnosticData{
+		.phase = CompilerPhase::Lexer,
+		.errorCode = "LEX-003",
+		.message = "Незакрытая строковая константа",
+		.expected = "\"",
+		.actual = "Конец файла (EOF)",
+		.line = line,
+		.pos = pos});
 }
 
 bool IsAtEnd(const LexerState& state)
@@ -199,9 +193,14 @@ Token ParseString(LexerState& state)
 		Advance(state);
 	}
 
-	AssertIsStringTerminated(!IsAtEnd(state), state.line, state.pos);
-
-	Advance(state);
+	if (IsAtEnd(state))
+	{
+		ReportUnterminatedString(state, state.line, state.pos);
+	}
+	else
+	{
+		Advance(state);
+	}
 
 	const std::string_view value = state.source.substr(startPos, state.pos - startPos);
 
@@ -268,7 +267,7 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 			Advance(state);
 			return MakeToken(TokenType::OpEq, startPos, 2, state, startLine);
 		}
-		AssertIsUnknownSymbol(true, ch, startLine, startPos);
+		ReportUnknownSymbol(state, ch, startLine, startPos);
 		break;
 	case '.':
 		if (Peek(state) == '.')
@@ -304,10 +303,11 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 	case '}':
 		return MakeToken(TokenType::BraceRight, startPos, 1, state, startLine);
 	default:
-		AssertIsUnknownSymbol(true, ch, startLine, startPos);
+		ReportUnknownSymbol(state, ch, startLine, startPos);
+		break;
 	}
 
-	return Token{TokenType::Error, "", startPos, startLine};
+	return MakeToken(TokenType::Error, startPos, 1, state, startLine);
 }
 
 Token GetNextToken(LexerState& state)
@@ -359,9 +359,9 @@ std::vector<Token> CollectTokens(LexerState& state)
 }
 } // namespace
 
-std::vector<Token> Lexer::Tokenize(std::string_view input)
+std::vector<Token> Lexer::Tokenize(std::string_view input, DiagnosticEngine& engine)
 {
 	AssertIsInputNotEmpty(input);
-	LexerState state{input};
+	LexerState state{input, engine};
 	return CollectTokens(state);
 }

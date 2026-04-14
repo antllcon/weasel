@@ -1,4 +1,5 @@
 #pragma once
+#include <filesystem>
 #include <string>
 
 enum class CompilerPhase
@@ -20,5 +21,5 @@ struct DiagnosticData
 	std::string actual;
 	size_t line = 0;
 	size_t pos = 0;
-	std::string filePath;
+	std::filesystem::path filePath;
 };

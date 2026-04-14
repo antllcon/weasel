@@ -30,7 +30,7 @@ void GrammarConsistencyChecker::Check(const raw::Rules& rules)
 			{
 				if (!IsTerm(symbol))
 				{
-					AssertIsNonTerminalDefined(definedNonTerminals.contains(symbol), symbol);
+					AssertIsNonTerminalDefined(definedNonTerminals.contains(symbol.data()), symbol.data());
 				}
 			}
 		}

@@ -1,5 +1,5 @@
 #include "diagnostics/CompilationException.h"
-#include "logger/logger/ConsoleLogger.h"
+#include "logger/console/ConsoleLogger.h"
 #include "logger/timer/ScopedTimer.h"
 #include "src/console/ConsoleEncoding.h"
 #include "vm/assembler/TextAssembler.h"

@@ -1,7 +1,8 @@
 #include "LalrTablePrinter.h"
+
 #include <algorithm>
 #include <iomanip>
-#include <iostream>
+#include <sstream>
 #include <vector>
 
 namespace
@@ -60,7 +61,7 @@ std::string FormatAction(const LalrAction& action, const LalrTable& table)
 	}
 	if (action.type == LalrActionType::Reduce)
 	{
-		size_t flatId = GetFlatRuleIndex(table, action.ruleIndex, action.altIndex);
+		const size_t flatId = GetFlatRuleIndex(table, action.ruleIndex, action.altIndex);
 		return "R" + std::to_string(flatId);
 	}
 	if (action.type == LalrActionType::Accept)
@@ -70,34 +71,132 @@ std::string FormatAction(const LalrAction& action, const LalrTable& table)
 	return "-";
 }
 
-void PrintCell(const std::string& text, int width)
+void PrintCell(std::ostringstream& ss, const std::string& text, size_t width)
 {
-	std::cout << " " << std::left << std::setw(width) << text << " |";
+	ss << " " << std::left << std::setw(static_cast<int>(width)) << text << " |";
 }
 
-void PrintRowSeparator(size_t totalWidth)
+void PrintRowSeparator(std::ostringstream& ss, size_t totalWidth)
 {
-	std::cout << std::string(totalWidth, '-') << std::endl;
+	ss << std::string(totalWidth, '-') << "\n";
 }
 
-void PrintLegend()
+void PrintLegend(std::ostringstream& ss)
 {
-	std::cout << "\nРасшифровка действий:\n";
-	std::cout << "  Sn  (Shift)  : Сдвиг - читаем токен, кладем в стек и переходим в состояние 'n'\n";
-	std::cout << "  Rn  (Reduce) : Свертка по правилу номер 'n'\n";
-	std::cout << "  WIN (Accept) : Строка успешно разобрана\n";
-	std::cout << "  n   (Goto)   : В какое состояние переходим после свертки нетерминала\n";
+	ss << "\nРасшифровка действий:\n";
+	ss << "  Sn  (Shift)  : Сдвиг - читаем токен, кладем в стек и переходим в состояние 'n'\n";
+	ss << "  Rn  (Reduce) : Свертка по правилу номер 'n'\n";
+	ss << "  WIN (Accept) : Строка успешно разобрана\n";
+	ss << "  n   (Goto)   : В какое состояние переходим после свертки нетерминала\n";
 }
 
+size_t CalculateStateWidth(size_t stateCount)
+{
+	size_t maxWidth = 5;
+	maxWidth = std::max(maxWidth, std::to_string(stateCount > 0 ? stateCount - 1 : 0).length());
+	return maxWidth;
+}
+
+std::unordered_map<std::string, size_t> CalculateNonTerminalWidths(
+	const std::vector<std::string>& nonTerminals,
+	const std::vector<std::unordered_map<std::string, size_t>>& gotoTable)
+{
+	std::unordered_map<std::string, size_t> widths;
+	for (const auto& nt : nonTerminals)
+	{
+		size_t maxWidth = nt.length();
+		for (const auto& row : gotoTable)
+		{
+			if (row.contains(nt))
+			{
+				maxWidth = std::max(maxWidth, std::to_string(row.at(nt)).length());
+			}
+		}
+		widths[nt] = maxWidth;
+	}
+	return widths;
+}
+
+std::unordered_map<std::string, size_t> CalculateTerminalWidths(
+	const std::vector<std::string>& terminals,
+	const std::vector<std::unordered_map<std::string, LalrAction>>& actionTable,
+	const LalrTable& table)
+{
+	std::unordered_map<std::string, size_t> widths;
+	for (const auto& term : terminals)
+	{
+		size_t maxWidth = term.length();
+		for (const auto& row : actionTable)
+		{
+			if (row.contains(term))
+			{
+				maxWidth = std::max(maxWidth, FormatAction(row.at(term), table).length());
+			}
+		}
+		widths[term] = maxWidth;
+	}
+	return widths;
+}
+
+size_t CalculateEndSymbolWidth(
+	const std::vector<std::unordered_map<std::string, LalrAction>>& actionTable,
+	const LalrTable& table)
+{
+	size_t maxWidth = END_SYMBOL.length();
+	for (const auto& row : actionTable)
+	{
+		if (row.contains(END_SYMBOL))
+		{
+			maxWidth = std::max(maxWidth, FormatAction(row.at(END_SYMBOL), table).length());
+		}
+	}
+	return maxWidth;
+}
+
+size_t CalculateTotalWidth(
+	size_t stateWidth,
+	const std::vector<std::string>& nonTerminals,
+	const std::vector<std::string>& terminals,
+	const std::unordered_map<std::string, size_t>& ntWidths,
+	const std::unordered_map<std::string, size_t>& termWidths,
+	bool hasEndSymbol,
+	size_t endSymbolWidth)
+{
+	size_t total = 1;
+	total += stateWidth + 3;
+
+	for (const auto& nt : nonTerminals)
+	{
+		total += ntWidths.at(nt) + 3;
+	}
+
+	for (const auto& term : terminals)
+	{
+		total += termWidths.at(term) + 3;
+	}
+
+	if (hasEndSymbol)
+	{
+		total += endSymbolWidth + 3;
+	}
+
+	return total;
+}
 } // namespace
 
-void LalrTablePrinter::Print(const LalrTable& table)
+void LalrTablePrinter::Print(const LalrTable& table, const std::shared_ptr<ILogger>& logger)
 {
-	std::cout << "LALR(1) Таблица разбора" << std::endl;
+	if (!logger)
+	{
+		return;
+	}
 
-	PrintLegend();
+	std::ostringstream ss;
+	ss << "LALR(1) Таблица разбора\n";
 
-	std::vector<std::string> terminals = ExtractOrderedSymbols(table, true);
+	PrintLegend(ss);
+
+	const std::vector<std::string> terminals = ExtractOrderedSymbols(table, true);
 	const std::vector<std::string> nonTerminals = ExtractOrderedSymbols(table, false);
 
 	bool hasEndSymbol = false;
@@ -110,44 +209,49 @@ void LalrTablePrinter::Print(const LalrTable& table)
 		}
 	}
 
-	constexpr int CELL_WIDTH = 6;
-	const size_t totalWidth = -1 + 2 + (1 + CELL_WIDTH + 2) * (1 + nonTerminals.size() + terminals.size() + (hasEndSymbol ? 1 : 0));
+	const size_t stateWidth = CalculateStateWidth(table.actionTable.size());
+	const auto ntWidths = CalculateNonTerminalWidths(nonTerminals, table.gotoTable);
+	const auto termWidths = CalculateTerminalWidths(terminals, table.actionTable, table);
+	const size_t endSymbolWidth = hasEndSymbol ? CalculateEndSymbolWidth(table.actionTable, table) : 0;
 
-	PrintRowSeparator(totalWidth);
+	const size_t totalWidth = CalculateTotalWidth(
+		stateWidth, nonTerminals, terminals, ntWidths, termWidths, hasEndSymbol, endSymbolWidth);
 
-	std::cout << "|";
-	PrintCell("State", CELL_WIDTH);
+	PrintRowSeparator(ss, totalWidth);
+
+	ss << "|";
+	PrintCell(ss, "State", stateWidth);
 
 	for (const auto& nt : nonTerminals)
 	{
-		PrintCell(nt, CELL_WIDTH);
+		PrintCell(ss, nt, ntWidths.at(nt));
 	}
 	for (const auto& term : terminals)
 	{
-		PrintCell(term, CELL_WIDTH);
+		PrintCell(ss, term, termWidths.at(term));
 	}
 	if (hasEndSymbol)
 	{
-		PrintCell(END_SYMBOL, CELL_WIDTH);
+		PrintCell(ss, END_SYMBOL, endSymbolWidth);
 	}
-	std::cout << std::endl;
+	ss << "\n";
 
-	PrintRowSeparator(totalWidth);
+	PrintRowSeparator(ss, totalWidth);
 
 	for (size_t i = 0; i < table.actionTable.size(); ++i)
 	{
-		std::cout << "|";
-		PrintCell(std::to_string(i), CELL_WIDTH);
+		ss << "|";
+		PrintCell(ss, std::to_string(i), stateWidth);
 
 		for (const auto& nt : nonTerminals)
 		{
 			if (table.gotoTable[i].contains(nt))
 			{
-				PrintCell(std::to_string(table.gotoTable[i].at(nt)), CELL_WIDTH);
+				PrintCell(ss, std::to_string(table.gotoTable[i].at(nt)), ntWidths.at(nt));
 			}
 			else
 			{
-				PrintCell("", CELL_WIDTH);
+				PrintCell(ss, "", ntWidths.at(nt));
 			}
 		}
 
@@ -155,11 +259,11 @@ void LalrTablePrinter::Print(const LalrTable& table)
 		{
 			if (table.actionTable[i].contains(term))
 			{
-				PrintCell(FormatAction(table.actionTable[i].at(term), table), CELL_WIDTH);
+				PrintCell(ss, FormatAction(table.actionTable[i].at(term), table), termWidths.at(term));
 			}
 			else
 			{
-				PrintCell("", CELL_WIDTH);
+				PrintCell(ss, "", termWidths.at(term));
 			}
 		}
 
@@ -167,15 +271,17 @@ void LalrTablePrinter::Print(const LalrTable& table)
 		{
 			if (table.actionTable[i].contains(END_SYMBOL))
 			{
-				PrintCell(FormatAction(table.actionTable[i].at(END_SYMBOL), table), CELL_WIDTH);
+				PrintCell(ss, FormatAction(table.actionTable[i].at(END_SYMBOL), table), endSymbolWidth);
 			}
 			else
 			{
-				PrintCell("", CELL_WIDTH);
+				PrintCell(ss, "", endSymbolWidth);
 			}
 		}
-		std::cout << std::endl;
+		ss << "\n";
 	}
 
-	PrintRowSeparator(totalWidth);
+	PrintRowSeparator(ss, totalWidth);
+
+	logger->Log(ss.str());
 }

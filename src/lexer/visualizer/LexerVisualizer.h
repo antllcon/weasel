@@ -1,15 +1,15 @@
 #pragma once
 
-#include "Token.h"
 #include "src/diagnostics/Diagnostic.h"
 #include "src/diagnostics/DiagnosticEngine.h"
+#include "src/lexer/Token.h"
 #include <string_view>
 #include <vector>
 
-class Lexer
+class LexerVisualizer
 {
 public:
-	[[nodiscard]] static std::vector<Token> Tokenize(
-		std::string_view input,
-		DiagnosticEngine& engine);
+	static void Visualize(
+		const std::vector<Token>& tokens,
+		const DiagnosticEngine& engine);
 };

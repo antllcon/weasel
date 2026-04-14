@@ -13,9 +13,9 @@
 
 namespace
 {
-void AssertIsStartSymbolPresent(const raw::Rules& rules, const std::string& startSymbol)
+void AssertIsStartSymbolPresent(const raw::Rules& rules, std::string_view startSymbol)
 {
-	const bool isPresent = std::ranges::any_of(rules, [&startSymbol](const raw::Rule& rule) {
+	const bool isPresent = std::ranges::any_of(rules, [startSymbol](const raw::Rule& rule) {
 		return rule.name == startSymbol;
 	});
 
@@ -48,19 +48,6 @@ bool IsGrammarValidLL1(const raw::Rules& rules, const std::string& startSymbol)
 	{
 		return false;
 	}
-}
-
-// TODO: мб рандомные штуки
-std::vector<OptimizationFlags> GetOptimizationProfiles()
-{
-	return {
-		OptimizationFlags::None,
-		OptimizationFlags::LeftFactorize,
-		OptimizationFlags::EliminateLeftRecursion,
-		OptimizationFlags::EliminateLeftRecursion | OptimizationFlags::LeftFactorize,
-		OptimizationFlags::FilterUnreachable | OptimizationFlags::FilterUnproductive | OptimizationFlags::EliminateLeftRecursion | OptimizationFlags::LeftFactorize,
-		OptimizationFlags::DeleteUnitRules | OptimizationFlags::FilterUnreachable | OptimizationFlags::FilterUnproductive | OptimizationFlags::EliminateLeftRecursion | OptimizationFlags::LeftFactorize,
-		OptimizationFlags::DeleteEmptyRules | OptimizationFlags::DeleteUnitRules | OptimizationFlags::FilterUnreachable | OptimizationFlags::FilterUnproductive | OptimizationFlags::EliminateLeftRecursion | OptimizationFlags::LeftFactorize};
 }
 
 std::vector<OptimizationFlags> GenerateAllFlagCombinations()
@@ -190,17 +177,17 @@ AutoOptimizationResult FindBestLL1(const raw::Rules& rules, const std::string& s
 	return {false, OptimizationFlags::None, augmentedRules, newStartSymbol};
 }
 
-raw::Rules OptimizeForLalr(raw::Rules rules, const std::string& startSymbol)
+raw::Rules OptimizeForLalr(raw::Rules rules, std::string_view startSymbol)
 {
 	AssertIsStartSymbolPresent(rules, startSymbol);
 
 	rules = ProductiveRulesFilter(std::move(rules)).FilterUnproductiveRules();
-	rules = ReachableRulesFilter(std::move(rules), startSymbol).FilterUnreachableRules();
+	rules = ReachableRulesFilter(std::move(rules), std::string(startSymbol)).FilterUnreachableRules();
 
 	return rules;
 }
 
-raw::Rules AugmentGrammarLalr(raw::Rules rules, const std::string& startSymbol, std::string& outNewStart)
+raw::Rules AugmentGrammarLalr(raw::Rules rules, std::string_view startSymbol, std::string& outNewStart)
 {
 	outNewStart = "Z";
 	while (std::ranges::any_of(rules, [&](const raw::Rule& r) { return r.name == outNewStart; }))
@@ -210,7 +197,7 @@ raw::Rules AugmentGrammarLalr(raw::Rules rules, const std::string& startSymbol, 
 
 	raw::Rule rootRule;
 	rootRule.name = outNewStart;
-	rootRule.alternatives.push_back({startSymbol});
+	rootRule.alternatives.push_back({std::string(startSymbol)});
 
 	rules.insert(rules.begin(), std::move(rootRule));
 	return rules;

@@ -5,7 +5,7 @@
 class ReachableRulesFilter
 {
 public:
-	ReachableRulesFilter(raw::Rules rules, std::string startSymbol);
+	ReachableRulesFilter(raw::Rules rules, std::string_view startSymbol);
 	[[nodiscard]] raw::Rules FilterUnreachableRules();
 
 private:

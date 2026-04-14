@@ -1,11 +1,15 @@
 #pragma once
+
+#include <cctype>
 #include <ranges>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 enum class ActionType;
+
 inline const std::string END_SYMBOL = "#";
 inline const std::string EMPTY_SYMBOL = "e";
 
@@ -21,7 +25,7 @@ struct Rule
 };
 
 using Rules = std::vector<Rule>;
-} // namespace raw
+}
 
 using Guides = std::unordered_set<std::string>;
 
@@ -46,7 +50,7 @@ struct GrammarEntry
 	size_t rule;
 	size_t pos;
 
-	bool operator==(const GrammarEntry& other) const = default;
+	bool operator==(const GrammarEntry&) const = default;
 
 	struct Hasher
 	{
@@ -73,7 +77,7 @@ struct Action
 using TableRow = std::unordered_map<std::string, Action>;
 using Table = std::vector<TableRow>;
 
-inline bool IsTerm(const std::string& term)
+inline bool IsTerm(std::string_view term)
 {
 	if (term.empty())
 	{

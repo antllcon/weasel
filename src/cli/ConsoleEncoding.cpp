@@ -1,4 +1,4 @@
-#include "ConsoleEncoding.h"
+#include "../console/ConsoleEncoding.h"
 #include <stdexcept>
 
 namespace

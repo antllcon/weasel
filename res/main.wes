@@ -1,3 +1,123 @@
+# Константы времени компиляции (строго капсом)
+def u number WIDTH := 1920
+def u number HEIGHT := 1080
+
+# Структуры данных (поля в квадратных скобках)
+struct Ray
+[
+    vector origin
+    vector direct
+]
+
+struct Sphere
+[
+    vector center
+    single radius
+    quadra color
+]
+
+struct Hit
+[
+    boolen is_hit
+    single dist
+    vector normal
+]
+
+single <- dot(val vector a, val vector b)
+{
+    return a.x * b.x + a.y * b.y + a.z * b.z
+}
+
+vector <- normalize(val vector v)
+{
+    val single len := v.length()
+
+    when (len == 0.0)
+    {
+        return [0.0, 0.0, 0.0]
+    }
+
+    return [v.x / len, v.y / len, v.z / len]
+}
+
+# Функция пересечения луча и сферы
+Hit <- intersect(val Ray ray, val Sphere sph)
+{
+    val vector oc := ray.origin - sph.center
+    val single b  := oc.dot(ray.direct)
+    val single c  := oc.dot(oc) - sph.radius * sph.radius
+    val single h  := b * b - c
+
+    # Используем твой оператор>< (неравенство) и and
+    when (h >< 0.0 and h >= 0.0)
+    {
+        # В идеале здесь нужен вызов h.sqrt() из будущей stdlib
+        val single dist := -b
+
+        # Точка пересечения и нормаль
+        val vector p    := ray.origin + ray.direct * dist
+        val vector norm := (p - sph.center).normalize()
+
+        return [true, dist, norm]
+    }
+
+    return [false, 0.0, [0.0, 0.0, 0.0]]
+}
+
+# Функция расчета цвета (возвращает quadra / acolor)
+quadra <- trace(val Ray ray, val Sphere sph)
+{
+    val Hit hit := ray.intersect(sph)
+
+    when (hit.is_hit)
+    {
+        # Направление базового источника света
+        val vector light_dir := [0.0, 1.0, -1.0].normalize()
+        var single intensity := hit.normal.dot(light_dir)
+
+        # Ограничиваем освещенность снизу (чтобы тень не была отрицательной)
+        when (intensity <= 0.0)
+        {
+            intensity := 0.0
+        }
+
+        # Возвращаем цвет с учетом освещенности
+        return [sph.color.x * intensity, sph.color.y * intensity, sph.color.z * intensity, 1.0]
+    }
+    else
+    {
+        # Фоновый цвет (темно-серый)
+        return [0.1, 0.1, 0.1, 1.0]
+    }
+
+    # Обязательный return в конце функции
+    return [0.0, 0.0, 0.0, 1.0]
+}
+
+# Точка входа в программу
 voided <- main()
 {
+    # Инициализация структуры Sphere через оператор перемещения <- (так как структура тяжелая)
+    val Sphere main_sphere <- [[0.0, 0.0, -5.0], 2.0, [1.0, 0.2, 0.2, 1.0]]
+
+    # Цикл rep для 2D-координат. На уровне AST/VM мы можем развернуть его
+    # в пулы потоков для параллельного рендеринга
+    rep x, y in 0..WIDTH, 0..HEIGHT
+    {
+        # Конвертация типов через методы .single()
+        val single nx := x.single() / WIDTH.single() * 2.0 - 1.0
+        val single ny := y.single() / HEIGHT.single() * 2.0 - 1.0
+
+        val vector dir      := [nx, ny, -1.0]
+        val vector norm_dir <- dir.normalize()
+
+        val Ray ray <- [[0.0, 0.0, 0.0], norm_dir]
+
+        # Вызов функции трассировки через UFCS
+        val quadra pixel_color <- ray.trace(main_sphere)
+
+        # Здесь в будущем будет вызов записи pixel_color в сырой buffer
+    }
+
+    return
 }

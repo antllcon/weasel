@@ -52,26 +52,3 @@ if (BUILD_TESTING)
         gtest_discover_tests(tests)
     endif ()
 endif ()
-
-option(BUILD_BENCHMARKS "Build the benchmarks" ON)
-
-if (BUILD_BENCHMARKS)
-    include(FetchContent)
-
-    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
-    set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
-
-    FetchContent_Declare(
-            googlebenchmark
-            URL https://github.com/google/benchmark/archive/refs/tags/v1.8.3.zip
-            DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
-    FetchContent_MakeAvailable(googlebenchmark)
-
-    file(GLOB_RECURSE BENCHMARK_FILES "benchmarks/*.cpp")
-
-    if (BENCHMARK_FILES)
-        add_executable(benchmarks ${BENCHMARK_FILES})
-        target_link_libraries(benchmarks PRIVATE core_lib benchmark::benchmark_main)
-    endif ()
-endif ()

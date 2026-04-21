@@ -1,7 +1,7 @@
+#include "cli/ConsoleUtfScope.h"
 #include "diagnostics/CompilationException.h"
 #include "logger/console/ConsoleLogger.h"
 #include "logger/timer/ScopedTimer.h"
-#include "src/console/ConsoleEncoding.h"
 #include "vm/assembler/TextAssembler.h"
 #include "vm/exception/BackendException.h"
 #include "vm/exception/VmException.h"
@@ -9,7 +9,6 @@
 #include "vm/machine/VirtualMachine.h"
 #include "vm/value/Value.h"
 #include <iostream>
-#include <windows.h>
 
 namespace
 {
@@ -82,11 +81,11 @@ void RunPipeline(std::filesystem::path filePath)
 
 int main(int argc, char* argv[])
 {
+	ConsoleUtf8Scope consoleScope;
 	auto logger = std::make_shared<ConsoleLogger>(true, false);
 
 	try
 	{
-		SetConsoleOutputCP(CP_UTF8);
 		ScopedTimer timer("Исполнение (VM)", logger);
 
 		AssertHasCorrectArgumentCount(argc);

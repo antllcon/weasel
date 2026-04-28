@@ -1,4 +1,5 @@
 #include "LalrParser.h"
+#include "src/grammar/cst/CstNode.h"
 #include <sstream>
 #include <stdexcept>
 
@@ -78,6 +79,38 @@ size_t GetAlternativeLength(const raw::Alternative& alt)
 	}
 	return alt.size();
 }
+
+std::unique_ptr<CstNode> MakeLeaf(const CstInputToken& token)
+{
+	auto node = std::make_unique<CstNode>();
+	node->label = token.symbol;
+	node->value = token.value;
+	node->location = token.location;
+	return node;
+}
+
+std::unique_ptr<CstNode> MakeInterior(
+	const std::string& label,
+	std::vector<std::unique_ptr<CstNode>> children)
+{
+	auto node = std::make_unique<CstNode>();
+	node->label = label;
+	node->children = std::move(children);
+	return node;
+}
+
+std::vector<std::unique_ptr<CstNode>> PopChildren(
+	std::vector<std::unique_ptr<CstNode>>& stack,
+	size_t count)
+{
+	std::vector<std::unique_ptr<CstNode>> children(count);
+	for (size_t i = count; i > 0; --i)
+	{
+		children[i - 1] = std::move(stack.back());
+		stack.pop_back();
+	}
+	return children;
+}
 } // namespace
 
 LalrParser::LalrParser(LalrTable table)
@@ -156,4 +189,60 @@ std::vector<LalrParseStep> LalrParser::Parse(const std::vector<std::string>& tok
 	}
 
 	return steps;
+}
+
+std::unique_ptr<CstNode> LalrParser::ParseToTree(const std::vector<CstInputToken>& tokens) const
+{
+	AssertIsTokensNotEmpty(tokens.empty());
+
+	std::vector<size_t> stateStack;
+	std::vector<std::unique_ptr<CstNode>> nodeStack;
+	stateStack.push_back(0);
+
+	size_t ip = 0;
+	bool isAccepted = false;
+
+	while (!isAccepted)
+	{
+		const std::string lookahead = ip < tokens.size() ? tokens[ip].symbol : END_SYMBOL;
+		const size_t currentState = stateStack.back();
+
+		const auto& actions = m_table.actionTable[currentState];
+		AssertIsActionFound(actions.contains(lookahead), lookahead, ip);
+
+		const auto& [type, ruleIndex, altIndex] = actions.at(lookahead);
+
+		if (type == LalrActionType::Shift)
+		{
+			nodeStack.push_back(MakeLeaf(tokens[ip]));
+			stateStack.push_back(ruleIndex);
+			++ip;
+		}
+		else if (type == LalrActionType::Reduce)
+		{
+			const raw::Rule& rule = m_table.augmentedRules[ruleIndex];
+			const raw::Alternative& alt = rule.alternatives[altIndex];
+			const size_t lengthToPop = GetAlternativeLength(alt);
+
+			auto children = PopChildren(nodeStack, lengthToPop);
+
+			for (size_t i = 0; i < lengthToPop; ++i)
+			{
+				stateStack.pop_back();
+			}
+
+			const size_t stateAfterPop = stateStack.back();
+			const auto& gotos = m_table.gotoTable[stateAfterPop];
+			AssertIsGotoFound(gotos.contains(rule.name), rule.name);
+
+			stateStack.push_back(gotos.at(rule.name));
+			nodeStack.push_back(MakeInterior(rule.name, std::move(children)));
+		}
+		else if (type == LalrActionType::Accept)
+		{
+			isAccepted = true;
+		}
+	}
+
+	return std::move(nodeStack.back());
 }

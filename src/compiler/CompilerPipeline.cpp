@@ -1,6 +1,7 @@
 #include "CompilerPipeline.h"
 #include "src/diagnostics/CompilationException.h"
 #include "src/diagnostics/DiagnosticEngine.h"
+#include "src/grammar/cst/CstInputToken.h"
 #include "src/grammar/lalrTableBuilder/LalrParseStepsPrinter.h"
 #include "src/lexer/Lexer.h"
 #include <fstream>
@@ -86,6 +87,27 @@ std::vector<std::string> MapTokensToGrammar(const std::vector<Token>& tokens)
 
 	return grammarTokens;
 }
+
+CstInputToken MapTokenToCstInput(const Token& token)
+{
+	return CstInputToken{
+		.symbol = MapTokenTypeToGrammarSymbol(token),
+		.value = token.value,
+		.location = SourceLocation{token.line, token.pos}};
+}
+
+std::vector<CstInputToken> MapTokensToCstInput(const std::vector<Token>& tokens)
+{
+	std::vector<CstInputToken> result;
+	result.reserve(tokens.size());
+
+	for (const auto& token : tokens)
+	{
+		result.emplace_back(MapTokenToCstInput(token));
+	}
+
+	return result;
+}
 } // namespace
 
 namespace CompilerPipeline
@@ -115,6 +137,9 @@ bool Compile(
 	{
 		LalrParseStepsPrinter::Print(parseSteps, sourceFile.string(), logger);
 	}
+
+	const auto cstTokens = MapTokensToCstInput(tokens);
+	const auto cstRoot = parser.ParseToTree(cstTokens);
 
 	return true;
 }

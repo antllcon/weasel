@@ -1,14 +1,14 @@
-#include "cli/ConsoleUtfScope.h"
+#include "src/console/ConsoleUtfScope.h"
 #include "grammar/LanguageContext/LanguageContextBuilder.h"
 #include "logger/timer/ScopedTimer.h"
-#include "src/cli/CommandLineParser.h"
+#include "src/console/CommandLineParser.h"
 #include "src/compiler/CompilerPipeline.h"
 #include "src/logger/LoggerFactory.h"
 #include <iostream>
 
 int main(int argc, char* argv[])
 {
-	ConsoleUtf8Scope consoleScope;
+	ConsoleUtfScope consoleScope;
 
 	try
 	{

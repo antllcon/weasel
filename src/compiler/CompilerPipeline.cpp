@@ -2,7 +2,7 @@
 #include "src/diagnostics/CompilationException.h"
 #include "src/diagnostics/DiagnosticEngine.h"
 #include "src/grammar/cst/CstInputToken.h"
-#include "src/grammar/lalrTableBuilder/LalrParseStepsPrinter.h"
+#include "src/grammar/lalr/LalrParseStepsPrinter.h"
 #include "src/lexer/Lexer.h"
 #include <fstream>
 #include <sstream>

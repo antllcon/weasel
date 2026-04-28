@@ -2,7 +2,7 @@
 #include "src/grammar/GrammarTypes.h"
 #include "src/grammar/cst/CstInputToken.h"
 #include "src/grammar/cst/CstNode.h"
-#include "src/grammar/lalrTableBuilder/LalrTypes.h"
+#include "src/grammar/lalr/LalrTypes.h"
 #include <memory>
 #include <string>
 #include <vector>

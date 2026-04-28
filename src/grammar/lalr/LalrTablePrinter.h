@@ -1,6 +1,6 @@
 #pragma once
 
-#include "src/grammar/lalrTableBuilder/LalrTypes.h"
+#include "src/grammar/lalr/LalrTypes.h"
 #include "src/logger/ILogger.h"
 #include <memory>
 

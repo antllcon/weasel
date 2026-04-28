@@ -84,10 +84,10 @@ void PrintRowSeparator(std::ostringstream& ss, size_t totalWidth)
 void PrintLegend(std::ostringstream& ss)
 {
 	ss << "\nРасшифровка действий:\n";
-	ss << "  Sn  (Shift)  : Сдвиг - читаем токен, кладем в стек и переходим в состояние 'n'\n";
-	ss << "  Rn  (Reduce) : Свертка по правилу номер 'n'\n";
-	ss << "  WIN (Accept) : Строка успешно разобрана\n";
-	ss << "  n   (Goto)   : В какое состояние переходим после свертки нетерминала\n";
+	ss << "Sn  (Shift)  : Сдвиг - читаем токен, кладем в стек и переходим в состояние 'n'\n";
+	ss << "Rn  (Reduce) : Свертка по правилу номер 'n'\n";
+	ss << "WIN (Accept) : Строка успешно разобрана\n";
+	ss << "n   (Goto)   : В какое состояние переходим после свертки нетерминала\n";
 }
 
 size_t CalculateStateWidth(size_t stateCount)

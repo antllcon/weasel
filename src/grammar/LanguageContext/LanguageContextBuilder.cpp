@@ -1,10 +1,10 @@
 #include "LanguageContextBuilder.h"
 #include "src/diagnostics/CompilationException.h"
-#include "src/grammar/lalrTableBuilder/LalrTableBuilder.h"
-#include "src/grammar/lalrTableBuilder/LalrTablePrinter.h"
+#include "src/grammar/lalr/LalrTableBuilder.h"
+#include "src/grammar/lalr/LalrTablePrinter.h"
+#include "src/grammar/optimizer/GrammarOptimizer.h"
 #include "src/grammar/parser/GrammarConsistencyChecker.h"
 #include "src/grammar/parser/GrammarParser.h"
-#include "src/grammar/printGrammar/PrintGrammar.h"
 #include <filesystem>
 
 namespace

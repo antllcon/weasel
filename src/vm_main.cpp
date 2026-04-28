@@ -1,4 +1,4 @@
-#include "src/console/ConsoleUtfScope.h"
+#include "src/console/ConsoleEncoding.h"
 #include "src/diagnostics/CompilationException.h"
 #include "src/logger/console/ConsoleLogger.h"
 #include "src/logger/timer/ScopedTimer.h"
@@ -81,7 +81,7 @@ void RunPipeline(std::filesystem::path filePath)
 
 int main(int argc, char* argv[])
 {
-	ConsoleUtfScope consoleScope;
+	ConsoleEncoding console;
 	auto logger = std::make_shared<ConsoleLogger>(true, false);
 
 	try

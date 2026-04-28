@@ -1,14 +1,14 @@
-#include "src/console/ConsoleUtfScope.h"
 #include "grammar/LanguageContext/LanguageContextBuilder.h"
 #include "logger/timer/ScopedTimer.h"
-#include "src/console/CommandLineParser.h"
 #include "src/compiler/CompilerPipeline.h"
+#include "src/console/CommandLineParser.h"
+#include "src/console/ConsoleEncoding.h"
 #include "src/logger/LoggerFactory.h"
 #include <iostream>
 
 int main(int argc, char* argv[])
 {
-	ConsoleUtfScope consoleScope;
+	ConsoleEncoding console;
 
 	try
 	{

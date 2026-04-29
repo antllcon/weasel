@@ -3,7 +3,6 @@
 #include "src/diagnostics/Diagnostic.h"
 #include "src/diagnostics/DiagnosticEngine.h"
 #include "src/lexer/Token.h"
-#include <string_view>
 #include <vector>
 
 class LexerVisualizer

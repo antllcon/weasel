@@ -1,0 +1,46 @@
+def u number WIDTH  := 1920
+def u number HEIGHT := 1080
+
+als acolor <- quadra
+
+struct Ray
+[
+    vector origin
+    vector dir
+]
+
+acolor <- trace(val Ray ray, val u number depth)
+{
+    when (depth == 0)
+    {
+        return [0.0, 0.0, 0.0, 1.0]
+    }
+
+    return [0.5, 0.7, 1.0, 1.0]
+}
+
+voided <- main()
+{
+    var slices frame_buffer := allocate_buffer(WIDTH * HEIGHT)
+
+    rep (x, y in 0 .. WIDTH, 0 .. HEIGHT)
+    {
+        var single u := x.single() / WIDTH.single()
+        var single v := y.single() / HEIGHT.single()
+
+        var Ray r := Ray
+        [
+            origin := [0.0, 0.0, 0.0],
+            dir    := [u, v, -1.0].normalize()
+        ]
+
+        var acolor pixel_color := trace(r, 5)
+
+        var u number index := (y * WIDTH) + x
+        frame_buffer[index] := pixel_color
+    }
+
+    write_ppm("output.ppm", frame_buffer, WIDTH, HEIGHT)
+
+    return
+}

@@ -1,5 +1,7 @@
 #include "HeapObject.h"
-#include "src/vm/exception/BackendException.h"
+#include "src/compiler/vm/value/Value.h"
+#include "src/diagnostics/CompilationException.h"
+#include "src/diagnostics/Diagnostic.h"
 
 namespace
 {
@@ -7,10 +9,10 @@ void AssertIsFieldIndexValid(bool isValid)
 {
 	if (!isValid)
 	{
-		throw BackendException(
-			CompilerPhase::VirtualMachine,
-			"ICE_HEAP_FIELD_OOB",
-			"Индекс поля структуры выходит за пределы памяти (ошибка компилятора)");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::VirtualMachine,
+			.errorCode = "хз-хз, дописать",
+			.message = "Индекс поля структуры выходит за пределы памяти (ошибка компилятора)"});
 	}
 }
 } // namespace

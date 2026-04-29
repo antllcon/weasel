@@ -7,10 +7,9 @@ NumberExpr::NumberExpr(std::string value, bool isFloat, const SourceRange& range
 {
 }
 
-void NumberExpr::Accept(IAstVisitor& /* visitor */) const
+void NumberExpr::Accept(IAstVisitor& visitor) const
 {
-	// Нужно будет добавить Visit(const NumberExpr& node) в IAstVisitor.h !
-	// visitor.Visit(*this);
+	visitor.Visit(*this);
 }
 
 SourceRange NumberExpr::GetRange() const

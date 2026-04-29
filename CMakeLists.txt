@@ -54,6 +54,9 @@ if (BUILD_TESTING)
     if (TEST_FILES)
         add_executable(tests ${TEST_FILES})
         target_link_libraries(tests PRIVATE core_lib GTest::gmock_main)
+        target_compile_definitions(tests PRIVATE
+            TEST_GRAMMAR_FILE="${CMAKE_SOURCE_DIR}/res/grammar.txt"
+        )
 
         include(GoogleTest)
         gtest_discover_tests(tests)

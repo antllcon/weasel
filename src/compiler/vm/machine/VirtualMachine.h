@@ -1,11 +1,11 @@
 #pragma once
-#include "src/vm/chunk/Chunk.h"
-#include "src/vm/memory/HeapTracker.h"
-#include "src/vm/value/Value.h"
+#include "src/compiler/vm/value/Value.h"
+#include "src/compiler/vm/memory/HeapTracker.h"
 #include <functional>
 #include <span>
 #include <vector>
 
+class Chunk;
 class VirtualMachine
 {
 public:

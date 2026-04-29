@@ -36,20 +36,27 @@ raw::Rules AugmentGrammar(const raw::Rules& originalRules, const std::string& st
 FirstSets CalculateFirstSets(const raw::Rules& rules)
 {
 	FirstSets firstSets;
-	for (const auto& [name, alternatives] : rules)
+
+	for (const auto& rule : rules)
 	{
-		firstSets[name] = {};
+		firstSets[rule.name] = {};
 	}
 
 	bool changed = true;
+
 	while (changed)
 	{
 		changed = false;
-		for (const auto& [name, alternatives] : rules)
+
+		for (const auto& rule : rules)
 		{
+			const auto& name = rule.name;
+			const auto& alternatives = rule.alternatives;
+
 			for (const auto& alt : alternatives)
 			{
 				bool allEmpty = true;
+
 				for (const auto& symbol : alt)
 				{
 					if (IsTerm(symbol))
@@ -58,6 +65,7 @@ FirstSets CalculateFirstSets(const raw::Rules& rules)
 						{
 							changed = true;
 						}
+
 						allEmpty = false;
 						break;
 					}
@@ -68,6 +76,7 @@ FirstSets CalculateFirstSets(const raw::Rules& rules)
 					}
 
 					const auto& symbolFirst = firstSets[symbol];
+
 					for (const auto& term : symbolFirst)
 					{
 						if (term != EMPTY_SYMBOL)
@@ -96,6 +105,7 @@ FirstSets CalculateFirstSets(const raw::Rules& rules)
 			}
 		}
 	}
+
 	return firstSets;
 }
 
@@ -299,10 +309,12 @@ void AddAction(std::unordered_map<std::string, LalrAction>& row, const std::stri
 std::unordered_set<std::string> ExtractGrammarSymbols(const raw::Rules& rules)
 {
 	std::unordered_set<std::string> symbols;
-	for (const auto& [name, alternatives] : rules)
+
+	for (const auto& rule : rules)
 	{
-		symbols.insert(name);
-		for (const auto& alt : alternatives)
+		symbols.insert(rule.name);
+
+		for (const auto& alt : rule.alternatives)
 		{
 			for (const auto& symbol : alt)
 			{
@@ -313,6 +325,7 @@ std::unordered_set<std::string> ExtractGrammarSymbols(const raw::Rules& rules)
 			}
 		}
 	}
+
 	return symbols;
 }
 } // namespace
@@ -341,6 +354,7 @@ LalrTable LalrTableBuilder::Build() const
 	LalrState initialState;
 	initialState.index = 0;
 	initialState.items = ComputeClosure({initialItem}, rules, firstSets);
+
 	states.push_back(std::move(initialState));
 	worklist.push(0);
 
@@ -352,14 +366,17 @@ LalrTable LalrTableBuilder::Build() const
 		for (const auto& symbol : symbols)
 		{
 			std::vector<LalrItem> nextItems = ComputeGoto(states[currentStateIndex].items, symbol, rules, firstSets);
+
 			if (nextItems.empty())
 			{
 				continue;
 			}
 
-			auto existingStateIt = std::ranges::find_if(states, [&](const LalrState& s) {
-				return AreCoresEqual(s.items, nextItems);
-			});
+			auto existingStateIt = std::ranges::find_if(
+				states,
+				[&](const LalrState& state) {
+					return AreCoresEqual(state.items, nextItems);
+				});
 
 			if (existingStateIt != states.end())
 			{
@@ -367,17 +384,21 @@ LalrTable LalrTableBuilder::Build() const
 				{
 					worklist.push(existingStateIt->index);
 				}
+
 				states[currentStateIndex].transitions[symbol] = existingStateIt->index;
 			}
 			else
 			{
-				LalrState newState;
-				newState.index = states.size();
-				newState.items = std::move(nextItems);
-				states.push_back(std::move(newState));
+				const size_t newStateIndex = states.size();
 
-				worklist.push(newState.index);
-				states[currentStateIndex].transitions[symbol] = newState.index;
+				LalrState newState;
+				newState.index = newStateIndex;
+				newState.items = std::move(nextItems);
+
+				states.push_back(std::move(newState));
+				worklist.push(newStateIndex);
+
+				states[currentStateIndex].transitions[symbol] = newStateIndex;
 			}
 		}
 	}
@@ -387,34 +408,56 @@ LalrTable LalrTableBuilder::Build() const
 	table.gotoTable.resize(states.size());
 	table.augmentedRules = rules;
 
-	for (const auto& [index, items, transitions] : states)
+	for (const auto& state : states)
 	{
-		for (const auto& [core, lookaheads] : items)
+		const auto index = state.index;
+		const auto& items = state.items;
+		const auto& transitions = state.transitions;
+
+		for (const auto& item : items)
 		{
+			const auto& core = item.core;
+			const auto& lookaheads = item.lookaheads;
+
 			const auto& alt = rules[core.ruleIndex].alternatives[core.altIndex];
+
 			const bool isComplete = core.dotPos == alt.size() || (alt.size() == 1 && alt.front() == EMPTY_SYMBOL && core.dotPos == 1);
 
 			if (isComplete)
 			{
 				if (core.ruleIndex == 0)
 				{
-					AddAction(table.actionTable[index], END_SYMBOL, {LalrActionType::Accept, 0, 0});
+					AddAction(
+						table.actionTable[index],
+						END_SYMBOL,
+						{LalrActionType::Accept, 0, 0});
 				}
 				else
 				{
 					for (const auto& lookahead : lookaheads)
 					{
-						AddAction(table.actionTable[index], lookahead, {LalrActionType::Reduce, core.ruleIndex, core.altIndex});
+						AddAction(
+							table.actionTable[index],
+							lookahead,
+							{LalrActionType::Reduce,
+								core.ruleIndex,
+								core.altIndex});
 					}
 				}
 			}
 		}
 
-		for (const auto& [symbol, nextState] : transitions)
+		for (const auto& transition : transitions)
 		{
+			const auto& symbol = transition.first;
+			const auto nextState = transition.second;
+
 			if (IsTerm(symbol))
 			{
-				AddAction(table.actionTable[index], symbol, {LalrActionType::Shift, nextState, 0});
+				AddAction(
+					table.actionTable[index],
+					symbol,
+					{LalrActionType::Shift, nextState, 0});
 			}
 			else
 			{

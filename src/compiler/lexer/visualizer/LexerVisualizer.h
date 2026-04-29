@@ -1,8 +1,7 @@
 #pragma once
-
+#include "src/compiler/lexer/Token.h"
 #include "src/diagnostics/Diagnostic.h"
 #include "src/diagnostics/DiagnosticEngine.h"
-#include "src/lexer/Token.h"
 #include <vector>
 
 class LexerVisualizer

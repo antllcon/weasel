@@ -1,5 +1,5 @@
 #pragma once
-#include "src/vm/memory/HeapObject.h"
+#include "HeapObject.h"
 
 class HeapTracker
 {

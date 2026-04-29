@@ -1,5 +1,5 @@
 #pragma once
-#include "src/vm/chunk/Chunk.h"
+#include "src/compiler/vm/chunk/Chunk.h"
 #include <filesystem>
 
 class BytecodeLoader

@@ -1,5 +1,5 @@
 #include "TextAssembler.h"
-#include "src/vm/OpCode.h"
+#include "src/compiler/vm/OpCode.h"
 #include <fstream>
 #include <sstream>
 #include <stdexcept>

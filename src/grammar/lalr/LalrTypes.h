@@ -26,7 +26,12 @@ struct Lr0Item
 	size_t altIndex;
 	size_t dotPos;
 
-	bool operator==(const Lr0Item&) const = default;
+	bool operator==(const Lr0Item& other) const
+	{
+		return ruleIndex == other.ruleIndex
+			&& altIndex == other.altIndex
+			&& dotPos == other.dotPos;
+	}
 };
 
 struct Lr0ItemHasher

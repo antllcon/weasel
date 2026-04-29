@@ -11,6 +11,7 @@ Decl -> VarDecl
 
 Type -> Sign BaseType
 Type -> BaseType
+Type -> id
 
 Sign -> s
 Sign -> u
@@ -38,6 +39,7 @@ BaseType -> wpoint
 BaseType -> spoint
 BaseType -> upoint
 BaseType -> random
+BaseType -> acolor
 
 FuncDecl -> Type <- id ( ParamList ) { StmtList }
 FuncDecl -> Type <- id ( ) { StmtList }
@@ -61,19 +63,17 @@ EnumIdList -> id
 StmtList -> StmtList Stmt
 StmtList -> e
 
-Stmt -> VarDecl
-Stmt -> AssignStmt
+Stmt -> VarDecl ;
+Stmt -> AssignStmt ;
+Stmt -> ReturnStmt ;
+Stmt -> ExprStmt ;
 Stmt -> IfStmt
 Stmt -> WhileStmt
 Stmt -> DoWhileStmt
 Stmt -> ForStmt
-Stmt -> ReturnStmt
-Stmt -> ExprStmt
 
-VarDecl -> Modifier Sign BaseType id AssignOp Expr
-VarDecl -> Modifier BaseType id AssignOp Expr
-VarDecl -> Modifier Sign BaseType id
-VarDecl -> Modifier BaseType id
+VarDecl -> Modifier Type id AssignOp Expr
+VarDecl -> Modifier Type id
 
 Modifier -> val
 Modifier -> var
@@ -85,13 +85,15 @@ AssignOp -> <-
 AssignStmt -> Expr AssignOp Expr
 
 IfStmt -> when ( Expr ) { StmtList } ElseOpt
+ElseOpt -> else ( Expr ) { StmtList } ElseOpt
 ElseOpt -> else { StmtList }
-ElseOpt -> else IfStmt
 ElseOpt -> e
 
 WhileStmt -> run ( Expr ) { StmtList }
 DoWhileStmt -> { StmtList } run ( Expr )
-ForStmt -> rep id , id in Expr .. Expr { StmtList }
+
+ForStmt -> rep ( id in Expr .. Expr ) { StmtList }
+ForStmt -> rep ( id , id in Expr .. Expr , Expr .. Expr ) { StmtList }
 
 ReturnStmt -> return Expr
 ReturnStmt -> return

@@ -1,6 +1,7 @@
 #include "VirtualMachine.h"
-#include "../exception/VmException.h"
-#include "src/vm/memory/HeapObject.h"
+#include "src/compiler/vm/chunk/Chunk.h"
+#include "src/compiler/vm/exception/VmException.h"
+#include "src/compiler/vm/memory/HeapObject.h"
 #include <cmath>
 #include <stdexcept>
 #include <type_traits>

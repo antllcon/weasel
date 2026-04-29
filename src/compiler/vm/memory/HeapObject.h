@@ -1,5 +1,5 @@
 #pragma once
-#include "src/vm/value/Value.h"
+#include "src/compiler/vm/value/Value.h"
 #include <cstdint>
 #include <vector>
 

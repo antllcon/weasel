@@ -1,5 +1,7 @@
 #include "Chunk.h"
-#include "src/vm/exception/BackendException.h"
+
+#include "src/diagnostics/CompilationException.h"
+#include "src/diagnostics/Diagnostic.h"
 
 namespace
 {
@@ -7,7 +9,10 @@ void AssertIsConstantIndexValid(size_t size)
 {
 	if (size > 255)
 	{
-		throw BackendException(CompilerPhase::Backend, "ICE_CHUNK_CONST_LIMIT", "Превышен лимит констант в одном блоке (максимум 256)");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::VirtualMachine,
+			.errorCode = "хз-хз, дописать",
+			.message = "Превышен лимит констант в одном блоке (максимум 256)"});
 	}
 }
 
@@ -15,7 +20,10 @@ void AssertIsStringIndexValid(size_t size)
 {
 	if (size > 255)
 	{
-		throw BackendException(CompilerPhase::Backend, "ICE_CHUNK_STR_LIMIT", "Превышен лимит строк в одном блоке (максимум 256)");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::VirtualMachine,
+			.errorCode = "хз-хз, дописать",
+			.message = "Превышен лимит строк в одном блоке (максимум 256)"});
 	}
 }
 
@@ -23,7 +31,10 @@ void AssertIsOffsetValid(bool isValid)
 {
 	if (!isValid)
 	{
-		throw BackendException(CompilerPhase::Backend, "ICE_CHUNK_OFFSET_OOB", "Смещение инструкции выходит за пределы массива строк кода");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::VirtualMachine,
+			.errorCode = "хз-хз, дописать",
+			.message = "Смещение инструкции выходит за пределы массива строк кода"});
 	}
 }
 } // namespace

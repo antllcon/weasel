@@ -1,15 +1,18 @@
 #include "BytecodeLoader.h"
-#include "src/vm/chunk/Chunk.h"
-#include "src/vm/exception/BackendException.h"
+#include "src/diagnostics/CompilationException.h"
 #include <fstream>
 
 namespace
 {
+// TODO: дописать error code в едином стиле
 void AssertIsFileOpened(bool isOpen)
 {
 	if (!isOpen)
 	{
-		throw BackendException(CompilerPhase::VirtualMachine, "ENV_FILE_NOT_FOUND", "Не удалось открыть бинарный файл байт-кода");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::VirtualMachine,
+			.errorCode = "хз-хз, дописать",
+			.message = "Не удалось открыть бинарный файл байткода"});
 	}
 }
 
@@ -17,7 +20,10 @@ void AssertIsMagicValid(uint32_t magic)
 {
 	if (magic != 0x314C5357)
 	{
-		throw BackendException(CompilerPhase::VirtualMachine, "ENV_INVALID_MAGIC", "Неверный формат файла или неподдерживаемая версия байт-кода");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::VirtualMachine,
+			.errorCode = "хз-хз, дописать",
+			.message = "Неверный формат файла или неподдерживаемая версия байткода"});
 	}
 }
 
@@ -25,7 +31,10 @@ void AssertIsStringLengthValid(uint32_t length)
 {
 	if (length > 1048576)
 	{
-		throw BackendException(CompilerPhase::VirtualMachine, "ENV_STR_TOO_LONG", "Превышен максимально допустимый размер строки в пуле");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::VirtualMachine,
+			.errorCode = "хз-хз, дописать",
+			.message = "Превышен максимально допустимый размер строки в пуле"});
 	}
 }
 

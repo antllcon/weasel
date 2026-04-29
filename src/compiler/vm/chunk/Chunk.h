@@ -1,6 +1,6 @@
 #pragma once
-#include "src/vm/OpCode.h"
-#include "src/vm/value/Value.h"
+#include "src/compiler/vm/value/Value.h"
+#include "src/compiler/vm/OpCode.h"
 #include <cstdint>
 #include <string>
 #include <vector>

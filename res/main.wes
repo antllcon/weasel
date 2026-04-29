@@ -1,22 +1,22 @@
 voided <- main()
 {
-    var u number something := 5
-    var u number data := 10
+    var u number something  := 5;
+    var u number data       := 10;
 
     when (data >< 0)
     {
-        something := something + data
-        data := data - 1
+        something := something + data;
+        data := data - 1;
     }
     else (data == 0)
     {
-        something := something + 5
+        something := something + 5;
     }
 
     rep (i in 0 .. 3)
     {
-        something := something - 1
+        something := something - 1;
     }
 
-    return
+    return;
 }

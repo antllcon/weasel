@@ -1,15 +1,12 @@
 #include "CompilerPipeline.h"
 
-#include "src/ast/CstToAstConverter.h"
+#include "src/compiler/ast/AstNode.h"
+#include "src/compiler/lexer/Lexer.h"
+#include "src/compiler/lexer/Token.h"
 #include "src/diagnostics/CompilationException.h"
 #include "src/diagnostics/DiagnosticEngine.h"
-#include "src/grammar/cst/CstInputToken.h"
-#include "src/grammar/cst/CstPrinter.h"
 #include "src/grammar/lalr/LalrParseStepsPrinter.h"
-#include "src/lexer/Lexer.h"
 #include "src/logger/ILogger.h"
-#include "src/semantic/CodeGenerator.h"
-#include "src/semantic/SemanticAnalyzer.h"
 
 #include <fstream>
 #include <sstream>
@@ -51,16 +48,16 @@ void AssertIsContextValid(const LanguageContext& context)
 	}
 }
 
-void AssertIsCstValid(const std::unique_ptr<CstNode>& cstRoot)
-{
-	if (!cstRoot)
-	{
-		throw CompilationException(DiagnosticData{
-			.phase = CompilerPhase::Parser,
-			.errorCode = "SYS-004",
-			.message = "Синтаксическое дерево (CST) не было построено"});
-	}
-}
+// void AssertIsCstValid(const std::unique_ptr<CstNode>& cstRoot)
+// {
+// 	if (!cstRoot)
+// 	{
+// 		throw CompilationException(DiagnosticData{
+// 			.phase = CompilerPhase::Parser,
+// 			.errorCode = "SYS-004",
+// 			.message = "Синтаксическое дерево (CST) не было построено"});
+// 	}
+// }
 
 void AssertIsAstValid(const std::unique_ptr<AstNode>& astRoot)
 {
@@ -118,27 +115,27 @@ std::vector<std::string> MapTokensToGrammar(const std::vector<Token>& tokens)
 
 	return grammarTokens;
 }
-
-CstInputToken MapTokenToCstInput(const Token& token)
-{
-	return CstInputToken{
-		.symbol = MapTokenTypeToGrammarSymbol(token),
-		.value = token.value,
-		.location = SourceLocation{token.line, token.pos}};
-}
-
-std::vector<CstInputToken> MapTokensToCstInput(const std::vector<Token>& tokens)
-{
-	std::vector<CstInputToken> result;
-	result.reserve(tokens.size());
-
-	for (const auto& token : tokens)
-	{
-		result.emplace_back(MapTokenToCstInput(token));
-	}
-
-	return result;
-}
+//
+// CstInputToken MapTokenToCstInput(const Token& token)
+// {
+// 	return CstInputToken{
+// 		.symbol = MapTokenTypeToGrammarSymbol(token),
+// 		.value = token.value,
+// 		.location = SourceLocation{token.line, token.pos}};
+// }
+//
+// std::vector<CstInputToken> MapTokensToCstInput(const std::vector<Token>& tokens)
+// {
+// 	std::vector<CstInputToken> result;
+// 	result.reserve(tokens.size());
+//
+// 	for (const auto& token : tokens)
+// 	{
+// 		result.emplace_back(MapTokenToCstInput(token));
+// 	}
+//
+// 	return result;
+// }
 
 void LogDiagnostics(const DiagnosticEngine& engine, const std::shared_ptr<ILogger>& logger)
 {
@@ -185,7 +182,7 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 	}
 
 	LalrParser parser(*context.lalrTable);
-	std::unique_ptr<CstNode> cstRoot;
+	// std::unique_ptr<CstNode> cstRoot;
 
 	try
 	{
@@ -195,8 +192,8 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 			LalrParseStepsPrinter::Print(parseSteps, sourceFile.string(), logger);
 		}
 
-		const auto cstTokens = MapTokensToCstInput(tokens);
-		cstRoot = parser.ParseToTree(cstTokens);
+		// const auto cstTokens = MapTokensToCstInput(tokens);
+		// cstRoot = parser.ParseToTree(cstTokens);
 	}
 	catch (const std::exception& e)
 	{
@@ -215,16 +212,16 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 		return false;
 	}
 
-	AssertIsCstValid(cstRoot);
+	// AssertIsCstValid(cstRoot);
 
-	auto astRoot = CstToAstConverter::Convert(*cstRoot);
-	AssertIsAstValid(astRoot);
+	// auto astRoot = CstToAstConverter::Convert(*cstRoot);
+	// AssertIsAstValid(astRoot);
 
-	SemanticAnalyzer sema;
-	sema.Analyze(*astRoot);
+	// SemanticAnalyzer sema;
+	// sema.Analyze(*astRoot);
 
-	CodeGenerator backend;
-	Chunk finalBytecode = backend.Generate(*astRoot);
+	// CodeGenerator backend;
+	// Chunk finalBytecode = backend.Generate(*astRoot);
 
 	return true;
 }

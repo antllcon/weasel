@@ -1,6 +1,6 @@
+#include "compiler/pipline/CompilerPipeline.h"
 #include "grammar/context/LanguageContextBuilder.h"
 #include "logger/timer/ScopedTimer.h"
-#include "src/compiler/CompilerPipeline.h"
 #include "src/console/CommandLineParser.h"
 #include "src/console/ConsoleEncoding.h"
 #include "src/logger/LoggerFactory.h"

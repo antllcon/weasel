@@ -1,4 +1,4 @@
-#include "grammar/LanguageContext/LanguageContextBuilder.h"
+#include "grammar/context/LanguageContextBuilder.h"
 #include "logger/timer/ScopedTimer.h"
 #include "src/compiler/CompilerPipeline.h"
 #include "src/console/CommandLineParser.h"

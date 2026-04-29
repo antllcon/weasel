@@ -1,10 +1,16 @@
 #include "CompilerPipeline.h"
+
+#include "src/ast/CstToAstConverter.h"
 #include "src/diagnostics/CompilationException.h"
 #include "src/diagnostics/DiagnosticEngine.h"
 #include "src/grammar/cst/CstInputToken.h"
-#include "src/logger/ILogger.h"
+#include "src/grammar/cst/CstPrinter.h"
 #include "src/grammar/lalr/LalrParseStepsPrinter.h"
 #include "src/lexer/Lexer.h"
+#include "src/logger/ILogger.h"
+#include "src/semantic/CodeGenerator.h"
+#include "src/semantic/SemanticAnalyzer.h"
+
 #include <fstream>
 #include <sstream>
 
@@ -45,6 +51,28 @@ void AssertIsContextValid(const LanguageContext& context)
 	}
 }
 
+void AssertIsCstValid(const std::unique_ptr<CstNode>& cstRoot)
+{
+	if (!cstRoot)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Parser,
+			.errorCode = "SYS-004",
+			.message = "Синтаксическое дерево (CST) не было построено"});
+	}
+}
+
+void AssertIsAstValid(const std::unique_ptr<AstNode>& astRoot)
+{
+	if (!astRoot)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.errorCode = "SYS-005",
+			.message = "Абстрактное синтаксическое дерево (AST) не было построено"});
+	}
+}
+
 std::string ReadFileContent(const std::filesystem::path& filePath)
 {
 	AssertIsFileExisting(filePath);
@@ -69,6 +97,8 @@ std::string MapTokenTypeToGrammarSymbol(const Token& token)
 		return "num";
 	case TokenType::String:
 		return "str";
+	case TokenType::Semicolon:
+		return ";";
 	case TokenType::EndOfFile:
 		return END_SYMBOL;
 	default:
@@ -142,16 +172,59 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 
 	const auto grammarTokens = MapTokensToGrammar(tokens);
 
-	LalrParser parser(*context.lalrTable);
-	const auto parseSteps = parser.Parse(grammarTokens);
-
 	if (logger)
 	{
-		LalrParseStepsPrinter::Print(parseSteps, sourceFile.string(), logger);
+		std::ostringstream ss;
+		ss << "[Отладка] Входной поток токенов (Lexer -> Parser):\n";
+		for (size_t i = 0; i < grammarTokens.size(); ++i)
+		{
+			ss << std::setw(3) << i << ": [" << std::left << std::setw(10)
+			   << grammarTokens[i] << "] <- '" << tokens[i].value << "'\n";
+		}
+		logger->Log(ss.str());
 	}
 
-	const auto cstTokens = MapTokensToCstInput(tokens);
-	const auto cstRoot = parser.ParseToTree(cstTokens);
+	LalrParser parser(*context.lalrTable);
+	std::unique_ptr<CstNode> cstRoot;
+
+	try
+	{
+		const auto parseSteps = parser.Parse(grammarTokens);
+		if (logger)
+		{
+			LalrParseStepsPrinter::Print(parseSteps, sourceFile.string(), logger);
+		}
+
+		const auto cstTokens = MapTokensToCstInput(tokens);
+		cstRoot = parser.ParseToTree(cstTokens);
+	}
+	catch (const std::exception& e)
+	{
+		if (logger)
+		{
+			LalrParseStepsPrinter::Print(parser.GetLastParseSteps(), sourceFile.string(), logger);
+		}
+
+		engine.Report(DiagnosticData{
+			.phase = CompilerPhase::Parser,
+			.errorCode = "SYN-001",
+			.message = e.what(),
+			.filePath = sourceFile.string()});
+
+		LogDiagnostics(engine, logger);
+		return false;
+	}
+
+	AssertIsCstValid(cstRoot);
+
+	auto astRoot = CstToAstConverter::Convert(*cstRoot);
+	AssertIsAstValid(astRoot);
+
+	SemanticAnalyzer sema;
+	sema.Analyze(*astRoot);
+
+	CodeGenerator backend;
+	Chunk finalBytecode = backend.Generate(*astRoot);
 
 	return true;
 }

@@ -16,8 +16,8 @@ int main(int argc, char* argv[])
 		const auto logger = LoggerFactory::Create(options.logTarget);
 
 		ScopedTimer timer("Время компиляции", logger);
-		const auto languageContext = LanguageContextBuilder::Build(options.grammarFile, logger);
-		const auto success = CompilerPipeline::Compile(options.sourceFile, languageContext, logger);
+		const auto context = LanguageContextBuilder::Build(options.grammarFile, logger);
+		const auto success = CompilerPipeline::Compile(options.sourceFile, context, logger);
 
 		if (success)
 		{

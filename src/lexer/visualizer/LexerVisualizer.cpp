@@ -45,6 +45,8 @@ std::string TokenTypeToString(TokenType type)
 {
 	switch (type)
 	{
+	case TokenType::Semicolon:
+		return "Semicolon";
 	case TokenType::Keyword:
 		return "Keyword";
 	case TokenType::Identifier:

@@ -128,8 +128,8 @@ bool IsIdChar(char ch)
 bool IsKeyword(std::string_view text)
 {
 	// TODO: подумать...
-	constexpr std::array<std::string_view, 50> keywords = {
-		"val", "var", "def", "s", "u", "bitten", "little", "number", "longer", "single", "double", "boolen", "string", "voided", "planar", "vector", "quadra", "linear", "matrix", "slices", "buffer", "rpoint", "fpoint", "struct", "unions", "enumer", "thread", "wpoint", "spoint", "upoint", "random", "when", "else", "run", "rep", "in", "and", "orr", "not", "bnd", "bor", "bxr", "bnt", "import", "ass", "als", "return", "true", "false", "compti"};
+	constexpr std::array<std::string_view, 51> keywords = {
+		"val", "var", "def", "s", "u", "bitten", "little", "number", "longer", "single", "double", "boolen", "string", "voided", "planar", "vector", "quadra", "acolor", "linear", "matrix", "slices", "buffer", "rpoint", "fpoint", "struct", "unions", "enumer", "thread", "wpoint", "spoint", "upoint", "random", "when", "else", "run", "rep", "in", "and", "orr", "not", "bnd", "bor", "bxr", "bnt", "import", "ass", "als", "return", "true", "false", "compti"};
 
 	return std::ranges::find(keywords, text) != keywords.end();
 }
@@ -221,6 +221,8 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 
 	switch (ch)
 	{
+	case ';':
+		return MakeToken(TokenType::Semicolon, startPos, 1, state, startLine);
 	case ':':
 		if (Peek(state) == '=')
 		{

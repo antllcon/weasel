@@ -30,6 +30,7 @@ enum class TokenType
 	Comma,
 	Dot,
 	Colon,
+	Semicolon,
 	At,
 	ParenLeft,
 	ParenRight,

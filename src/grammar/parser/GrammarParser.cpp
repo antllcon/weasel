@@ -98,7 +98,6 @@ raw::Alternatives ParseAlternatives(const std::string& rhsStr)
 	raw::Alternatives alternatives;
 	std::istringstream stream(rhsStr);
 	std::string altToken;
-
 	while (std::getline(stream, altToken, '|'))
 	{
 		raw::Alternative alt = TokenizeAlternative(TrimWhitespace(altToken));
@@ -111,7 +110,6 @@ raw::Alternatives ParseAlternatives(const std::string& rhsStr)
 void ParseLine(const std::string& line, raw::Rules& rules)
 {
 	const std::string trimmedLine = TrimWhitespace(line);
-
 	if (trimmedLine.empty())
 	{
 		return;
@@ -123,11 +121,26 @@ void ParseLine(const std::string& line, raw::Rules& rules)
 	const std::string lhs = TrimWhitespace(trimmedLine.substr(0, arrowPos));
 	const std::string rhs = TrimWhitespace(trimmedLine.substr(arrowPos + 2));
 
-	raw::Rule rule;
-	rule.name = lhs;
-	rule.alternatives = ParseAlternatives(rhs);
+	raw::Alternatives newAlts = ParseAlternatives(rhs);
 
-	rules.push_back(std::move(rule));
+	auto it = std::ranges::find_if(rules, [&lhs](const raw::Rule& r) {
+		return r.name == lhs;
+	});
+
+	if (it != rules.end())
+	{
+		it->alternatives.insert(
+			it->alternatives.end(),
+			std::make_move_iterator(newAlts.begin()),
+			std::make_move_iterator(newAlts.end()));
+	}
+	else
+	{
+		raw::Rule rule;
+		rule.name = lhs;
+		rule.alternatives = std::move(newAlts);
+		rules.push_back(std::move(rule));
+	}
 }
 } // namespace
 

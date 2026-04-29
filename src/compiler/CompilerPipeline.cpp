@@ -2,6 +2,7 @@
 #include "src/diagnostics/CompilationException.h"
 #include "src/diagnostics/DiagnosticEngine.h"
 #include "src/grammar/cst/CstInputToken.h"
+#include "src/logger/ILogger.h"
 #include "src/grammar/lalr/LalrParseStepsPrinter.h"
 #include "src/lexer/Lexer.h"
 #include <fstream>
@@ -108,14 +109,24 @@ std::vector<CstInputToken> MapTokensToCstInput(const std::vector<Token>& tokens)
 
 	return result;
 }
+
+void LogDiagnostics(const DiagnosticEngine& engine, const std::shared_ptr<ILogger>& logger)
+{
+	if (!logger)
+	{
+		return;
+	}
+
+	for (const auto& diagnostic : engine.GetDiagnostics())
+	{
+		logger->Log(DiagnosticEngine::FormatMessage(diagnostic));
+	}
+}
 } // namespace
 
 namespace CompilerPipeline
 {
-bool Compile(
-	const std::filesystem::path& sourceFile,
-	const LanguageContext& context,
-	const std::shared_ptr<ILogger>& logger)
+bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& context, const std::shared_ptr<ILogger>& logger)
 {
 	AssertIsContextValid(context);
 
@@ -125,6 +136,7 @@ bool Compile(
 
 	if (engine.HasErrors())
 	{
+		LogDiagnostics(engine, logger);
 		return false;
 	}
 

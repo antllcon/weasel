@@ -85,10 +85,10 @@ void PrintDiagnostics(const DiagnosticEngine& engine)
 
 	std::cout << "\n"
 			  << ColorError
-			  << "=== ОБНАРУЖЕНЫ ОШИБКИ (" << engine.GetInfo().size() << ") ==="
+			  << "Найдено ошибок: " << engine.GetDiagnostics().size()
 			  << ColorReset << std::endl;
 
-	for (const auto& diag : engine.GetInfo())
+	for (const auto& diag : engine.GetDiagnostics())
 	{
 		std::cout << "[Строка " << diag.line << ", Позиция " << diag.pos << "] "
 				  << diag.message << std::endl;

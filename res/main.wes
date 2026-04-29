@@ -1,12 +1,22 @@
-struct Ray
-[
-    vector origin
-    vector direct
-]
+voided <- main()
+{
+    var u number something := 5
+    var u number data := 10
 
-struct Sphere
-[
-    vector center
-    single radius
-    acolor color
-]
+    when (data >< 0)
+    {
+        something := something + data
+        data := data - 1
+    }
+    else (data == 0)
+    {
+        something := something + 5
+    }
+
+    rep (i in 0 .. 3)
+    {
+        something := something - 1
+    }
+
+    return
+}

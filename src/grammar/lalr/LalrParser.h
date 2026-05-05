@@ -1,4 +1,5 @@
 #pragma once
+#include "src/grammar/cst/CstNode.h"
 #include "src/grammar/lalr/LalrTypes.h"
 #include <memory>
 #include <string>
@@ -19,7 +20,7 @@ public:
 	explicit LalrParser(LalrTable table);
 
 	[[nodiscard]] std::vector<LalrParseStep> Parse(const std::vector<std::string>& tokens) const;
-	// [[nodiscard]] std::unique_ptr<CstNode> ParseToTree(const std::vector<CstInputToken>& tokens) const;
+	[[nodiscard]] std::unique_ptr<CstNode> ParseToTree(const std::vector<CstInputToken>& tokens) const;
 
 	[[nodiscard]] const std::vector<LalrParseStep>& GetLastParseSteps() const;
 

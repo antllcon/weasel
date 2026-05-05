@@ -1,21 +1,14 @@
 voided <- main()
 {
-    var u number something  := 5;
-    var u number data       := 10;
+    var s number a := 1;
+    var u number b := 1;
+    var u number c := 1;
+    var u number d := 1;
+    var u number f := 1;
 
-    when (data >< 0)
+    when ((a + 5) > (b * c + 5) orr ((c * (d + 5)) == (25 * (a == 0))) and 0 orr (f == 0))
     {
-        something := something + data;
-        data := data - 1;
-    }
-    else (data == 0)
-    {
-        something := something + 5;
-    }
-
-    rep (i in 0 .. 3)
-    {
-        something := something - 1;
+        print(a);
     }
 
     return;

@@ -14,6 +14,9 @@ public:
 	uint8_t AddConstant(Value value);
 	uint8_t AddString(const std::string& text);
 
+	[[nodiscard]] uint32_t GetCodeSize() const;
+	void PatchUint32(uint32_t offset, uint32_t value);
+
 	const std::vector<uint8_t>& GetCode() const;
 	const std::vector<Value>& GetConstants() const;
 	const std::vector<std::string>& GetStrings() const;

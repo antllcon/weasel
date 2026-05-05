@@ -21,6 +21,10 @@ public:
 	void SetLoweredBody(std::unique_ptr<Stmt> lowered);
 	[[nodiscard]] Stmt* GetLoweredBody() const;
 
+	[[nodiscard]] const std::vector<std::string>& GetIterators() const;
+	[[nodiscard]] const std::vector<std::unique_ptr<Expr>>& GetRanges() const;
+	[[nodiscard]] const Stmt& GetOriginalBody() const;
+
 private:
 	// Исходный сахар (для LSP, подсветки и ошибок)
 	std::vector<std::string> m_iterators;

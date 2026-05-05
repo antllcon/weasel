@@ -30,3 +30,18 @@ Stmt* RepStmt::GetLoweredBody() const
 {
 	return m_loweredBody.get();
 }
+
+const std::vector<std::string>& RepStmt::GetIterators() const
+{
+	return m_iterators;
+}
+
+const std::vector<std::unique_ptr<Expr>>& RepStmt::GetRanges() const
+{
+	return m_ranges;
+}
+
+const Stmt& RepStmt::GetOriginalBody() const
+{
+	return *m_originalBody;
+}

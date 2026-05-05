@@ -1,15 +1,23 @@
 #include "CompilerPipeline.h"
 
 #include "src/compiler/ast/AstNode.h"
+#include "src/compiler/codegen/CodeGenerator.h"
+#include "src/compiler/cst_to_ast/CstToAstConverter.h"
 #include "src/compiler/lexer/Lexer.h"
 #include "src/compiler/lexer/Token.h"
+#include "src/compiler/sema/SemanticAnalyzer.h"
+#include "src/compiler/vm/machine/VirtualMachine.h"
 #include "src/diagnostics/CompilationException.h"
 #include "src/diagnostics/DiagnosticEngine.h"
+#include "src/grammar/cst/CstNode.h"
 #include "src/grammar/lalr/LalrParseStepsPrinter.h"
 #include "src/logger/ILogger.h"
+#include "src/logger/timer/ScopedTimer.h"
 
 #include <fstream>
+#include <iostream>
 #include <sstream>
+#include <unordered_map>
 
 namespace
 {
@@ -48,16 +56,16 @@ void AssertIsContextValid(const LanguageContext& context)
 	}
 }
 
-// void AssertIsCstValid(const std::unique_ptr<CstNode>& cstRoot)
-// {
-// 	if (!cstRoot)
-// 	{
-// 		throw CompilationException(DiagnosticData{
-// 			.phase = CompilerPhase::Parser,
-// 			.errorCode = "SYS-004",
-// 			.message = "Синтаксическое дерево (CST) не было построено"});
-// 	}
-// }
+void AssertIsCstValid(const std::unique_ptr<CstNode>& cstRoot)
+{
+	if (!cstRoot)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Parser,
+			.errorCode = "SYS-004",
+			.message = "Синтаксическое дерево (CST) не было построено"});
+	}
+}
 
 void AssertIsAstValid(const std::unique_ptr<AstNode>& astRoot)
 {
@@ -116,26 +124,26 @@ std::vector<std::string> MapTokensToGrammar(const std::vector<Token>& tokens)
 	return grammarTokens;
 }
 //
-// CstInputToken MapTokenToCstInput(const Token& token)
-// {
-// 	return CstInputToken{
-// 		.symbol = MapTokenTypeToGrammarSymbol(token),
-// 		.value = token.value,
-// 		.location = SourceLocation{token.line, token.pos}};
-// }
-//
-// std::vector<CstInputToken> MapTokensToCstInput(const std::vector<Token>& tokens)
-// {
-// 	std::vector<CstInputToken> result;
-// 	result.reserve(tokens.size());
-//
-// 	for (const auto& token : tokens)
-// 	{
-// 		result.emplace_back(MapTokenToCstInput(token));
-// 	}
-//
-// 	return result;
-// }
+CstInputToken MapTokenToCstInput(const Token& token)
+{
+	return CstInputToken{
+		.symbol = MapTokenTypeToGrammarSymbol(token),
+		.value = std::string(token.value),
+		.location = SourceLocation{token.line, token.pos}};
+}
+
+std::vector<CstInputToken> MapTokensToCstInput(const std::vector<Token>& tokens)
+{
+	std::vector<CstInputToken> result;
+	result.reserve(tokens.size());
+
+	for (const auto& token : tokens)
+	{
+		result.emplace_back(MapTokenToCstInput(token));
+	}
+
+	return result;
+}
 
 void LogDiagnostics(const DiagnosticEngine& engine, const std::shared_ptr<ILogger>& logger)
 {
@@ -155,74 +163,137 @@ namespace CompilerPipeline
 {
 bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& context, const std::shared_ptr<ILogger>& logger)
 {
-	AssertIsContextValid(context);
+    AssertIsContextValid(context);
+    DiagnosticEngine engine;
 
-	DiagnosticEngine engine;
-	const auto sourceCode = ReadFileContent(sourceFile);
-	const auto tokens = Lexer::Tokenize(sourceCode, engine);
+    std::string sourceCode;
+    std::vector<Token> tokens;
 
-	if (engine.HasErrors())
-	{
-		LogDiagnostics(engine, logger);
-		return false;
-	}
+    {
+        ScopedTimer t("Лексический анализ", logger);
+        sourceCode = ReadFileContent(sourceFile);
+        tokens = Lexer::Tokenize(sourceCode, engine);
+    }
 
-	const auto grammarTokens = MapTokensToGrammar(tokens);
+    if (engine.HasErrors())
+    {
+        LogDiagnostics(engine, logger);
+        return false;
+    }
 
-	if (logger)
-	{
-		std::ostringstream ss;
-		ss << "[Отладка] Входной поток токенов (Lexer -> Parser):\n";
-		for (size_t i = 0; i < grammarTokens.size(); ++i)
-		{
-			ss << std::setw(3) << i << ": [" << std::left << std::setw(10)
-			   << grammarTokens[i] << "] <- '" << tokens[i].value << "'\n";
-		}
-		logger->Log(ss.str());
-	}
+    const auto grammarTokens = MapTokensToGrammar(tokens);
 
-	LalrParser parser(*context.lalrTable);
-	// std::unique_ptr<CstNode> cstRoot;
+    // if (logger)
+    // {
+    //     std::ostringstream ss;
+    //     ss << "[Отладка] Входной поток токенов (Lexer -> Parser):\n";
+    //     for (size_t i = 0; i < grammarTokens.size(); ++i)
+    //     {
+    //         ss << std::setw(3) << i << ": [" << std::left << std::setw(10)
+    //            << grammarTokens[i] << "] <- '" << tokens[i].value << "'\n";
+    //     }
+    //     logger->Log(ss.str());
+    // }
 
-	try
-	{
-		const auto parseSteps = parser.Parse(grammarTokens);
-		if (logger)
-		{
-			LalrParseStepsPrinter::Print(parseSteps, sourceFile.string(), logger);
-		}
+    LalrParser parser(*context.lalrTable);
+    std::unique_ptr<CstNode> cstRoot;
 
-		// const auto cstTokens = MapTokensToCstInput(tokens);
-		// cstRoot = parser.ParseToTree(cstTokens);
-	}
-	catch (const std::exception& e)
-	{
-		if (logger)
-		{
-			LalrParseStepsPrinter::Print(parser.GetLastParseSteps(), sourceFile.string(), logger);
-		}
+    try
+    {
+        ScopedTimer t("Синтаксический анализ (LALR-1)", logger);
+        const auto cstTokens = MapTokensToCstInput(tokens);
+        cstRoot = parser.ParseToTree(cstTokens);
+    }
+    catch (const std::exception& e)
+    {
+        if (logger)
+        {
+            // LalrParseStepsPrinter::Print(parser.GetLastParseSteps(), sourceFile.string(), logger);
+        }
 
-		engine.Report(DiagnosticData{
-			.phase = CompilerPhase::Parser,
-			.errorCode = "SYN-001",
-			.message = e.what(),
-			.filePath = sourceFile.string()});
+        engine.Report(DiagnosticData{
+            .phase = CompilerPhase::Parser,
+            .errorCode = "SYN-001",
+            .message = e.what(),
+            .filePath = sourceFile.string()});
 
-		LogDiagnostics(engine, logger);
-		return false;
-	}
+        LogDiagnostics(engine, logger);
+        return false;
+    }
 
-	// AssertIsCstValid(cstRoot);
+    AssertIsCstValid(cstRoot);
+    std::unique_ptr<AstNode> astRoot;
 
-	// auto astRoot = CstToAstConverter::Convert(*cstRoot);
-	// AssertIsAstValid(astRoot);
+    try
+    {
+        ScopedTimer t("Конвертация CST в AST", logger);
+        astRoot = CstToAstConverter::Convert(*cstRoot);
+        AssertIsAstValid(astRoot);
+    }
+    catch (const std::exception& e)
+    {
+        engine.Report(DiagnosticData{
+            .phase = CompilerPhase::Semantic,
+            .errorCode = "AST-001",
+            .message = e.what(),
+            .filePath = sourceFile.string()});
+        LogDiagnostics(engine, logger);
+        return false;
+    }
 
-	// SemanticAnalyzer sema;
-	// sema.Analyze(*astRoot);
+    std::unordered_map<std::string, uint32_t> slotMap;
 
-	// CodeGenerator backend;
-	// Chunk finalBytecode = backend.Generate(*astRoot);
+    try
+    {
+        ScopedTimer t("Семантический анализ", logger);
+        SemanticAnalyzer sema;
+        slotMap = sema.Analyze(*astRoot);
+    }
+    catch (const std::exception& e)
+    {
+        engine.Report(DiagnosticData{
+            .phase = CompilerPhase::Semantic,
+            .errorCode = "SEM-001",
+            .message = e.what(),
+            .filePath = sourceFile.string()});
+        LogDiagnostics(engine, logger);
+        return false;
+    }
 
-	return true;
+    try
+    {
+        Chunk finalBytecode;
+
+        {
+            ScopedTimer t("Генерация кода (Backend)", logger);
+            CodeGenerator backend(std::move(slotMap));
+            finalBytecode = backend.Generate(*astRoot);
+        }
+
+        {
+            ScopedTimer t("Выполнение в VM", logger);
+            VirtualMachine vm;
+            vm.RegisterNativeFunction(0, [](std::span<const Value> args) -> Value {
+                if (!args.empty())
+                {
+                    std::cout << args[0].As<uint32_t>() << std::endl;
+                }
+                return Value(static_cast<uint32_t>(0));
+            });
+            vm.Interpret(finalBytecode);
+        }
+    }
+    catch (const std::exception& e)
+    {
+        engine.Report(DiagnosticData{
+            .phase = CompilerPhase::VirtualMachine,
+            .errorCode = "VM-001",
+            .message = e.what(),
+            .filePath = sourceFile.string()});
+        LogDiagnostics(engine, logger);
+        return false;
+    }
+
+    return true;
 }
 } // namespace CompilerPipeline

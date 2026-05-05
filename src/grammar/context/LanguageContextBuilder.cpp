@@ -58,7 +58,7 @@ LanguageContext Build(const std::filesystem::path& grammarFile, const std::share
 
 	if (logger)
 	{
-		LalrTablePrinter::Print(*lalrTable, logger);
+		// LalrTablePrinter::Print(*lalrTable, logger);
 	}
 
 	return LanguageContext{

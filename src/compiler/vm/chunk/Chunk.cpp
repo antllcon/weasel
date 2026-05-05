@@ -37,6 +37,17 @@ void AssertIsOffsetValid(bool isValid)
 			.message = "Смещение инструкции выходит за пределы массива строк кода"});
 	}
 }
+
+void AssertIsPatchOffsetValid(bool isValid)
+{
+	if (!isValid)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::VirtualMachine,
+			.errorCode = "хз-хз, дописать",
+			.message = "Смещение для патча выходит за пределы байткода"});
+	}
+}
 } // namespace
 
 void Chunk::WriteByte(uint8_t byte, uint32_t line)
@@ -71,6 +82,20 @@ uint8_t Chunk::AddString(const std::string& text)
 	AssertIsStringIndexValid(m_strings.size());
 	m_strings.push_back(text);
 	return static_cast<uint8_t>(m_strings.size() - 1);
+}
+
+uint32_t Chunk::GetCodeSize() const
+{
+	return static_cast<uint32_t>(m_code.size());
+}
+
+void Chunk::PatchUint32(uint32_t offset, uint32_t value)
+{
+	AssertIsPatchOffsetValid(offset + 3 < m_code.size());
+	m_code[offset + 0] = static_cast<uint8_t>(value & 0xFF);
+	m_code[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+	m_code[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+	m_code[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFF);
 }
 
 const std::vector<uint8_t>& Chunk::GetCode() const

@@ -1,5 +1,7 @@
 #include "LanguageContextBuilder.h"
+#include "src/cacher/FileCache.h"
 #include "src/diagnostics/CompilationException.h"
+#include "src/grammar/cache/LalrTableSerializer.h"
 #include "src/grammar/lalr/LalrTableBuilder.h"
 #include "src/grammar/lalr/LalrTablePrinter.h"
 #include "src/grammar/optimizer/GrammarOptimizer.h"
@@ -53,8 +55,46 @@ LanguageContext Build(const std::filesystem::path& grammarFile, const std::share
 	rules = GrammarOptimizer::OptimizeForLalr(std::move(rules), originalStartSymbol);
 	rules = GrammarOptimizer::AugmentGrammarLalr(std::move(rules), originalStartSymbol, augmentedStartSymbol);
 
-	LalrTableBuilder tableBuilder(rules, augmentedStartSymbol);
-	auto lalrTable = std::make_unique<LalrTable>(tableBuilder.Build());
+	// TODO: улушчить (вынести в метод получения lalrTable, который в себе скрывает кеш)
+	const auto cachePath = std::filesystem::path(grammarFile.string() + ".cache");
+
+	auto buildTable = [&]() -> LalrTable
+	{
+		LalrTableBuilder tableBuilder(rules, augmentedStartSymbol);
+		return tableBuilder.Build();
+	};
+
+	auto rebuildAndCache = [&]() -> LalrTable
+	{
+		auto table = buildTable();
+		const auto payload = LalrTableSerializer::Serialize(table);
+		FileCache::Write(grammarFile, cachePath, payload);
+		return table;
+	};
+
+	LalrTable table;
+	if (FileCache::IsUpToDate(grammarFile, cachePath))
+	{
+		try
+		{
+			const auto payload = FileCache::ReadPayload(cachePath);
+			table = LalrTableSerializer::Deserialize(payload);
+			if (logger)
+			{
+				logger->Log("[Cache] \tLALR таблица загружена из кэша");
+			}
+		}
+		catch (...)
+		{
+			table = rebuildAndCache();
+		}
+	}
+	else
+	{
+		table = rebuildAndCache();
+	}
+
+	auto lalrTable = std::make_unique<LalrTable>(std::move(table));
 
 	if (logger)
 	{

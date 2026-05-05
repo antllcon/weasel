@@ -12,7 +12,7 @@ enum class LogTarget
 struct CompilerOptions
 {
 	std::filesystem::path sourceFile;
-	std::filesystem::path grammarFile = "grammar.txt";
+	std::filesystem::path grammarFile = "grammar.wesg";
 	LogTarget logTarget = LogTarget::None;
 };
 

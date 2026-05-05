@@ -1,0 +1,162 @@
+Program -> DeclList
+
+DeclList -> DeclList Decl
+DeclList -> e
+
+Decl -> FuncDecl
+Decl -> StructDecl
+Decl -> EnumDecl
+Decl -> UnionDecl
+Decl -> VarDecl
+
+Type -> Sign BaseType
+Type -> BaseType
+Type -> id
+
+Sign -> s
+Sign -> u
+
+BaseType -> bitten
+BaseType -> little
+BaseType -> number
+BaseType -> longer
+BaseType -> single
+BaseType -> double
+BaseType -> boolen
+BaseType -> string
+BaseType -> voided
+BaseType -> planar
+BaseType -> vector
+BaseType -> quadra
+BaseType -> linear
+BaseType -> matrix
+BaseType -> slices
+BaseType -> buffer
+BaseType -> rpoint
+BaseType -> fpoint
+BaseType -> thread
+BaseType -> wpoint
+BaseType -> spoint
+BaseType -> upoint
+BaseType -> random
+BaseType -> acolor
+
+FuncDecl -> Type <- id ( ParamList ) { StmtList }
+FuncDecl -> Type <- id ( ) { StmtList }
+
+ParamList -> ParamList , Param
+ParamList -> Param
+
+Param -> Type id
+
+StructDecl -> struct id [ FieldList ]
+UnionDecl -> unions id [ FieldList ]
+
+FieldList -> FieldList Field
+FieldList -> e
+Field -> Type id
+
+EnumDecl -> enumer id [ EnumIdList ]
+EnumIdList -> EnumIdList , id
+EnumIdList -> id
+
+StmtList -> StmtList Stmt
+StmtList -> e
+
+Stmt -> VarDecl ;
+Stmt -> AssignStmt ;
+Stmt -> ReturnStmt ;
+Stmt -> ExprStmt ;
+Stmt -> IfStmt
+Stmt -> WhileStmt
+Stmt -> DoWhileStmt
+Stmt -> ForStmt
+
+VarDecl -> Modifier Type id AssignOp Expr
+VarDecl -> Modifier Type id
+
+Modifier -> val
+Modifier -> var
+Modifier -> def
+
+AssignOp -> :=
+AssignOp -> <-
+
+AssignStmt -> Expr AssignOp Expr
+
+IfStmt -> when ( Expr ) { StmtList } ElseOpt
+ElseOpt -> else ( Expr ) { StmtList } ElseOpt
+ElseOpt -> else { StmtList }
+ElseOpt -> e
+
+WhileStmt -> run ( Expr ) { StmtList }
+DoWhileStmt -> { StmtList } run ( Expr )
+
+ForStmt -> rep ( id in Expr .. Expr ) { StmtList }
+ForStmt -> rep ( id , id in Expr .. Expr , Expr .. Expr ) { StmtList }
+
+ReturnStmt -> return Expr
+ReturnStmt -> return
+
+ExprStmt -> Expr
+
+Expr -> LogicOrExpr
+
+LogicOrExpr -> LogicOrExpr orr LogicAndExpr
+LogicOrExpr -> LogicAndExpr
+
+LogicAndExpr -> LogicAndExpr and BitwiseExpr
+LogicAndExpr -> BitwiseExpr
+
+BitwiseExpr -> BitwiseExpr bor EqExpr
+BitwiseExpr -> BitwiseExpr bxr EqExpr
+BitwiseExpr -> BitwiseExpr bnd EqExpr
+BitwiseExpr -> EqExpr
+
+EqExpr -> EqExpr == RelExpr
+EqExpr -> EqExpr >< RelExpr
+EqExpr -> RelExpr
+
+RelExpr -> RelExpr < ShiftExpr
+RelExpr -> RelExpr > ShiftExpr
+RelExpr -> RelExpr <= ShiftExpr
+RelExpr -> RelExpr >= ShiftExpr
+RelExpr -> ShiftExpr
+
+ShiftExpr -> ShiftExpr << AddExpr
+ShiftExpr -> ShiftExpr >> AddExpr
+ShiftExpr -> AddExpr
+
+AddExpr -> AddExpr + MulExpr
+AddExpr -> AddExpr - MulExpr
+AddExpr -> MulExpr
+
+MulExpr -> MulExpr * UnaryExpr
+MulExpr -> MulExpr / UnaryExpr
+MulExpr -> MulExpr % UnaryExpr
+MulExpr -> UnaryExpr
+
+UnaryExpr -> not UnaryExpr
+UnaryExpr -> bnt UnaryExpr
+UnaryExpr -> & UnaryExpr
+UnaryExpr -> * UnaryExpr
+UnaryExpr -> PostfixExpr
+
+PostfixExpr -> PostfixExpr . id ( ArgList )
+PostfixExpr -> PostfixExpr . id ( )
+PostfixExpr -> PostfixExpr . id
+PostfixExpr -> PostfixExpr [ Expr ]
+PostfixExpr -> PrimaryExpr
+
+PrimaryExpr -> id
+PrimaryExpr -> num
+PrimaryExpr -> str
+PrimaryExpr -> true
+PrimaryExpr -> false
+PrimaryExpr -> id ( ArgList )
+PrimaryExpr -> id ( )
+PrimaryExpr -> ( Expr )
+PrimaryExpr -> [ ArgList ]
+
+ArgList -> ArgList , Expr
+ArgList -> Expr

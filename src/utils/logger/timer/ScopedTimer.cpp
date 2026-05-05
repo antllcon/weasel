@@ -1,9 +1,8 @@
 #include "ScopedTimer.h"
-
+#include "src/utils/logger/Logger.h"
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
-#include <thread>
 
 namespace
 {
@@ -15,9 +14,7 @@ void AssertIsPhaseNameValid(const std::string& name)
 	}
 }
 
-std::string FormatMessage(
-	const std::string& phase,
-	const double elapsed)
+std::string FormatMessage(const std::string& phase, const double elapsed)
 {
 	std::ostringstream stream;
 
@@ -33,11 +30,8 @@ std::string FormatMessage(
 }
 } // namespace
 
-ScopedTimer::ScopedTimer(
-	std::string phaseName,
-	std::shared_ptr<ILogger> logger)
+ScopedTimer::ScopedTimer(std::string phaseName)
 	: m_phaseName(std::move(phaseName))
-	, m_logger(std::move(logger))
 	, m_startTime(Clock::now())
 {
 	AssertIsPhaseNameValid(m_phaseName);
@@ -45,12 +39,7 @@ ScopedTimer::ScopedTimer(
 
 ScopedTimer::~ScopedTimer()
 {
-	const double elapsed = Elapsed();
-
-	if (m_logger)
-	{
-		m_logger->Log(FormatMessage(m_phaseName, elapsed));
-	}
+	Logger::Log(FormatMessage(m_phaseName, Elapsed()));
 }
 
 double ScopedTimer::Elapsed() const

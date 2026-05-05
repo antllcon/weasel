@@ -1,15 +1,11 @@
 #include "LalrParseStepsPrinter.h"
+#include "src/utils/logger/Logger.h"
 
 #include <iomanip>
 #include <sstream>
 
-void LalrParseStepsPrinter::Print(const std::vector<LalrParseStep>& steps, const std::string& inputLine, const std::shared_ptr<ILogger>& logger)
+void LalrParseStepsPrinter::Print(const std::vector<LalrParseStep>& steps, const std::string& inputLine)
 {
-	if (!logger)
-	{
-		return;
-	}
-
 	std::ostringstream ss;
 
 	ss << "Процесс восходящего разбора (LALR-1) для: " << inputLine << "\n";
@@ -32,5 +28,5 @@ void LalrParseStepsPrinter::Print(const std::vector<LalrParseStep>& steps, const
 
 	ss << std::string(129, '-');
 
-	logger->Log(ss.str());
+	Logger::Log(ss.str());
 }

@@ -1,5 +1,5 @@
 #include "LalrTablePrinter.h"
-
+#include "src/utils/logger/Logger.h"
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
@@ -184,13 +184,8 @@ size_t CalculateTotalWidth(
 }
 } // namespace
 
-void LalrTablePrinter::Print(const LalrTable& table, const std::shared_ptr<ILogger>& logger)
+void LalrTablePrinter::Print(const LalrTable& table)
 {
-	if (!logger)
-	{
-		return;
-	}
-
 	std::ostringstream ss;
 	ss << "LALR(1) Таблица разбора\n";
 
@@ -283,5 +278,5 @@ void LalrTablePrinter::Print(const LalrTable& table, const std::shared_ptr<ILogg
 
 	PrintRowSeparator(ss, totalWidth);
 
-	logger->Log(ss.str());
+	Logger::Log(ss.str());
 }

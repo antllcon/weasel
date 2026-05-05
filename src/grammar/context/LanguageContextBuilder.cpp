@@ -7,6 +7,7 @@
 #include "src/grammar/optimizer/GrammarOptimizer.h"
 #include "src/grammar/parser/GrammarConsistencyChecker.h"
 #include "src/grammar/parser/GrammarParser.h"
+#include "src/utils/logger/Logger.h"
 #include <filesystem>
 
 namespace
@@ -43,7 +44,7 @@ raw::Rules ExtractAndCheckRules(const std::filesystem::path& grammarFile)
 
 namespace LanguageContextBuilder
 {
-LanguageContext Build(const std::filesystem::path& grammarFile, const std::shared_ptr<ILogger>& logger)
+LanguageContext Build(const std::filesystem::path& grammarFile)
 {
 	AssertIsFileExisting(grammarFile);
 
@@ -79,10 +80,8 @@ LanguageContext Build(const std::filesystem::path& grammarFile, const std::share
 		{
 			const auto payload = FileCache::ReadPayload(cachePath);
 			table = LalrTableSerializer::Deserialize(payload);
-			if (logger)
-			{
-				logger->Log("[Cache] \tLALR таблица загружена из кэша");
-			}
+
+			Logger::Log("[Cache] \tLALR таблица загружена из кэша");
 		}
 		catch (...)
 		{
@@ -96,10 +95,7 @@ LanguageContext Build(const std::filesystem::path& grammarFile, const std::share
 
 	auto lalrTable = std::make_unique<LalrTable>(std::move(table));
 
-	if (logger)
-	{
-		// LalrTablePrinter::Print(*lalrTable, logger);
-	}
+	// LalrTablePrinter::Print(*lalrTable);
 
 	return LanguageContext{
 		.lalrTable = std::move(lalrTable),

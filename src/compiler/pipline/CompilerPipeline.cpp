@@ -10,6 +10,7 @@
 #include "src/diagnostics/DiagnosticEngine.h"
 #include "src/grammar/cst/CstNode.h"
 #include "src/grammar/lalr/LalrParseStepsPrinter.h"
+#include "src/utils/logger/Logger.h"
 #include "src/utils/logger/timer/ScopedTimer.h"
 
 #include <fstream>
@@ -143,23 +144,18 @@ std::vector<CstInputToken> MapTokensToCstInput(const std::vector<Token>& tokens)
 	return result;
 }
 
-void LogDiagnostics(const DiagnosticEngine& engine, const std::shared_ptr<ILogger>& logger)
+void LogDiagnostics(const DiagnosticEngine& engine)
 {
-	if (!logger)
-	{
-		return;
-	}
-
 	for (const auto& diagnostic : engine.GetDiagnostics())
 	{
-		logger->Log(DiagnosticEngine::FormatMessage(diagnostic));
+		Logger::Log(DiagnosticEngine::FormatMessage(diagnostic));
 	}
 }
 } // namespace
 
 namespace CompilerPipeline
 {
-bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& context, const std::shared_ptr<ILogger>& logger)
+bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& context)
 {
 	AssertIsContextValid(context);
 	DiagnosticEngine engine;
@@ -168,46 +164,31 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 	std::vector<Token> tokens;
 
 	{
-		ScopedTimer t("Лексический анализ", logger);
+		ScopedTimer t("Лексический анализ");
 		sourceCode = ReadFileContent(sourceFile);
 		tokens = Lexer::Tokenize(sourceCode, engine);
 	}
 
 	if (engine.HasErrors())
 	{
-		LogDiagnostics(engine, logger);
+		LogDiagnostics(engine);
 		return false;
 	}
 
 	const auto grammarTokens = MapTokensToGrammar(tokens);
-
-	// if (logger)
-	// {
-	//     std::ostringstream ss;
-	//     ss << "[Отладка] Входной поток токенов (Lexer -> Parser):\n";
-	//     for (size_t i = 0; i < grammarTokens.size(); ++i)
-	//     {
-	//         ss << std::setw(3) << i << ": [" << std::left << std::setw(10)
-	//            << grammarTokens[i] << "] <- '" << tokens[i].value << "'\n";
-	//     }
-	//     logger->Log(ss.str());
-	// }
 
 	LalrParser parser(*context.lalrTable);
 	std::unique_ptr<CstNode> cstRoot;
 
 	try
 	{
-		ScopedTimer t("Синтаксический анализ (LALR-1)", logger);
+		ScopedTimer t("Синтаксический анализ (LALR-1)");
 		const auto cstTokens = MapTokensToCstInput(tokens);
 		cstRoot = parser.ParseToTree(cstTokens);
 	}
 	catch (const std::exception& e)
 	{
-		if (logger)
-		{
-			// LalrParseStepsPrinter::Print(parser.GetLastParseSteps(), sourceFile.string(), logger);
-		}
+		LalrParseStepsPrinter::Print(parser.GetLastParseSteps(), sourceFile.string());
 
 		engine.Report(DiagnosticData{
 			.phase = CompilerPhase::Parser,
@@ -215,7 +196,7 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 			.message = e.what(),
 			.filePath = sourceFile.string()});
 
-		LogDiagnostics(engine, logger);
+		LogDiagnostics(engine);
 		return false;
 	}
 
@@ -224,7 +205,7 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 
 	try
 	{
-		ScopedTimer t("Конвертация CST в AST", logger);
+		ScopedTimer t("Конвертация CST в AST");
 		astRoot = CstToAstConverter::Convert(*cstRoot);
 		AssertIsAstValid(astRoot);
 	}
@@ -235,7 +216,7 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 			.errorCode = "AST-001",
 			.message = e.what(),
 			.filePath = sourceFile.string()});
-		LogDiagnostics(engine, logger);
+		LogDiagnostics(engine);
 		return false;
 	}
 
@@ -243,7 +224,7 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 
 	try
 	{
-		ScopedTimer t("Семантический анализ", logger);
+		ScopedTimer t("Семантический анализ");
 		SemanticAnalyzer sema;
 		slotMap = sema.Analyze(*astRoot);
 	}
@@ -254,7 +235,7 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 			.errorCode = "SEM-001",
 			.message = e.what(),
 			.filePath = sourceFile.string()});
-		LogDiagnostics(engine, logger);
+		LogDiagnostics(engine);
 		return false;
 	}
 
@@ -263,13 +244,13 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 		Chunk finalBytecode;
 
 		{
-			ScopedTimer t("Генерация кода (Backend)", logger);
+			ScopedTimer t("Генерация кода (Backend)");
 			CodeGenerator backend(std::move(slotMap));
 			finalBytecode = backend.Generate(*astRoot);
 		}
 
 		{
-			ScopedTimer t("Выполнение в VM", logger);
+			ScopedTimer t("Выполнение в VM");
 			VirtualMachine vm;
 			vm.RegisterNativeFunction(0, [](std::span<const Value> args) -> Value {
 				if (!args.empty())
@@ -288,7 +269,7 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 			.errorCode = "VM-001",
 			.message = e.what(),
 			.filePath = sourceFile.string()});
-		LogDiagnostics(engine, logger);
+		LogDiagnostics(engine);
 		return false;
 	}
 

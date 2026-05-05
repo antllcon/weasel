@@ -2,6 +2,7 @@
 #include "grammar/context/LanguageContextBuilder.h"
 #include "utils/console/CommandLineParser.h"
 #include "utils/console/ConsoleEncoding.h"
+#include "utils/logger/Logger.h"
 #include "utils/logger/LoggerFactory.h"
 #include "utils/logger/timer/ScopedTimer.h"
 #include <iostream>
@@ -13,11 +14,11 @@ int main(int argc, char* argv[])
 	try
 	{
 		const auto options = CommandLineParser::Parse(argc, argv);
-		const auto logger = LoggerFactory::Create(options.logTarget);
+		Logger::Init(LoggerFactory::Create(options.logTarget));
 
-		ScopedTimer timer("Время компиляции", logger);
-		const auto context = LanguageContextBuilder::Build(options.grammarFile, logger);
-		const auto success = CompilerPipeline::Compile(options.sourceFile, context, logger);
+		ScopedTimer timer("Время компиляции");
+		const auto context = LanguageContextBuilder::Build(options.grammarFile);
+		const auto success = CompilerPipeline::Compile(options.sourceFile, context);
 
 		if (success)
 		{

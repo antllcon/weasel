@@ -1,5 +1,6 @@
 #pragma once
-#include "src/logger/ILogger.h"
+
+#include "src/utils/logger/ILogger.h"
 #include <chrono>
 #include <memory>
 #include <string>

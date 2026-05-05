@@ -1,5 +1,6 @@
 #pragma once
-#include "src/logger/ILogger.h"
+
+#include "src/utils/logger/ILogger.h"
 #include <atomic>
 
 class ConsoleLogger final : public ILogger

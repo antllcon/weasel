@@ -1,7 +1,7 @@
 #pragma once
 
 #include "LalrParser.h"
-#include "src/logger/ILogger.h"
+#include "src/utils/logger/ILogger.h"
 #include <memory>
 #include <string>
 #include <vector>

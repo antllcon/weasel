@@ -1,9 +1,9 @@
 #include "compiler/pipline/CompilerPipeline.h"
 #include "grammar/context/LanguageContextBuilder.h"
-#include "logger/timer/ScopedTimer.h"
-#include "src/console/CommandLineParser.h"
-#include "src/console/ConsoleEncoding.h"
-#include "src/logger/LoggerFactory.h"
+#include "utils/console/CommandLineParser.h"
+#include "utils/console/ConsoleEncoding.h"
+#include "utils/logger/LoggerFactory.h"
+#include "utils/logger/timer/ScopedTimer.h"
 #include <iostream>
 
 int main(int argc, char* argv[])

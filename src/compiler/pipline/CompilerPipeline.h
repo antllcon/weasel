@@ -1,7 +1,7 @@
 #pragma once
 
 #include "src/grammar/context/LanguageContext.h"
-#include "src/logger/ILogger.h"
+#include "src/utils/logger/ILogger.h"
 #include <filesystem>
 #include <memory>
 

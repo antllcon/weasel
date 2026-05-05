@@ -1,7 +1,7 @@
 #pragma once
 
 #include "src/grammar/lalr/LalrTypes.h"
-#include "src/logger/ILogger.h"
+#include "src/utils/logger/ILogger.h"
 #include <memory>
 
 class LalrTablePrinter

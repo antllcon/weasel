@@ -2,7 +2,7 @@
 #include "ILogger.h"
 #include "console/ConsoleLogger.h"
 #include "file/FileLogger.h"
-#include "src/console/CommandLineParser.h"
+#include "src/utils/console/CommandLineParser.h"
 #include <memory>
 
 namespace LoggerFactory

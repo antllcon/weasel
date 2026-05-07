@@ -8,19 +8,19 @@ std::string PhaseToString(CompilerPhase phase)
 	switch (phase)
 	{
 	case CompilerPhase::Lexer:
-		return "Лексический анализ";
+		return "Lexer";
 	case CompilerPhase::Parser:
-		return "Синтаксический анализ";
+		return "Parser";
 	case CompilerPhase::Semantic:
-		return "Семантический анализ";
+		return "Semantic";
 	case CompilerPhase::Optimizer:
-		return "Оптимизация";
+		return "Optimizer";
 	case CompilerPhase::Backend:
-		return "Генерация кода";
+		return "Backend";
 	case CompilerPhase::VirtualMachine:
-		return "Среда выполнения (VM)";
+		return "virtual";
 	}
-	return "Неизвестная фаза";
+	return "unc-faze";
 }
 } // namespace
 
@@ -47,7 +47,7 @@ const std::vector<DiagnosticData>& DiagnosticEngine::GetDiagnostics() const
 std::string DiagnosticEngine::FormatMessage(const DiagnosticData& data)
 {
 	std::ostringstream ss;
-	ss << "[" << PhaseToString(data.phase) << "] Ошибка " << data.errorCode << ": " << data.message;
+	ss << "[" << PhaseToString(data.phase) << "]\tОшибка " << data.errorCode << ": " << data.message;
 
 	if (!data.expected.empty() || !data.actual.empty())
 	{

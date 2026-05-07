@@ -188,7 +188,7 @@ bool Compile(const std::filesystem::path& sourceFile, const LanguageContext& con
 	}
 	catch (const std::exception& e)
 	{
-		LalrParseStepsPrinter::Print(parser.GetLastParseSteps(), sourceFile.string());
+		// LalrParseStepsPrinter::Print(parser.GetLastParseSteps(), sourceFile.string());
 
 		engine.Report(DiagnosticData{
 			.phase = CompilerPhase::Parser,

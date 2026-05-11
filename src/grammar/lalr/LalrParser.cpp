@@ -150,7 +150,7 @@ std::vector<LalrParseStep> LalrParser::Parse(const std::vector<std::string>& tok
 		{
 			step.action = "Error (Unexpected token)";
 			m_lastParseSteps.push_back(std::move(step));
-			AssertIsActionFound(false, lookahead, ip); // Здесь вылетит исключение
+			AssertIsActionFound(false, lookahead, ip);
 		}
 
 		const auto& [type, ruleIndex, altIndex] = actions.at(lookahead);

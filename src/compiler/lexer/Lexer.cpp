@@ -26,7 +26,6 @@ void AssertIsInputNotEmpty(std::string_view input)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Lexer,
-			.errorCode = "LEX-001",
 			.message = "Входная строка для лексера не может быть пустой",
 			.expected = "Текст программы",
 			.actual = "Пустая строка"});
@@ -37,7 +36,6 @@ void ReportUnknownSymbol(const LexerState& state, char symbol, size_t line, size
 {
 	state.engine.Report(DiagnosticData{
 		.phase = CompilerPhase::Lexer,
-		.errorCode = "LEX-002",
 		.message = "Встречен неизвестный или недопустимый символ",
 		.expected = "Валидный токен алфавита Weasel",
 		.actual = std::string(1, symbol),
@@ -49,7 +47,6 @@ void ReportUnterminatedString(const LexerState& state, size_t line, size_t pos)
 {
 	state.engine.Report(DiagnosticData{
 		.phase = CompilerPhase::Lexer,
-		.errorCode = "LEX-003",
 		.message = "Незакрытая строковая константа",
 		.expected = "\"",
 		.actual = "Конец файла (EOF)",

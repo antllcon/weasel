@@ -15,6 +15,14 @@
 #include <unordered_map>
 #include <vector>
 
+namespace Frontend
+{
+using SourceCode = std::string;
+using TokenStream = std::vector<Token>;
+using CstTree = std::unique_ptr<CstNode>;
+using AstTree = std::unique_ptr<AstNode>;
+using SymbolTable = std::unordered_map<std::string, uint32_t>;
+
 namespace
 {
 
@@ -62,8 +70,7 @@ void AssertIsAstValid(const AstNode* astRoot, const std::filesystem::path& sourc
 	}
 }
 
-std::optional<std::string> ReadSourceFile(
-	const std::filesystem::path& filePath)
+SourceCode ReadSourceFile(const std::filesystem::path& filePath)
 {
 	AssertIsFileExists(filePath);
 	std::ifstream file(filePath, std::ios::in | std::ios::binary);
@@ -75,6 +82,7 @@ std::optional<std::string> ReadSourceFile(
 	return content.str();
 }
 
+// TODO: расширить типы данных?
 std::string MapTokenTypeToGrammarSymbol(const Token& token)
 {
 	switch (token.type)
@@ -103,7 +111,7 @@ CstInputToken MapTokenToCstInput(const Token& token)
 		.location = SourceLocation{token.line, token.pos}};
 }
 
-std::vector<CstInputToken> MapTokensToCstInput(const std::vector<Token>& tokens)
+std::vector<CstInputToken> MapTokensToCstInput(const TokenStream& tokens)
 {
 	std::vector<CstInputToken> result;
 	result.reserve(tokens.size());
@@ -116,14 +124,14 @@ std::vector<CstInputToken> MapTokensToCstInput(const std::vector<Token>& tokens)
 	return result;
 }
 
-std::vector<Token> RunLexerPhase(const std::string& sourceCode, DiagnosticEngine& engine)
+TokenStream RunLexerPhase(const SourceCode& sourceCode, DiagnosticEngine& engine)
 {
 	ScopedTimer t("Лексический анализ");
 	return Lexer::Tokenize(sourceCode, engine);
 }
 
-std::unique_ptr<CstNode> RunParserPhase(
-	const std::vector<Token>& tokens,
+CstTree RunParserPhase(
+	const TokenStream& tokens,
 	const LanguageContext& context,
 	const std::filesystem::path& sourceFile)
 {
@@ -137,8 +145,8 @@ std::unique_ptr<CstNode> RunParserPhase(
 	return cstRoot;
 }
 
-std::unique_ptr<AstNode> RunAstConversionPhase(
-	const std::unique_ptr<CstNode>& cstRoot,
+AstTree RunAstConversionPhase(
+	const CstTree& cstRoot,
 	const std::filesystem::path& sourceFile)
 {
 	ScopedTimer t("Конвертация CST в AST");
@@ -148,7 +156,7 @@ std::unique_ptr<AstNode> RunAstConversionPhase(
 	return astRoot;
 }
 
-std::optional<std::unordered_map<std::string, uint32_t>> RunSemanticPhase(AstNode& astRoot)
+SymbolTable RunSemanticPhase(AstNode& astRoot)
 {
 	ScopedTimer t("Семантический анализ");
 	SemanticAnalyzer sema;
@@ -158,44 +166,24 @@ std::optional<std::unordered_map<std::string, uint32_t>> RunSemanticPhase(AstNod
 
 } // namespace
 
-namespace Frontend
-{
-
 std::optional<FrontendResult> RunFrontend(
 	const std::filesystem::path& sourceFile,
 	const LanguageContext& context,
 	DiagnosticEngine& engine)
 {
 	auto sourceCode = ReadSourceFile(sourceFile);
-	if (!sourceCode)
-	{
-		return std::nullopt;
-	}
+	auto tokens = RunLexerPhase(sourceCode, engine);
 
-	auto tokens = RunLexerPhase(*sourceCode, engine);
 	if (engine.HasErrors())
 	{
 		return std::nullopt;
 	}
 
 	auto cstRoot = RunParserPhase(tokens, context, sourceFile);
-	if (!cstRoot)
-	{
-		return std::nullopt;
-	}
-
-	auto astRoot = RunAstConversionPhase(std::move(cstRoot), sourceFile);
-	if (!astRoot)
-	{
-		return std::nullopt;
-	}
-
+	auto astRoot = RunAstConversionPhase(cstRoot, sourceFile);
 	auto slotMap = RunSemanticPhase(*astRoot);
-	if (!slotMap)
-	{
-		return std::nullopt;
-	}
 
-	return FrontendResult{std::move(astRoot), std::move(*slotMap)};
+	return FrontendResult{std::move(astRoot), std::move(slotMap)};
 }
+
 } // namespace Frontend

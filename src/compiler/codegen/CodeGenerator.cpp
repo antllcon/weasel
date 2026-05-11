@@ -1,19 +1,29 @@
 #include "CodeGenerator.h"
 
+#include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/AssignStmt.h"
-#include "src/compiler/ast/ExprStmt.h"
-#include "src/compiler/ast/ErrorExpr.h"
-#include "src/compiler/ast/FunctionCallExpr.h"
-#include "src/compiler/ast/ImplicitCastExpr.h"
 #include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
+#include "src/compiler/ast/BoolExpr.h"
+#include "src/compiler/ast/EnumDeclStmt.h"
+#include "src/compiler/ast/ErrorExpr.h"
+#include "src/compiler/ast/ExprStmt.h"
+#include "src/compiler/ast/FunctionCallExpr.h"
 #include "src/compiler/ast/FunctionDeclStmt.h"
 #include "src/compiler/ast/IdentifierExpr.h"
 #include "src/compiler/ast/IfStmt.h"
+#include "src/compiler/ast/ImplicitCastExpr.h"
+#include "src/compiler/ast/IndexExpr.h"
+#include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumberExpr.h"
+#include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
+#include "src/compiler/ast/StringExpr.h"
+#include "src/compiler/ast/StructDeclStmt.h"
+#include "src/compiler/ast/UnaryExpr.h"
+#include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
 #include "src/compiler/vm/value/Value.h"
 
@@ -61,6 +71,59 @@ void CodeGenerator::EmitConstantU32(uint32_t value)
 	const uint8_t idx = m_chunk.AddConstant(Value(value));
 	m_chunk.WriteOpCode(OpCode::Constant, m_currentLine);
 	m_chunk.WriteByte(idx, m_currentLine);
+}
+
+void CodeGenerator::Visit(const ProgramNode& node)
+{
+	for (const auto& decl : node.GetDeclarations())
+	{
+		decl->Accept(*this);
+	}
+}
+
+void CodeGenerator::Visit(const UnaryExpr& /*node*/)
+{
+	throw std::runtime_error("Генерация кода для UnaryExpr не реализована");
+}
+
+void CodeGenerator::Visit(const StringExpr& /*node*/)
+{
+	throw std::runtime_error("Генерация кода для StringExpr не реализована");
+}
+
+void CodeGenerator::Visit(const BoolExpr& /*node*/)
+{
+	throw std::runtime_error("Генерация кода для BoolExpr не реализована");
+}
+
+void CodeGenerator::Visit(const ArrayLiteralExpr& /*node*/)
+{
+	throw std::runtime_error("Генерация кода для ArrayLiteralExpr не реализована");
+}
+
+void CodeGenerator::Visit(const IndexExpr& /*node*/)
+{
+	throw std::runtime_error("Генерация кода для IndexExpr не реализована");
+}
+
+void CodeGenerator::Visit(const MemberAccessExpr& /*node*/)
+{
+	throw std::runtime_error("Генерация кода для MemberAccessExpr не реализована");
+}
+
+void CodeGenerator::Visit(const StructDeclStmt& /*node*/)
+{
+	throw std::runtime_error("Генерация кода для StructDeclStmt не реализована");
+}
+
+void CodeGenerator::Visit(const UnionDeclStmt& /*node*/)
+{
+	throw std::runtime_error("Генерация кода для UnionDeclStmt не реализована");
+}
+
+void CodeGenerator::Visit(const EnumDeclStmt& /*node*/)
+{
+	throw std::runtime_error("Генерация кода для EnumDeclStmt не реализована");
 }
 
 void CodeGenerator::Visit(const FunctionDeclStmt& node)

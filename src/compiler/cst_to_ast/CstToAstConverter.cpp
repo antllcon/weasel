@@ -1,41 +1,33 @@
 #include "CstToAstConverter.h"
 
+#include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/AssignStmt.h"
-#include "src/compiler/ast/ExprStmt.h"
-#include "src/compiler/ast/FunctionCallExpr.h"
 #include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
+#include "src/compiler/ast/BoolExpr.h"
+#include "src/compiler/ast/EnumDeclStmt.h"
+#include "src/compiler/ast/ExprStmt.h"
+#include "src/compiler/ast/FunctionCallExpr.h"
 #include "src/compiler/ast/FunctionDeclStmt.h"
 #include "src/compiler/ast/IdentifierExpr.h"
 #include "src/compiler/ast/IfStmt.h"
+#include "src/compiler/ast/IndexExpr.h"
+#include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumberExpr.h"
+#include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
+#include "src/compiler/ast/StringExpr.h"
+#include "src/compiler/ast/StructDeclStmt.h"
+#include "src/compiler/ast/UnaryExpr.h"
+#include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
 
 #include <stdexcept>
 
 namespace
 {
-void AssertIsNodeNotNull(const CstNode* node, const std::string& context)
-{
-	if (!node)
-	{
-		throw std::runtime_error("Нулевой узел CST в контексте: " + context);
-	}
-}
-
-void AssertIsChildrenCount(const CstNode& node, size_t expected, const std::string& context)
-{
-	if (node.children.size() != expected)
-	{
-		throw std::runtime_error(
-			"Неожиданное количество дочерних узлов в " + context
-			+ ": ожидалось " + std::to_string(expected)
-			+ ", получено " + std::to_string(node.children.size()));
-	}
-}
 
 std::unique_ptr<Expr> ConvertExprByLabel(const CstNode& node);
 std::unique_ptr<BlockStmt> ConvertStmtList(const CstNode& node);
@@ -43,20 +35,34 @@ std::unique_ptr<Stmt> ConvertElseOpt(const CstNode& node);
 
 BinaryOpKind ParseBinaryOp(const std::string& op)
 {
-	if (op == "+") return BinaryOpKind::Add;
-	if (op == "-") return BinaryOpKind::Sub;
-	if (op == "*") return BinaryOpKind::Mul;
-	if (op == "/") return BinaryOpKind::Div;
-	if (op == "%") return BinaryOpKind::Mod;
-	if (op == "==") return BinaryOpKind::Eq;
-	if (op == "><") return BinaryOpKind::NotEq;
-	if (op == "<") return BinaryOpKind::Less;
-	if (op == ">") return BinaryOpKind::Greater;
-	if (op == "<=") return BinaryOpKind::LessEq;
-	if (op == ">=") return BinaryOpKind::GreaterEq;
+	if (op == "+")   return BinaryOpKind::Add;
+	if (op == "-")   return BinaryOpKind::Sub;
+	if (op == "*")   return BinaryOpKind::Mul;
+	if (op == "/")   return BinaryOpKind::Div;
+	if (op == "%")   return BinaryOpKind::Mod;
+	if (op == "==")  return BinaryOpKind::Eq;
+	if (op == "><")  return BinaryOpKind::NotEq;
+	if (op == "<")   return BinaryOpKind::Less;
+	if (op == ">")   return BinaryOpKind::Greater;
+	if (op == "<=")  return BinaryOpKind::LessEq;
+	if (op == ">=")  return BinaryOpKind::GreaterEq;
 	if (op == "and") return BinaryOpKind::LogicalAnd;
 	if (op == "orr") return BinaryOpKind::LogicalOr;
+	if (op == "<<")  return BinaryOpKind::ShiftLeft;
+	if (op == ">>")  return BinaryOpKind::ShiftRight;
+	if (op == "bnd") return BinaryOpKind::BitwiseAnd;
+	if (op == "bor") return BinaryOpKind::BitwiseOr;
+	if (op == "bxr") return BinaryOpKind::BitwiseXor;
 	throw std::runtime_error("Неизвестный бинарный оператор: " + op);
+}
+
+UnaryOpKind ParseUnaryOp(const std::string& op)
+{
+	if (op == "not") return UnaryOpKind::LogicalNot;
+	if (op == "bnt") return UnaryOpKind::BitwiseNot;
+	if (op == "&")   return UnaryOpKind::AddressOf;
+	if (op == "*")   return UnaryOpKind::Deref;
+	throw std::runtime_error("Неизвестный унарный оператор: " + op);
 }
 
 VarModifier ParseModifier(const CstNode& modNode)
@@ -89,6 +95,8 @@ std::pair<std::string, std::string> ParseType(const CstNode& typeNode)
 }
 
 void CollectArgList(const CstNode& node, std::vector<std::unique_ptr<Expr>>& args);
+std::unique_ptr<Expr> ConvertPostfixExpr(const CstNode& node);
+std::unique_ptr<Expr> ConvertUnaryExpr(const CstNode& node);
 
 std::unique_ptr<Expr> ConvertPrimaryExpr(const CstNode& node)
 {
@@ -114,9 +122,27 @@ std::unique_ptr<Expr> ConvertPrimaryExpr(const CstNode& node)
 		const bool isFloat = child.value.find('.') != std::string::npos;
 		return std::make_unique<NumberExpr>(child.value, isFloat, SourceRange{});
 	}
+	if (child.label == "str")
+	{
+		return std::make_unique<StringExpr>(child.value, SourceRange{});
+	}
+	if (child.label == "true")
+	{
+		return std::make_unique<BoolExpr>(true, SourceRange{});
+	}
+	if (child.label == "false")
+	{
+		return std::make_unique<BoolExpr>(false, SourceRange{});
+	}
 	if (child.label == "(")
 	{
 		return ConvertExprByLabel(*node.children[1]);
+	}
+	if (child.label == "[")
+	{
+		std::vector<std::unique_ptr<Expr>> elements;
+		CollectArgList(*node.children[1], elements);
+		return std::make_unique<ArrayLiteralExpr>(std::move(elements), SourceRange{});
 	}
 	throw std::runtime_error("Неподдерживаемое первичное выражение: " + child.label);
 }
@@ -134,12 +160,66 @@ void CollectArgList(const CstNode& node, std::vector<std::unique_ptr<Expr>>& arg
 	}
 }
 
+std::unique_ptr<Expr> ConvertPostfixExpr(const CstNode& node)
+{
+	if (node.children.size() == 1)
+	{
+		return ConvertExprByLabel(*node.children[0]);
+	}
+
+	auto receiver = ConvertPostfixExpr(*node.children[0]);
+	const size_t childCount = node.children.size();
+
+	if (childCount == 4 && node.children[1]->value == "[")
+	{
+		auto index = ConvertExprByLabel(*node.children[2]);
+		return std::make_unique<IndexExpr>(std::move(receiver), std::move(index), SourceRange{});
+	}
+
+	if (childCount == 3 && node.children[1]->value == ".")
+	{
+		const std::string field = node.children[2]->value;
+		return std::make_unique<MemberAccessExpr>(std::move(receiver), field, SourceRange{});
+	}
+
+	if (childCount == 5 && node.children[1]->value == ".")
+	{
+		const std::string method = node.children[2]->value;
+		std::vector<std::unique_ptr<Expr>> args;
+		args.push_back(std::move(receiver));
+		return std::make_unique<FunctionCallExpr>(method, std::move(args), SourceRange{});
+	}
+
+	if (childCount == 6 && node.children[1]->value == ".")
+	{
+		const std::string method = node.children[2]->value;
+		std::vector<std::unique_ptr<Expr>> args;
+		args.push_back(std::move(receiver));
+		CollectArgList(*node.children[4], args);
+		return std::make_unique<FunctionCallExpr>(method, std::move(args), SourceRange{});
+	}
+
+	throw std::runtime_error(
+		"Неподдерживаемый постфиксный узел с " + std::to_string(childCount) + " дочерними узлами");
+}
+
+std::unique_ptr<Expr> ConvertUnaryExpr(const CstNode& node)
+{
+	if (node.children.size() == 1)
+	{
+		return ConvertExprByLabel(*node.children[0]);
+	}
+
+	const UnaryOpKind op = ParseUnaryOp(node.children[0]->value);
+	auto operand = ConvertUnaryExpr(*node.children[1]);
+	return std::make_unique<UnaryExpr>(op, std::move(operand), SourceRange{});
+}
+
 std::unique_ptr<Expr> ConvertExprByLabel(const CstNode& node)
 {
-	if (node.label == "PrimaryExpr")
-	{
-		return ConvertPrimaryExpr(node);
-	}
+	if (node.label == "PrimaryExpr") return ConvertPrimaryExpr(node);
+	if (node.label == "PostfixExpr") return ConvertPostfixExpr(node);
+	if (node.label == "UnaryExpr")   return ConvertUnaryExpr(node);
 
 	if (node.children.size() == 1)
 	{
@@ -291,6 +371,26 @@ void CollectDecls(const CstNode& node, std::vector<const CstNode*>& decls)
 	decls.push_back(node.children[1].get());
 }
 
+Param ConvertParam(const CstNode& node)
+{
+	const auto [sign, typeName] = ParseType(*node.children[0]);
+	const std::string name = node.children[1]->value;
+	return Param{sign, typeName, name};
+}
+
+void CollectParams(const CstNode& node, std::vector<Param>& params)
+{
+	if (node.children.size() == 3)
+	{
+		CollectParams(*node.children[0], params);
+		params.push_back(ConvertParam(*node.children[2]));
+	}
+	else
+	{
+		params.push_back(ConvertParam(*node.children[0]));
+	}
+}
+
 std::unique_ptr<AstNode> ConvertFuncDecl(const CstNode& node)
 {
 	const auto [sign, typeName] = ParseType(*node.children[0]);
@@ -299,8 +399,74 @@ std::unique_ptr<AstNode> ConvertFuncDecl(const CstNode& node)
 	const bool hasParams = (node.children[4]->label != ")");
 	const size_t stmtListIdx = hasParams ? 7 : 6;
 
+	std::vector<Param> params;
+	if (hasParams)
+	{
+		CollectParams(*node.children[4], params);
+	}
+
 	auto body = ConvertStmtList(*node.children[stmtListIdx]);
-	return std::make_unique<FunctionDeclStmt>(sign, typeName, name, std::move(body), SourceRange{});
+	return std::make_unique<FunctionDeclStmt>(
+		sign, typeName, name, std::move(params), std::move(body), SourceRange{});
+}
+
+void CollectFieldList(const CstNode& node, std::vector<FieldDecl>& fields)
+{
+	if (node.children.empty())
+	{
+		return;
+	}
+	CollectFieldList(*node.children[0], fields);
+	const CstNode& fieldNode = *node.children[1];
+	const auto [sign, typeName] = ParseType(*fieldNode.children[0]);
+	fields.push_back(FieldDecl{sign, typeName, fieldNode.children[1]->value});
+}
+
+void CollectEnumIdList(const CstNode& node, std::vector<std::string>& values)
+{
+	if (node.children.size() == 3)
+	{
+		CollectEnumIdList(*node.children[0], values);
+		values.push_back(node.children[2]->value);
+	}
+	else
+	{
+		values.push_back(node.children[0]->value);
+	}
+}
+
+std::unique_ptr<AstNode> ConvertStructDecl(const CstNode& node)
+{
+	const std::string name = node.children[1]->value;
+	std::vector<FieldDecl> fields;
+	CollectFieldList(*node.children[3], fields);
+	return std::make_unique<StructDeclStmt>(name, std::move(fields), SourceRange{});
+}
+
+std::unique_ptr<AstNode> ConvertUnionDecl(const CstNode& node)
+{
+	const std::string name = node.children[1]->value;
+	std::vector<FieldDecl> fields;
+	CollectFieldList(*node.children[3], fields);
+	return std::make_unique<UnionDeclStmt>(name, std::move(fields), SourceRange{});
+}
+
+std::unique_ptr<AstNode> ConvertEnumDecl(const CstNode& node)
+{
+	const std::string name = node.children[1]->value;
+	std::vector<std::string> values;
+	CollectEnumIdList(*node.children[3], values);
+	return std::make_unique<EnumDeclStmt>(name, std::move(values), SourceRange{});
+}
+
+std::unique_ptr<AstNode> ConvertDecl(const CstNode& node)
+{
+	const auto& firstChild = *node.children[0];
+	if (firstChild.label == "FuncDecl")   return ConvertFuncDecl(firstChild);
+	if (firstChild.label == "StructDecl") return ConvertStructDecl(firstChild);
+	if (firstChild.label == "UnionDecl")  return ConvertUnionDecl(firstChild);
+	if (firstChild.label == "EnumDecl")   return ConvertEnumDecl(firstChild);
+	throw std::runtime_error("Неподдерживаемый тип декларации: " + firstChild.label);
 }
 } // namespace
 
@@ -309,17 +475,16 @@ std::unique_ptr<AstNode> CstToAstConverter::Convert(const CstNode& root)
 	const CstNode& programNode = *root.children[0];
 	const CstNode& declListNode = *programNode.children[0];
 
-	std::vector<const CstNode*> decls;
-	CollectDecls(declListNode, decls);
+	std::vector<const CstNode*> declNodes;
+	CollectDecls(declListNode, declNodes);
 
-	for (const auto* decl : decls)
+	std::vector<std::unique_ptr<AstNode>> declarations;
+	declarations.reserve(declNodes.size());
+
+	for (const auto* decl : declNodes)
 	{
-		const auto& firstChild = *decl->children[0];
-		if (firstChild.label == "FuncDecl")
-		{
-			return ConvertFuncDecl(firstChild);
-		}
+		declarations.push_back(ConvertDecl(*decl));
 	}
 
-	throw std::runtime_error("Функция не найдена в программе");
+	return std::make_unique<ProgramNode>(std::move(declarations));
 }

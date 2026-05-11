@@ -1,12 +1,11 @@
 #include "LanguageContextBuilder.h"
-#include "src/utils/cacher/FileCache.h"
 #include "src/diagnostics/CompilationException.h"
 #include "src/grammar/cache/LalrTableSerializer.h"
 #include "src/grammar/lalr/LalrTableBuilder.h"
-#include "src/grammar/lalr/LalrTablePrinter.h"
 #include "src/grammar/optimizer/GrammarOptimizer.h"
 #include "src/grammar/parser/GrammarConsistencyChecker.h"
 #include "src/grammar/parser/GrammarParser.h"
+#include "src/utils/cacher/FileCache.h"
 #include "src/utils/logger/Logger.h"
 #include <filesystem>
 
@@ -59,14 +58,12 @@ LanguageContext Build(const std::filesystem::path& grammarFile)
 	// TODO: улушчить (вынести в метод получения lalrTable, который в себе скрывает кеш)
 	const auto cachePath = std::filesystem::path(grammarFile.string() + ".cache");
 
-	auto buildTable = [&]() -> LalrTable
-	{
+	auto buildTable = [&]() -> LalrTable {
 		LalrTableBuilder tableBuilder(rules, augmentedStartSymbol);
 		return tableBuilder.Build();
 	};
 
-	auto rebuildAndCache = [&]() -> LalrTable
-	{
+	auto rebuildAndCache = [&]() -> LalrTable {
 		auto table = buildTable();
 		const auto payload = LalrTableSerializer::Serialize(table);
 		FileCache::Write(grammarFile, cachePath, payload);

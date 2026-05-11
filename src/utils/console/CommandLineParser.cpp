@@ -1,35 +1,55 @@
 #include "CommandLineParser.h"
+#include <algorithm>
+#include <functional>
 #include <stdexcept>
-#include <string_view>
 #include <vector>
 
 namespace
 {
-constexpr std::string_view FlagLogConsole = "-l";
-constexpr std::string_view FlagLogFile = "-lf";
-constexpr std::string_view FlagGrammar = "-g";
+struct FlagRule
+{
+	std::string_view name;
+	bool requiresValue;
+	std::function<void(CompilerOptions&, std::string_view)> apply;
+};
 
-void AssertHasEnoughArguments(int argc)
+void AssertIsEnoughArguments(int argc)
 {
 	if (argc < 2)
 	{
-		throw std::runtime_error("Проверь аргументы: wesc <name.wes> [-l | -lf] [-g <name.txt>]");
+		throw std::runtime_error("Проверь аргументы: wesc <name.wes> [-l | -lf] [-g <name.txt>] [-nasm]");
 	}
 }
 
-void AssertSourceFileSpecified(const std::filesystem::path& sourceFile)
+void AssertIsFlagKnown(bool isKnown, std::string_view flagName)
 {
-	if (sourceFile.empty())
+	if (!isKnown)
 	{
-		throw std::runtime_error("Не указан исходный файл для компиляции");
+		throw std::runtime_error("Неизвестный флаг: " + std::string(flagName));
 	}
 }
 
-void AssertHasFlagValue(size_t index, size_t totalArgs, std::string_view flagName)
+void AssertIsFlagValuePresent(bool isPresent, std::string_view flagName)
 {
-	if (index + 1 >= totalArgs)
+	if (!isPresent)
 	{
 		throw std::runtime_error("Не указано значение для флага: " + std::string(flagName));
+	}
+}
+
+void AssertIsSourceFileNotSet(bool isEmpty, std::string_view arg)
+{
+	if (!isEmpty)
+	{
+		throw std::runtime_error("Обнаружен лишний аргумент: " + std::string(arg));
+	}
+}
+
+void AssertIsSourceFileSpecified(bool isSpecified)
+{
+	if (!isSpecified)
+	{
+		throw std::runtime_error("Не указан исходный файл для компиляции");
 	}
 }
 
@@ -37,39 +57,63 @@ bool IsFlag(std::string_view arg)
 {
 	return !arg.empty() && arg[0] == '-';
 }
+
+std::vector<FlagRule> GetFlagRules()
+{
+	return {
+		{"-l", false, [](CompilerOptions& opt, std::string_view) {
+			 opt.logTarget = LogTarget::Console;
+		 }},
+		{"-lf", false, [](CompilerOptions& opt, std::string_view) {
+			 opt.logTarget = LogTarget::File;
+		 }},
+		{"-g", true, [](CompilerOptions& opt, std::string_view val) {
+			 opt.grammarFile = val;
+		 }},
+		{"-nasm", false, [](CompilerOptions& opt, std::string_view) {
+			 opt.emitNasm = true;
+		 }}};
+}
 } // namespace
 
 CompilerOptions CommandLineParser::Parse(int argc, char* argv[])
 {
-	AssertHasEnoughArguments(argc);
+	AssertIsEnoughArguments(argc);
 
 	CompilerOptions options;
 	const std::vector<std::string_view> args(argv + 1, argv + argc);
+	const std::vector<FlagRule> rules = GetFlagRules();
 
 	for (size_t i = 0; i < args.size(); ++i)
 	{
 		const std::string_view currentArg = args[i];
 
-		if (currentArg == FlagLogConsole)
+		if (IsFlag(currentArg))
 		{
-			options.logTarget = LogTarget::Console;
+			auto it = std::ranges::find_if(rules, [&](const FlagRule& rule) {
+				return rule.name == currentArg;
+			});
+
+			AssertIsFlagKnown(it != rules.end(), currentArg);
+
+			std::string_view value;
+			if (it->requiresValue)
+			{
+				const bool hasValue = i + 1 < args.size() && !IsFlag(args[i + 1]);
+				AssertIsFlagValuePresent(hasValue, currentArg);
+				value = args[++i];
+			}
+
+			it->apply(options, value);
 		}
-		else if (currentArg == FlagLogFile)
+		else
 		{
-			options.logTarget = LogTarget::File;
-		}
-		else if (currentArg == FlagGrammar)
-		{
-			AssertHasFlagValue(i, args.size(), FlagGrammar);
-			options.grammarFile = args[++i];
-		}
-		else if (options.sourceFile.empty() && !IsFlag(currentArg))
-		{
+			AssertIsSourceFileNotSet(options.sourceFile.empty(), currentArg);
 			options.sourceFile = currentArg;
 		}
 	}
 
-	AssertSourceFileSpecified(options.sourceFile);
+	AssertIsSourceFileSpecified(!options.sourceFile.empty());
 
 	return options;
 }

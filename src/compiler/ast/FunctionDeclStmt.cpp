@@ -4,11 +4,13 @@ FunctionDeclStmt::FunctionDeclStmt(
 	std::string returnTypeSign,
 	std::string returnTypeName,
 	std::string name,
+	std::vector<Param> params,
 	std::unique_ptr<BlockStmt> body,
 	const SourceRange& range)
 	: m_returnTypeSign(std::move(returnTypeSign))
 	, m_returnTypeName(std::move(returnTypeName))
 	, m_name(std::move(name))
+	, m_params(std::move(params))
 	, m_body(std::move(body))
 	, m_range(range)
 {
@@ -37,6 +39,11 @@ const std::string& FunctionDeclStmt::GetReturnTypeSign() const
 const std::string& FunctionDeclStmt::GetReturnTypeName() const
 {
 	return m_returnTypeName;
+}
+
+const std::vector<Param>& FunctionDeclStmt::GetParams() const
+{
+	return m_params;
 }
 
 const BlockStmt& FunctionDeclStmt::GetBody() const

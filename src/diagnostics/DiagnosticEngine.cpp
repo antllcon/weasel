@@ -20,7 +20,7 @@ std::string PhaseToString(CompilerPhase phase)
 	case CompilerPhase::VirtualMachine:
 		return "virtual";
 	}
-	return "unc-faze";
+	return "anon-phase";
 }
 } // namespace
 
@@ -47,7 +47,7 @@ const std::vector<DiagnosticData>& DiagnosticEngine::GetDiagnostics() const
 std::string DiagnosticEngine::FormatMessage(const DiagnosticData& data)
 {
 	std::ostringstream ss;
-	ss << "[" << PhaseToString(data.phase) << "]\tОшибка " << data.errorCode << ": " << data.message;
+	ss << "[" << PhaseToString(data.phase) << "]\t" << data.message;
 
 	if (!data.expected.empty() || !data.actual.empty())
 	{

@@ -5,6 +5,7 @@
 #include "src/compiler/ast/BlockStmt.h"
 #include "src/compiler/ast/FunctionDeclStmt.h"
 #include "src/compiler/ast/IfStmt.h"
+#include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
@@ -39,12 +40,25 @@ std::unordered_map<std::string, uint32_t> SemanticAnalyzer::Analyze(AstNode& roo
 
 void SemanticAnalyzer::AnalyzeNode(AstNode& node)
 {
+	if (auto* program = dynamic_cast<ProgramNode*>(&node))
+	{
+		AnalyzeProgram(*program);
+		return;
+	}
 	if (auto* funcDecl = dynamic_cast<FunctionDeclStmt*>(&node))
 	{
 		AnalyzeFuncDecl(*funcDecl);
 		return;
 	}
-	throw std::runtime_error("Неподдерживаемый тип корневого узла AST");
+	throw std::runtime_error("Неподдерживаемый тип узла AST");
+}
+
+void SemanticAnalyzer::AnalyzeProgram(ProgramNode& node)
+{
+	for (const auto& decl : node.GetDeclarations())
+	{
+		AnalyzeNode(*decl);
+	}
 }
 
 void SemanticAnalyzer::AnalyzeFuncDecl(FunctionDeclStmt& node)

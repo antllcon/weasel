@@ -15,7 +15,6 @@ enum class CompilerPhase
 struct DiagnosticData
 {
 	CompilerPhase phase;
-	std::string errorCode;
 	std::string message;
 	std::string expected;
 	std::string actual;

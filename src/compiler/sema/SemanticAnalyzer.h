@@ -12,6 +12,7 @@ public:
 
 private:
 	void AnalyzeNode(AstNode& node);
+	void AnalyzeProgram(class ProgramNode& node);
 	void AnalyzeFuncDecl(class FunctionDeclStmt& node);
 	void AnalyzeBlock(class BlockStmt& node);
 	void AnalyzeVarDecl(class VarDeclStmt& node);

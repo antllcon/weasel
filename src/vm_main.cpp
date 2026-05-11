@@ -1,13 +1,14 @@
-#include "src/console/ConsoleEncoding.h"
+#include "compiler/vm/assembler/TextAssembler.h"
+#include "compiler/vm/chunk/Chunk.h"
+#include "compiler/vm/exception/VmException.h"
+#include "compiler/vm/loader/BytecodeLoader.h"
+#include "src/compiler/vm/exception/BackendException.h"
+#include "src/compiler/vm/machine/VirtualMachine.h"
+#include "src/compiler/vm/value/Value.h"
 #include "src/diagnostics/CompilationException.h"
-#include "src/logger/console/ConsoleLogger.h"
-#include "src/logger/timer/ScopedTimer.h"
-#include "src/vm/assembler/TextAssembler.h"
-#include "src/vm/exception/BackendException.h"
-#include "src/vm/exception/VmException.h"
-#include "src/vm/loader/BytecodeLoader.h"
-#include "src/vm/machine/VirtualMachine.h"
-#include "src/vm/value/Value.h"
+#include "src/utils/console/ConsoleEncoding.h"
+#include "src/utils/logger/console/ConsoleLogger.h"
+#include "src/utils/logger/timer/ScopedTimer.h"
 #include <iostream>
 
 namespace
@@ -86,8 +87,7 @@ int main(int argc, char* argv[])
 
 	try
 	{
-		ScopedTimer timer("Исполнение (VM)", logger);
-
+		ScopedTimer timer("Исполнение (VM)");
 		AssertHasCorrectArgumentCount(argc);
 
 		RunPipeline(argv[1]);

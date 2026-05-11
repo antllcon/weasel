@@ -1,11 +1,9 @@
 #pragma once
 
 #include "src/grammar/context/LanguageContext.h"
-#include <filesystem>
+#include "src/utils/console/CommandLineParser.h"
 
 namespace CompilerPipeline
 {
-[[nodiscard]] bool Compile(
-	const std::filesystem::path& sourceFile,
-	const LanguageContext& context);
+[[nodiscard]] bool Compile(const CompilerOptions& options, const LanguageContext& context);
 }

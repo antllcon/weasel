@@ -98,6 +98,7 @@ raw::Alternatives ParseAlternatives(const std::string& rhsStr)
 	raw::Alternatives alternatives;
 	std::istringstream stream(rhsStr);
 	std::string altToken;
+
 	while (std::getline(stream, altToken, '|'))
 	{
 		raw::Alternative alt = TokenizeAlternative(TrimWhitespace(altToken));

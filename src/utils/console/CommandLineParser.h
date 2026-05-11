@@ -1,11 +1,9 @@
 #pragma once
 
 #include <filesystem>
+#include <string_view>
 
-namespace
-{
 constexpr std::string_view DEFAULT_GRAMMAR_FILE = "grammar.wesg";
-}
 
 enum class LogTarget
 {
@@ -18,7 +16,8 @@ struct CompilerOptions
 {
 	std::filesystem::path sourceFile;
 	std::filesystem::path grammarFile{DEFAULT_GRAMMAR_FILE};
-	LogTarget logTarget = LogTarget::None;
+	LogTarget logTarget{LogTarget::None};
+	bool emitNasm{false};
 };
 
 namespace CommandLineParser

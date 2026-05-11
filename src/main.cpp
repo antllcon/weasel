@@ -16,18 +16,17 @@ int main(int argc, char* argv[])
 		const auto options = CommandLineParser::Parse(argc, argv);
 		Logger::Init(LoggerFactory::Create(options.logTarget));
 
-		ScopedTimer timer("Время компиляции");
 		const auto context = LanguageContextBuilder::Build(options.grammarFile);
-		const auto success = CompilerPipeline::Compile(options.sourceFile, context);
 
-		if (success)
-		{
-			std::cout << "[Compiler]\tУспешная компиляция" << std::endl;
-			return EXIT_SUCCESS;
-		}
+		ScopedTimer timer("Время компиляции");
+		const bool success = CompilerPipeline::Compile(options, context);
 
-		std::cout << "[Compiler]\tПроблемная компиляция" << std::endl;
-		return EXIT_FAILURE;
+		const auto message = success
+			? "[Compiler]\tУспешная компиляция"
+			: "[Compiler]\tПроблемная компиляция";
+		std::cout << message << std::endl;
+
+		return success ? EXIT_SUCCESS : EXIT_FAILURE;
 	}
 	catch (const std::exception& e)
 	{

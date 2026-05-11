@@ -1,17 +1,17 @@
 #pragma once
 #include "src/compiler/ast/AstNode.h"
 #include "src/compiler/ast/IAstVisitor.h"
-#include "src/compiler/vm/chunk/Chunk.h"
 #include <cstdint>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
-class CodeGenerator final : public IAstVisitor
+class NasmCodeGenerator final : public IAstVisitor
 {
 public:
-	explicit CodeGenerator(std::unordered_map<std::string, uint32_t> slotMap);
+	NasmCodeGenerator();
 
-	[[nodiscard]] Chunk Generate(const AstNode& root);
+	[[nodiscard]] std::string Generate(const AstNode& root);
 
 	void Visit(const ProgramNode& node) override;
 	void Visit(const StructDeclStmt& node) override;
@@ -40,10 +40,19 @@ public:
 	void Visit(const IfStmt& node) override;
 
 private:
-	void EmitLogicalNot();
-	void EmitConstantU32(uint32_t value);
+	std::string MakeLabel(const std::string& prefix);
+	[[nodiscard]] int32_t GetVarOffset(const std::string& name) const;
 
-	std::unordered_map<std::string, uint32_t> m_slotMap;
-	Chunk m_chunk;
-	uint32_t m_currentLine = 0;
+	void EmitExprToRax(const class Expr& expr);
+	void EnterFunction(const class FunctionDeclStmt& node);
+	void LeaveFunction();
+
+	void Emit(const std::string& line);
+	void EmitLabel(const std::string& label);
+
+	std::ostringstream m_out;
+	uint32_t m_labelCounter = 0;
+
+	std::unordered_map<std::string, int32_t> m_varOffsets;
+	int32_t m_nextOffset = 0;
 };

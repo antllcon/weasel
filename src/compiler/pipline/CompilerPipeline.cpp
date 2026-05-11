@@ -10,7 +10,6 @@
 
 #include <fstream>
 #include <iostream>
-#include <stdexcept>
 
 namespace
 {
@@ -22,6 +21,17 @@ void AssertIsContextValid(const LanguageContext& context)
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Parser,
 			.message = "LALR таблица не инициализирована"});
+	}
+}
+
+void AssertIsFileOpenedForWrite(const std::ofstream& file, const std::filesystem::path& filePath)
+{
+	if (!file.is_open())
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Backend,
+			.message = "Не удалось открыть файл для записи",
+			.actual = filePath.string()});
 	}
 }
 
@@ -44,68 +54,38 @@ void RegisterStdlibFunctions(VirtualMachine& vm)
 	});
 }
 
-bool RunVirtualBackend(Frontend::FrontendResult& result, DiagnosticEngine& engine)
+void RunVirtualBackend(Frontend::FrontendResult& result)
 {
-	try
-	{
-		Chunk finalBytecode;
+	Chunk finalBytecode;
 
-		{
-			ScopedTimer t("Генерация кода (Backend)");
-			CodeGenerator backend(std::move(result.slotMap));
-			finalBytecode = backend.Generate(*result.ast);
-		}
-
-		{
-			ScopedTimer t("Выполнение в VM");
-			VirtualMachine vm;
-			RegisterStdlibFunctions(vm);
-			vm.Interpret(finalBytecode);
-		}
-	}
-	catch (const std::exception& e)
 	{
-		engine.Report(DiagnosticData{
-			.phase = CompilerPhase::VirtualMachine,
-			.message = e.what()});
-		return false;
+		ScopedTimer t("Генерация кода (Backend)");
+		CodeGenerator backend(std::move(result.slotMap));
+		finalBytecode = backend.Generate(*result.ast);
 	}
 
-	return true;
+	{
+		ScopedTimer t("Выполнение в VM");
+		VirtualMachine vm;
+		RegisterStdlibFunctions(vm);
+		vm.Interpret(finalBytecode);
+	}
 }
 
-bool RunNativeBackend(
-	Frontend::FrontendResult& result,
-	const std::filesystem::path& sourceFile,
-	DiagnosticEngine& engine)
+void RunNativeBackend(Frontend::FrontendResult& result, const std::filesystem::path& sourceFile)
 {
 	const auto outputFile = std::filesystem::path(sourceFile).replace_extension(".asm");
 
-	try
-	{
-		ScopedTimer t("Генерация NASM x86-64");
-		NasmCodeGenerator backend;
+	ScopedTimer t("Генерация NASM x86-64");
+	NasmCodeGenerator backend;
 
-		const std::string asmText = backend.Generate(*result.ast);
+	const std::string asmText = backend.Generate(*result.ast);
 
-		std::ofstream out(outputFile);
-		if (!out)
-		{
-			throw std::runtime_error("Не удалось открыть файл для записи: " + outputFile.string());
-		}
-		out << asmText;
-		Logger::Log("NASM-код записан в: " + outputFile.string());
-	}
-	catch (const std::exception& e)
-	{
-		engine.Report(DiagnosticData{
-			.phase = CompilerPhase::Backend,
-			.message = e.what(),
-			.filePath = sourceFile.string()});
-		return false;
-	}
+	std::ofstream out(outputFile);
+	AssertIsFileOpenedForWrite(out, outputFile);
 
-	return true;
+	out << asmText;
+	Logger::Log("NASM-код записан в: " + outputFile.string());
 }
 
 } // namespace
@@ -115,27 +95,45 @@ namespace CompilerPipeline
 
 bool Compile(const CompilerOptions& options, const LanguageContext& context)
 {
-	AssertIsContextValid(context);
 	DiagnosticEngine engine;
 
-	auto result = Frontend::RunFrontend(options.sourceFile, context, engine);
-
-	if (!result)
+	try
 	{
+		AssertIsContextValid(context);
+
+		auto result = Frontend::RunFrontend(options.sourceFile, context, engine);
+
+		if (!result)
+		{
+			LogDiagnostics(engine);
+			return false;
+		}
+
+		if (options.emitNasm)
+		{
+			RunNativeBackend(*result, options.sourceFile);
+		}
+		else
+		{
+			RunVirtualBackend(*result);
+		}
+
+		return true;
+	}
+	catch (const CompilationException& e)
+	{
+		engine.Report(e.GetData());
 		LogDiagnostics(engine);
 		return false;
 	}
-
-	const bool success = options.emitNasm
-		? RunNativeBackend(*result, options.sourceFile, engine)
-		: RunVirtualBackend(*result, engine);
-
-	if (!success)
+	catch (const std::exception& e)
 	{
+		engine.Report(DiagnosticData{
+			.phase = CompilerPhase::Backend,
+			.message = e.what()});
 		LogDiagnostics(engine);
+		return false;
 	}
-
-	return success;
 }
 
 } // namespace CompilerPipeline

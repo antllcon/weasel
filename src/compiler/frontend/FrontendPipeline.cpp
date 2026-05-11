@@ -63,25 +63,16 @@ void AssertIsAstValid(const AstNode* astRoot, const std::filesystem::path& sourc
 }
 
 std::optional<std::string> ReadSourceFile(
-	const std::filesystem::path& filePath,
-	DiagnosticEngine& engine)
+	const std::filesystem::path& filePath)
 {
-	try
-	{
-		AssertIsFileExists(filePath);
+	AssertIsFileExists(filePath);
+	std::ifstream file(filePath, std::ios::in | std::ios::binary);
 
-		std::ifstream file(filePath, std::ios::in | std::ios::binary);
-		AssertIsFileOpened(file, filePath);
+	AssertIsFileOpened(file, filePath);
+	std::ostringstream content;
+	content << file.rdbuf();
 
-		std::ostringstream content;
-		content << file.rdbuf();
-		return content.str();
-	}
-	catch (const CompilationException& e)
-	{
-		engine.Report(e.GetData());
-		return std::nullopt;
-	}
+	return content.str();
 }
 
 std::string MapTokenTypeToGrammarSymbol(const Token& token)
@@ -116,10 +107,12 @@ std::vector<CstInputToken> MapTokensToCstInput(const std::vector<Token>& tokens)
 {
 	std::vector<CstInputToken> result;
 	result.reserve(tokens.size());
+
 	for (const auto& token : tokens)
 	{
 		result.emplace_back(MapTokenToCstInput(token));
 	}
+
 	return result;
 }
 
@@ -132,88 +125,35 @@ std::vector<Token> RunLexerPhase(const std::string& sourceCode, DiagnosticEngine
 std::unique_ptr<CstNode> RunParserPhase(
 	const std::vector<Token>& tokens,
 	const LanguageContext& context,
-	const std::filesystem::path& sourceFile,
-	DiagnosticEngine& engine)
+	const std::filesystem::path& sourceFile)
 {
 	ScopedTimer t("Синтаксический анализ");
-	try
-	{
-		LalrParser parser(*context.lalrTable);
-		const auto cstTokens = MapTokensToCstInput(tokens);
-		auto cstRoot = parser.ParseToTree(cstTokens);
+	LalrParser parser(*context.lalrTable);
 
-		AssertIsCstValid(cstRoot.get(), sourceFile);
+	const auto cstTokens = MapTokensToCstInput(tokens);
+	auto cstRoot = parser.ParseToTree(cstTokens);
 
-		return cstRoot;
-	}
-	catch (const CompilationException& e)
-	{
-		engine.Report(e.GetData());
-		return nullptr;
-	}
-	catch (const std::exception& e)
-	{
-		engine.Report(DiagnosticData{
-			.phase = CompilerPhase::Parser,
-			.message = e.what(),
-			.filePath = sourceFile});
-		return nullptr;
-	}
+	AssertIsCstValid(cstRoot.get(), sourceFile);
+	return cstRoot;
 }
 
 std::unique_ptr<AstNode> RunAstConversionPhase(
-	std::unique_ptr<CstNode> cstRoot,
-	const std::filesystem::path& sourceFile,
-	DiagnosticEngine& engine)
+	const std::unique_ptr<CstNode>& cstRoot,
+	const std::filesystem::path& sourceFile)
 {
 	ScopedTimer t("Конвертация CST в AST");
-	try
-	{
-		auto astRoot = CstToAstConverter::Convert(*cstRoot);
+	auto astRoot = CstToAstConverter::Convert(*cstRoot);
 
-		AssertIsAstValid(astRoot.get(), sourceFile);
-
-		return astRoot;
-	}
-	catch (const CompilationException& e)
-	{
-		engine.Report(e.GetData());
-		return nullptr;
-	}
-	catch (const std::exception& e)
-	{
-		engine.Report(DiagnosticData{
-			.phase = CompilerPhase::Semantic,
-			.message = e.what(),
-			.filePath = sourceFile});
-		return nullptr;
-	}
+	AssertIsAstValid(astRoot.get(), sourceFile);
+	return astRoot;
 }
 
-std::optional<std::unordered_map<std::string, uint32_t>> RunSemanticPhase(
-	AstNode& astRoot,
-	const std::filesystem::path& sourceFile,
-	DiagnosticEngine& engine)
+std::optional<std::unordered_map<std::string, uint32_t>> RunSemanticPhase(AstNode& astRoot)
 {
 	ScopedTimer t("Семантический анализ");
-	try
-	{
-		SemanticAnalyzer sema;
-		return sema.Analyze(astRoot);
-	}
-	catch (const CompilationException& e)
-	{
-		engine.Report(e.GetData());
-		return std::nullopt;
-	}
-	catch (const std::exception& e)
-	{
-		engine.Report(DiagnosticData{
-			.phase = CompilerPhase::Semantic,
-			.message = e.what(),
-			.filePath = sourceFile});
-		return std::nullopt;
-	}
+	SemanticAnalyzer sema;
+
+	return sema.Analyze(astRoot);
 }
 
 } // namespace
@@ -226,7 +166,7 @@ std::optional<FrontendResult> RunFrontend(
 	const LanguageContext& context,
 	DiagnosticEngine& engine)
 {
-	auto sourceCode = ReadSourceFile(sourceFile, engine);
+	auto sourceCode = ReadSourceFile(sourceFile);
 	if (!sourceCode)
 	{
 		return std::nullopt;
@@ -238,19 +178,19 @@ std::optional<FrontendResult> RunFrontend(
 		return std::nullopt;
 	}
 
-	auto cstRoot = RunParserPhase(tokens, context, sourceFile, engine);
+	auto cstRoot = RunParserPhase(tokens, context, sourceFile);
 	if (!cstRoot)
 	{
 		return std::nullopt;
 	}
 
-	auto astRoot = RunAstConversionPhase(std::move(cstRoot), sourceFile, engine);
+	auto astRoot = RunAstConversionPhase(std::move(cstRoot), sourceFile);
 	if (!astRoot)
 	{
 		return std::nullopt;
 	}
 
-	auto slotMap = RunSemanticPhase(*astRoot, sourceFile, engine);
+	auto slotMap = RunSemanticPhase(*astRoot);
 	if (!slotMap)
 	{
 		return std::nullopt;
@@ -258,5 +198,4 @@ std::optional<FrontendResult> RunFrontend(
 
 	return FrontendResult{std::move(astRoot), std::move(*slotMap)};
 }
-
 } // namespace Frontend

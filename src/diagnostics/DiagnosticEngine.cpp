@@ -18,7 +18,9 @@ std::string PhaseToString(CompilerPhase phase)
 	case CompilerPhase::Backend:
 		return "Backend";
 	case CompilerPhase::VirtualMachine:
-		return "virtual";
+		return "Virtual";
+	default:
+		return "Fatal";
 	}
 	return "anon-phase";
 }

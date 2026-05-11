@@ -101,7 +101,7 @@ bool Compile(const CompilerOptions& options, const LanguageContext& context)
 	{
 		AssertIsContextValid(context);
 
-		auto result = Frontend::RunFrontend(options.sourceFile, context, engine);
+		auto result = Frontend::Run(options.sourceFile, context, engine);
 
 		if (!result)
 		{
@@ -129,7 +129,7 @@ bool Compile(const CompilerOptions& options, const LanguageContext& context)
 	catch (const std::exception& e)
 	{
 		engine.Report(DiagnosticData{
-			.phase = CompilerPhase::Backend,
+			.phase = CompilerPhase::Fatal,
 			.message = e.what()});
 		LogDiagnostics(engine);
 		return false;

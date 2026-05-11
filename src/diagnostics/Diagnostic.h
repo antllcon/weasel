@@ -9,7 +9,8 @@ enum class CompilerPhase
 	Semantic,
 	Optimizer,
 	Backend,
-	VirtualMachine
+	VirtualMachine,
+	Fatal
 };
 
 struct DiagnosticData

@@ -20,12 +20,6 @@ int main(int argc, char* argv[])
 
 		ScopedTimer timer("Время компиляции");
 		const bool success = CompilerPipeline::Compile(options, context);
-
-		const auto message = success
-			? "[Compiler]\tУспешная компиляция"
-			: "[Compiler]\tПроблемная компиляция";
-		std::cout << message << std::endl;
-
 		return success ? EXIT_SUCCESS : EXIT_FAILURE;
 	}
 	catch (const std::exception& e)

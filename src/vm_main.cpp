@@ -62,7 +62,6 @@ void RunPipeline(std::filesystem::path filePath)
 	{
 		DiagnosticData data;
 		data.phase = CompilerPhase::VirtualMachine;
-		data.errorCode = e.GetErrorCode();
 		data.message = e.GetErrorMessage();
 		data.line = e.GetLine();
 		data.filePath = filePath.string();
@@ -72,7 +71,6 @@ void RunPipeline(std::filesystem::path filePath)
 	{
 		DiagnosticData data;
 		data.phase = e.GetPhase();
-		data.errorCode = e.GetErrorCode();
 		data.message = e.GetErrorMessage();
 		data.filePath = filePath.string();
 		throw CompilationException(data);

@@ -17,7 +17,6 @@ void AssertIsFileExisting(const std::filesystem::path& filePath)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Lexer,
-			.errorCode = "SYS-001",
 			.message = "Файл не найден",
 			.actual = filePath.string()});
 	}

@@ -11,7 +11,6 @@ void AssertIsFileOpened(bool isOpen)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::VirtualMachine,
-			.errorCode = "хз-хз, дописать",
 			.message = "Не удалось открыть бинарный файл байткода"});
 	}
 }
@@ -22,7 +21,6 @@ void AssertIsMagicValid(uint32_t magic)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::VirtualMachine,
-			.errorCode = "хз-хз, дописать",
 			.message = "Неверный формат файла или неподдерживаемая версия байткода"});
 	}
 }
@@ -33,7 +31,6 @@ void AssertIsStringLengthValid(uint32_t length)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::VirtualMachine,
-			.errorCode = "хз-хз, дописать",
 			.message = "Превышен максимально допустимый размер строки в пуле"});
 	}
 }

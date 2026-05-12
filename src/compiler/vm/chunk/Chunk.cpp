@@ -11,7 +11,6 @@ void AssertIsConstantIndexValid(size_t size)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::VirtualMachine,
-			.errorCode = "хз-хз, дописать",
 			.message = "Превышен лимит констант в одном блоке (максимум 256)"});
 	}
 }
@@ -22,7 +21,6 @@ void AssertIsStringIndexValid(size_t size)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::VirtualMachine,
-			.errorCode = "хз-хз, дописать",
 			.message = "Превышен лимит строк в одном блоке (максимум 256)"});
 	}
 }
@@ -33,7 +31,6 @@ void AssertIsOffsetValid(bool isValid)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::VirtualMachine,
-			.errorCode = "хз-хз, дописать",
 			.message = "Смещение инструкции выходит за пределы массива строк кода"});
 	}
 }
@@ -44,7 +41,6 @@ void AssertIsPatchOffsetValid(bool isValid)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::VirtualMachine,
-			.errorCode = "хз-хз, дописать",
 			.message = "Смещение для патча выходит за пределы байткода"});
 	}
 }

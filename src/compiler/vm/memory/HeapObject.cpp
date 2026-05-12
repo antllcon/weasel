@@ -11,7 +11,6 @@ void AssertIsFieldIndexValid(bool isValid)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::VirtualMachine,
-			.errorCode = "хз-хз, дописать",
 			.message = "Индекс поля структуры выходит за пределы памяти (ошибка компилятора)"});
 	}
 }

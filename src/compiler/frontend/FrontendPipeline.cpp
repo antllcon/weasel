@@ -2,6 +2,7 @@
 #include "src/compiler/cst_to_ast/CstToAstConverter.h"
 #include "src/compiler/lexer/Lexer.h"
 #include "src/compiler/lexer/Token.h"
+#include "src/compiler/reader/SourceLoader.h"
 #include "src/compiler/sema/SemanticAnalyzer.h"
 #include "src/diagnostics/CompilationException.h"
 #include "src/diagnostics/Diagnostic.h"
@@ -9,13 +10,11 @@
 #include "src/grammar/lalr/LalrParser.h"
 #include "src/utils/logger/timer/ScopedTimer.h"
 
-#include <fstream>
 #include <optional>
-#include <sstream>
 #include <unordered_map>
 #include <vector>
 
-namespace Frontend
+namespace FrontendPipline
 {
 using SourceCode = std::string;
 using TokenStream = std::vector<Token>;
@@ -25,28 +24,6 @@ using SymbolTable = std::unordered_map<std::string, uint32_t>;
 
 namespace
 {
-
-void AssertIsFileExists(const std::filesystem::path& filePath)
-{
-	if (!std::filesystem::exists(filePath))
-	{
-		throw CompilationException(DiagnosticData{
-			.phase = CompilerPhase::Lexer,
-			.message = "Файл не найден",
-			.actual = filePath.string()});
-	}
-}
-
-void AssertIsFileOpened(const std::ifstream& file, const std::filesystem::path& filePath)
-{
-	if (!file.is_open())
-	{
-		throw CompilationException(DiagnosticData{
-			.phase = CompilerPhase::Lexer,
-			.message = "Не удалось открыть файл для чтения",
-			.actual = filePath.string()});
-	}
-}
 
 void AssertIsCstValid(const CstNode* cstRoot, const std::filesystem::path& sourceFile)
 {
@@ -72,14 +49,14 @@ void AssertIsAstValid(const AstNode* astRoot, const std::filesystem::path& sourc
 
 SourceCode ReadSourceFile(const std::filesystem::path& filePath)
 {
-	AssertIsFileExists(filePath);
-	std::ifstream file(filePath, std::ios::in | std::ios::binary);
+	ScopedTimer t("Чтение исходного файла");
+	return SourceLoader::Read(filePath);
+}
 
-	AssertIsFileOpened(file, filePath);
-	std::ostringstream content;
-	content << file.rdbuf();
-
-	return content.str();
+TokenStream RunLexerPhase(const SourceCode& sourceCode, DiagnosticEngine& engine)
+{
+	ScopedTimer t("Лексический анализ");
+	return Lexer::Tokenize(sourceCode, engine);
 }
 
 // TODO: расширить типы данных?
@@ -124,12 +101,6 @@ std::vector<CstInputToken> MapTokensToCstInput(const TokenStream& tokens)
 	return result;
 }
 
-TokenStream RunLexerPhase(const SourceCode& sourceCode, DiagnosticEngine& engine)
-{
-	ScopedTimer t("Лексический анализ");
-	return Lexer::Tokenize(sourceCode, engine);
-}
-
 CstTree RunParserPhase(
 	const TokenStream& tokens,
 	const LanguageContext& context,
@@ -166,18 +137,15 @@ SymbolTable RunSemanticPhase(AstNode& astRoot)
 
 } // namespace
 
-std::optional<FrontendResult> RunFrontend(
+std::optional<FrontendResult> Run(
 	const std::filesystem::path& sourceFile,
 	const LanguageContext& context,
 	DiagnosticEngine& engine)
 {
 	auto sourceCode = ReadSourceFile(sourceFile);
-	auto tokens = RunLexerPhase(sourceCode, engine);
 
-	if (engine.HasErrors())
-	{
-		return std::nullopt;
-	}
+	auto tokens = RunLexerPhase(sourceCode, engine);
+	if (engine.HasErrors()) return std::nullopt;
 
 	auto cstRoot = RunParserPhase(tokens, context, sourceFile);
 	auto astRoot = RunAstConversionPhase(cstRoot, sourceFile);

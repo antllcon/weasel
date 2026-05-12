@@ -10,7 +10,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace Frontend
+namespace FrontendPipline
 {
 
 struct FrontendResult
@@ -19,7 +19,7 @@ struct FrontendResult
 	std::unordered_map<std::string, uint32_t> slotMap;
 };
 
-[[nodiscard]] std::optional<FrontendResult> RunFrontend(
+[[nodiscard]] std::optional<FrontendResult> Run(
 	const std::filesystem::path& sourceFile,
 	const LanguageContext& context,
 	DiagnosticEngine& engine);

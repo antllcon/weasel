@@ -13,7 +13,6 @@
 
 namespace
 {
-
 void AssertIsContextValid(const LanguageContext& context)
 {
 	if (!context.lalrTable)
@@ -54,54 +53,54 @@ void RegisterStdlibFunctions(VirtualMachine& vm)
 	});
 }
 
-void RunVirtualBackend(Frontend::FrontendResult& result)
+Chunk GenerateBytecode(FrontendPipline::FrontendResult& result)
 {
-	Chunk finalBytecode;
-
-	{
-		ScopedTimer t("Генерация кода (Backend)");
-		CodeGenerator backend(std::move(result.slotMap));
-		finalBytecode = backend.Generate(*result.ast);
-	}
-
-	{
-		ScopedTimer t("Выполнение в VM");
-		VirtualMachine vm;
-		RegisterStdlibFunctions(vm);
-		vm.Interpret(finalBytecode);
-	}
+	ScopedTimer t("Генерация кода (Backend)");
+	CodeGenerator backend(std::move(result.slotMap));
+	return backend.Generate(*result.ast);
 }
 
-void RunNativeBackend(Frontend::FrontendResult& result, const std::filesystem::path& sourceFile)
+void RunVirtualMachine(const Chunk& bytecode)
 {
-	const auto outputFile = std::filesystem::path(sourceFile).replace_extension(".asm");
+	ScopedTimer t("Выполнение в VM");
+	VirtualMachine vm;
+	RegisterStdlibFunctions(vm);
+	vm.Interpret(bytecode);
+}
 
-	ScopedTimer t("Генерация NASM x86-64");
-	NasmCodeGenerator backend;
+void Run(FrontendPipline::FrontendResult& result, const CompilerOptions& options)
+{
+	if (options.emitNasm)
+	{
+		ScopedTimer t("Генерация NASM x86-64");
+		auto outputFile = std::filesystem::path(options.sourceFile).replace_extension(".asm");
+		NasmCodeGenerator backend;
 
-	const std::string asmText = backend.Generate(*result.ast);
+		auto asmText = backend.Generate(*result.ast);
 
-	std::ofstream out(outputFile);
-	AssertIsFileOpenedForWrite(out, outputFile);
+		std::ofstream out(outputFile);
+		AssertIsFileOpenedForWrite(out, outputFile);
 
-	out << asmText;
-	Logger::Log("NASM-код записан в: " + outputFile.string());
+		out << asmText;
+		Logger::Log("[Compiler]\tNASM-код записан в: " + outputFile.string());
+	}
+	else
+	{
+		auto finalBytecode = GenerateBytecode(result);
+		RunVirtualMachine(finalBytecode);
+	}
 }
 
 } // namespace
 
-namespace CompilerPipeline
-{
-
-bool Compile(const CompilerOptions& options, const LanguageContext& context)
+bool CompilerPipeline::Compile(const CompilerOptions& options, const LanguageContext& context)
 {
 	DiagnosticEngine engine;
 
 	try
 	{
 		AssertIsContextValid(context);
-
-		auto result = Frontend::Run(options.sourceFile, context, engine);
+		auto result = FrontendPipline::Run(options.sourceFile, context, engine);
 
 		if (!result)
 		{
@@ -109,31 +108,20 @@ bool Compile(const CompilerOptions& options, const LanguageContext& context)
 			return false;
 		}
 
-		if (options.emitNasm)
-		{
-			RunNativeBackend(*result, options.sourceFile);
-		}
-		else
-		{
-			RunVirtualBackend(*result);
-		}
-
+		Run(*result, options);
 		return true;
 	}
 	catch (const CompilationException& e)
 	{
 		engine.Report(e.GetData());
-		LogDiagnostics(engine);
-		return false;
 	}
 	catch (const std::exception& e)
 	{
 		engine.Report(DiagnosticData{
 			.phase = CompilerPhase::Fatal,
 			.message = e.what()});
-		LogDiagnostics(engine);
-		return false;
 	}
-}
 
-} // namespace CompilerPipeline
+	LogDiagnostics(engine);
+	return false;
+}

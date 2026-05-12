@@ -4,6 +4,7 @@
 
 enum class CompilerPhase
 {
+	Reader,
 	Lexer,
 	Parser,
 	Semantic,

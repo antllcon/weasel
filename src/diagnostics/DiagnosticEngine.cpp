@@ -7,6 +7,8 @@ std::string PhaseToString(CompilerPhase phase)
 {
 	switch (phase)
 	{
+	case CompilerPhase::Reader:
+		return "Reader";
 	case CompilerPhase::Lexer:
 		return "Lexer";
 	case CompilerPhase::Parser:
@@ -19,10 +21,11 @@ std::string PhaseToString(CompilerPhase phase)
 		return "Backend";
 	case CompilerPhase::VirtualMachine:
 		return "Virtual";
-	default:
+	case CompilerPhase::Fatal:
 		return "Fatal";
+	default:
+			return "Fatal";
 	}
-	return "anon-phase";
 }
 } // namespace
 
@@ -49,7 +52,7 @@ const std::vector<DiagnosticData>& DiagnosticEngine::GetDiagnostics() const
 std::string DiagnosticEngine::FormatMessage(const DiagnosticData& data)
 {
 	std::ostringstream ss;
-	ss << "[" << PhaseToString(data.phase) << "]\t" << data.message;
+	ss << "[" << PhaseToString(data.phase) << "]  \t" << data.message;
 
 	if (!data.expected.empty() || !data.actual.empty())
 	{

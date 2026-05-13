@@ -72,7 +72,7 @@ void RunVmBackend(FrontendPipline::FrontendResult& result)
 
 namespace BackendPipeline
 {
-void Run(FrontendPipline::FrontendResult& result, const CompilerOptions& options)
+bool Run(FrontendPipline::FrontendResult& result, const CompilerOptions& options)
 {
 	if (options.emitNasm)
 	{
@@ -82,5 +82,7 @@ void Run(FrontendPipline::FrontendResult& result, const CompilerOptions& options
 	{
 		RunVmBackend(result);
 	}
+
+	return true;
 }
 } // namespace BackendPipeline

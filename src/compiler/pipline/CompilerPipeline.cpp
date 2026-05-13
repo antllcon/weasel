@@ -7,16 +7,6 @@
 
 namespace
 {
-void AssertIsContextValid(const LanguageContext& context)
-{
-	if (!context.lalrTable)
-	{
-		throw CompilationException(DiagnosticData{
-			.phase = CompilerPhase::Parser,
-			.message = "LALR таблица не инициализирована"});
-	}
-}
-
 void LogDiagnostics(const DiagnosticEngine& engine)
 {
 	for (const auto& diagnostic : engine.GetDiagnostics())
@@ -24,25 +14,28 @@ void LogDiagnostics(const DiagnosticEngine& engine)
 		Logger::Log(DiagnosticEngine::FormatMessage(diagnostic));
 	}
 }
+
+bool ExecutePhases(const CompilerOptions& options, const LanguageContext& context, DiagnosticEngine& engine)
+{
+	auto frontendResult = FrontendPipline::Run(options.sourceFile, context, engine);
+
+	if (!frontendResult)
+	{
+		return false;
+	}
+
+	return BackendPipeline::Run(*frontendResult, options);
+}
 } // namespace
 
 bool CompilerPipeline::Compile(const CompilerOptions& options, const LanguageContext& context)
 {
 	DiagnosticEngine engine;
+	auto isSuccess = false;
 
 	try
 	{
-		AssertIsContextValid(context);
-		auto result = FrontendPipline::Run(options.sourceFile, context, engine);
-
-		if (!result)
-		{
-			LogDiagnostics(engine);
-			return false;
-		}
-
-		BackendPipeline::Run(*result, options);
-		return true;
+		isSuccess = ExecutePhases(options, context, engine);
 	}
 	catch (const CompilationException& e)
 	{
@@ -56,5 +49,5 @@ bool CompilerPipeline::Compile(const CompilerOptions& options, const LanguageCon
 	}
 
 	LogDiagnostics(engine);
-	return false;
+	return isSuccess;
 }

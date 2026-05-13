@@ -17,6 +17,16 @@ using SymbolTable = std::unordered_map<std::string, uint32_t>;
 
 namespace
 {
+void AssertIsContextValid(const LanguageContext& context)
+{
+	if (!context.lalrTable)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Parser,
+			.message = "LALR таблица не инициализирована"});
+	}
+}
+
 void AssertIsCstValid(const CstNode* cstRoot, const std::filesystem::path& sourceFile)
 {
 	if (!cstRoot)
@@ -78,6 +88,7 @@ SymbolTable RunSemanticPhase(AstNode& astRoot)
 
 std::optional<FrontendResult> Run(const std::filesystem::path& sourceFile, const LanguageContext& context, DiagnosticEngine& engine)
 {
+	AssertIsContextValid(context);
 	auto sourceCode = ReadSourceFile(sourceFile);
 
 	auto tokens = RunLexerPhase(sourceCode, engine);

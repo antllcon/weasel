@@ -24,4 +24,4 @@ struct FrontendResult
 	const LanguageContext& context,
 	DiagnosticEngine& engine);
 
-} // namespace Frontend
+} // namespace FrontendPipline

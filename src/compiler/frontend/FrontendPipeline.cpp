@@ -187,6 +187,7 @@ SymbolTable RunSemanticPhase(AstNode& astRoot)
 std::optional<FrontendResult> Run(const std::filesystem::path& sourceFile, const LanguageContext& context, DiagnosticEngine& engine)
 {
 	auto sourceCode = ReadSourceFile(sourceFile);
+	// TODO: RunPreprocessorPhase(sourceCode)
 
 	auto tokens = RunLexerPhase(sourceCode, engine);
 	if (engine.HasErrors()) return std::nullopt;

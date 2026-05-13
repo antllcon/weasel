@@ -9,5 +9,5 @@
 class Lexer
 {
 public:
-	[[nodiscard]] static std::vector<Token> Tokenize(std::string_view input, DiagnosticEngine& engine);
+	static std::vector<Token> Tokenize(std::string_view input, DiagnosticEngine& engine);
 };

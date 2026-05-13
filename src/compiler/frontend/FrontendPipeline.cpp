@@ -73,7 +73,6 @@ AstTree RunAstConversionPhase(const CstTree& cstRoot, const std::filesystem::pat
 {
 	ScopedTimer t("Конвертация CST в AST");
 	auto astRoot = CstToAstConverter::Convert(*cstRoot);
-
 	AssertIsAstValid(astRoot.get(), sourceFile);
 	return astRoot;
 }

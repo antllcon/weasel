@@ -62,7 +62,7 @@ std::vector<Token> FilterNewLines(const std::vector<Token>& tokens)
 {
 	std::vector<Token> result;
 	result.reserve(tokens.size());
-	TokenType prevType = TokenType::Error;
+	auto prevType = TokenType::Error;
 
 	for (size_t i = 0; i < tokens.size(); ++i)
 	{
@@ -365,7 +365,7 @@ std::unique_ptr<CstNode> ParseTokenStream(
 		auto steps = ParseToSteps(table, stringTokens);
 		std::string sourceLine = BuildSourceLineForLog(filteredTokens);
 
-		// LalrParseStepsPrinter::Print(steps, sourceLine);
+		LalrParseStepsPrinter::Print(steps, sourceLine);
 	}
 
 	std::vector<CstInputToken> inputTokens;

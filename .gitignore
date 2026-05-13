@@ -9,7 +9,6 @@ cmake-build-*/
 
 # Временне библиотеки
 _deps/
-res/
 
 # Исполняемые файлы
 *.exe
@@ -25,4 +24,11 @@ res/
 *.dll
 *.so
 *.a
+*.xml
+*.log
+*.gz
+*.toc
+*.aux
+*.ilk
+*.pdb
 claude.md

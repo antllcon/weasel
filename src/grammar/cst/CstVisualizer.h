@@ -4,5 +4,5 @@
 class CstVisualizer
 {
 public:
-	static void Visualize(const CstNode& root);
+	static void Visualize(const CstNode& root, bool collapseChains = true);
 };

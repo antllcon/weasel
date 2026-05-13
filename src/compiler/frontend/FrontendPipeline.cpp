@@ -59,7 +59,59 @@ TokenStream RunLexerPhase(const SourceCode& sourceCode, DiagnosticEngine& engine
 	return Lexer::Tokenize(sourceCode, engine);
 }
 
-// TODO: расширить типы данных?
+bool IsNoiseNewLine(const TokenStream& tokens, size_t i, TokenType prevType)
+{
+	if (prevType == TokenType::BraceLeft || prevType == TokenType::BraceRight)
+	{
+		return true;
+	}
+
+	for (size_t j = i + 1; j < tokens.size(); ++j)
+	{
+		if (tokens[j].type == TokenType::NewLine)
+		{
+			continue;
+		}
+		if (tokens[j].type == TokenType::BraceLeft)
+		{
+			return true;
+		}
+		if (tokens[j].type == TokenType::Keyword && tokens[j].value == "else")
+		{
+			return true;
+		}
+		break;
+	}
+
+	return false;
+}
+
+TokenStream FilterNewLines(const TokenStream& tokens)
+{
+	TokenStream result;
+	result.reserve(tokens.size());
+
+	TokenType prevType = TokenType::Error;
+
+	for (size_t i = 0; i < tokens.size(); ++i)
+	{
+		if (tokens[i].type == TokenType::NewLine)
+		{
+			if (!IsNoiseNewLine(tokens, i, prevType))
+			{
+				result.push_back(tokens[i]);
+			}
+		}
+		else
+		{
+			result.push_back(tokens[i]);
+			prevType = tokens[i].type;
+		}
+	}
+
+	return result;
+}
+
 std::string MapTokenTypeToGrammarSymbol(const Token& token)
 {
 	switch (token.type)
@@ -71,8 +123,8 @@ std::string MapTokenTypeToGrammarSymbol(const Token& token)
 		return "num";
 	case TokenType::String:
 		return "str";
-	case TokenType::Semicolon:
-		return ";";
+	case TokenType::NewLine:
+		return "nl";
 	case TokenType::EndOfFile:
 		return END_SYMBOL;
 	default:
@@ -101,24 +153,20 @@ std::vector<CstInputToken> MapTokensToCstInput(const TokenStream& tokens)
 	return result;
 }
 
-CstTree RunParserPhase(
-	const TokenStream& tokens,
-	const LanguageContext& context,
-	const std::filesystem::path& sourceFile)
+CstTree RunParserPhase(const TokenStream& tokens, const LanguageContext& context, const std::filesystem::path& sourceFile)
 {
 	ScopedTimer t("Синтаксический анализ");
 	LalrParser parser(*context.lalrTable);
 
-	const auto cstTokens = MapTokensToCstInput(tokens);
+	const auto filtered = FilterNewLines(tokens);
+	const auto cstTokens = MapTokensToCstInput(filtered);
 	auto cstRoot = parser.ParseToTree(cstTokens);
 
 	AssertIsCstValid(cstRoot.get(), sourceFile);
 	return cstRoot;
 }
 
-AstTree RunAstConversionPhase(
-	const CstTree& cstRoot,
-	const std::filesystem::path& sourceFile)
+AstTree RunAstConversionPhase(const CstTree& cstRoot, const std::filesystem::path& sourceFile)
 {
 	ScopedTimer t("Конвертация CST в AST");
 	auto astRoot = CstToAstConverter::Convert(*cstRoot);
@@ -134,13 +182,9 @@ SymbolTable RunSemanticPhase(AstNode& astRoot)
 
 	return sema.Analyze(astRoot);
 }
-
 } // namespace
 
-std::optional<FrontendResult> Run(
-	const std::filesystem::path& sourceFile,
-	const LanguageContext& context,
-	DiagnosticEngine& engine)
+std::optional<FrontendResult> Run(const std::filesystem::path& sourceFile, const LanguageContext& context, DiagnosticEngine& engine)
 {
 	auto sourceCode = ReadSourceFile(sourceFile);
 
@@ -153,5 +197,4 @@ std::optional<FrontendResult> Run(
 
 	return FrontendResult{std::move(astRoot), std::move(slotMap)};
 }
-
-} // namespace Frontend
+} // namespace FrontendPipline

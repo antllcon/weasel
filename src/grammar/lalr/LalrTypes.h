@@ -61,3 +61,12 @@ struct LalrTable
 	std::vector<std::unordered_map<std::string, size_t>> gotoTable;
 	raw::Rules augmentedRules;
 };
+
+struct LalrParseStep
+{
+	size_t stepNumber;
+	std::string stateStack;
+	std::string symbolStack;
+	std::string input;
+	std::string action;
+};

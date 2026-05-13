@@ -1,30 +1,23 @@
 #pragma once
+#include "src/compiler/lexer/Token.h"
 #include "src/grammar/cst/CstNode.h"
 #include "src/grammar/lalr/LalrTypes.h"
 #include <memory>
 #include <string>
 #include <vector>
 
-struct LalrParseStep
+namespace LalrParser
 {
-	size_t stepNumber;
-	std::string stateStack;
-	std::string symbolStack;
-	std::string input;
-	std::string action;
-};
+[[nodiscard]] std::unique_ptr<CstNode> ParseToTree(
+	const LalrTable& table,
+	const std::vector<CstInputToken>& tokens);
 
-class LalrParser
-{
-public:
-	explicit LalrParser(LalrTable table);
+[[nodiscard]] std::vector<LalrParseStep> ParseToSteps(
+	const LalrTable& table,
+	const std::vector<std::string>& tokens);
 
-	[[nodiscard]] std::vector<LalrParseStep> Parse(const std::vector<std::string>& tokens) const;
-	[[nodiscard]] std::unique_ptr<CstNode> ParseToTree(const std::vector<CstInputToken>& tokens) const;
-
-	[[nodiscard]] const std::vector<LalrParseStep>& GetLastParseSteps() const;
-
-private:
-	LalrTable m_table;
-	mutable std::vector<LalrParseStep> m_lastParseSteps;
-};
+std::unique_ptr<CstNode> ParseTokenStream(
+	const LalrTable& table,
+	const std::vector<Token>& tokens,
+	bool logSteps = false);
+} // namespace LalrParser

@@ -3,30 +3,75 @@
 
 #include <iomanip>
 #include <sstream>
+#include <string>
 
-void LalrParseStepsPrinter::Print(const std::vector<LalrParseStep>& steps, const std::string& inputLine)
+namespace
+{
+constexpr size_t StepWidth = 6;
+constexpr size_t StackWidth = 22;
+constexpr size_t InputWidth = 22;
+constexpr size_t SeparatorLength = 98;
+
+std::string Truncate(const std::string& str, size_t width)
+{
+	if (str.length() > width)
+	{
+		return str.substr(0, width - 3) + "...";
+	}
+	return str;
+}
+
+std::string FormatSeparator()
+{
+	return std::string(SeparatorLength, '-');
+}
+
+std::string FormatHeader(const std::string&)
 {
 	std::ostringstream ss;
+	ss << "Процесс восходящего разбора (LALR-1) для программы";
+	return ss.str();
+}
 
-	ss << "Процесс восходящего разбора (LALR-1) для: " << inputLine << "\n";
-	ss << std::string(129, '-') << "\n";
-	ss << std::left << std::setw(8) << "Step"
-	   << std::setw(40) << "State Stack"
-	   << std::setw(40) << "Symbol Stack"
-	   << std::setw(40) << "Input"
-	   << "| Action\n";
-	ss << std::string(129, '-') << "\n";
+std::string FormatColumnsHeader()
+{
+	std::ostringstream ss;
+	ss << std::left
+	   << std::setw(StepWidth) << "Step"
+	   << std::setw(StackWidth) << "State Stack"
+	   << std::setw(StackWidth) << "Symbol Stack"
+	   << std::setw(InputWidth) << "Input"
+	   << "| Action";
+	return ss.str();
+}
+
+std::string FormatStepRow(const LalrParseStep& step)
+{
+	std::ostringstream ss;
+	ss << std::left
+	   << std::setw(StepWidth) << step.stepNumber
+	   << std::setw(StackWidth) << Truncate(step.stateStack, StackWidth - 2)
+	   << std::setw(StackWidth) << Truncate(step.symbolStack, StackWidth - 2)
+	   << std::setw(InputWidth) << Truncate(step.input, InputWidth - 2)
+	   << "| -> " << step.action;
+	return ss.str();
+}
+} // namespace
+
+namespace LalrParseStepsPrinter
+{
+void Print(const std::vector<LalrParseStep>& steps, const std::string& inputLine)
+{
+	Logger::Log("[Parser]\t" + FormatHeader(inputLine));
+	Logger::Log("\t\t" + FormatSeparator());
+	Logger::Log("\t\t" + FormatColumnsHeader());
+	Logger::Log("\t\t" + FormatSeparator());
 
 	for (const auto& step : steps)
 	{
-		ss << std::left << std::setw(8) << step.stepNumber
-		   << std::setw(40) << step.stateStack
-		   << std::setw(40) << step.symbolStack
-		   << std::setw(40) << step.input
-		   << "| -> " << step.action << "\n";
+		Logger::Log("\t\t" + FormatStepRow(step));
 	}
 
-	ss << std::string(129, '-');
-
-	Logger::Log(ss.str());
+	Logger::Log("\t\t" + FormatSeparator());
 }
+} // namespace LalrParseStepsPrinter

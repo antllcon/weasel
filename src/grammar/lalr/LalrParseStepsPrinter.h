@@ -1,11 +1,10 @@
 #pragma once
 
-#include "LalrParser.h"
+#include "src/grammar/lalr/LalrTypes.h"
 #include <string>
 #include <vector>
 
-class LalrParseStepsPrinter
+namespace LalrParseStepsPrinter
 {
-public:
-	static void Print(const std::vector<LalrParseStep>& steps, const std::string& inputLine);
-};
+void Print(const std::vector<LalrParseStep>& steps, const std::string& inputLine);
+}

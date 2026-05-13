@@ -1,5 +1,6 @@
 #include "Lexer.h"
 #include "src/diagnostics/CompilationException.h"
+#include "visualizer/LexerVisualizer.h"
 
 #include <algorithm>
 #include <array>
@@ -429,5 +430,8 @@ std::vector<Token> Lexer::Tokenize(std::string_view input, DiagnosticEngine& eng
 {
 	AssertIsInputNotEmpty(input);
 	LexerState state{input, engine};
-	return CollectTokens(state);
+	auto tokens = CollectTokens(state);
+	LexerVisualizer::Visualize(tokens, engine, false);
+
+	return tokens;
 }

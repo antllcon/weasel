@@ -1,45 +1,14 @@
 #include "LexerVisualizer.h"
-#include <chrono>
-#include <iostream>
-#include <thread>
+#include "src/diagnostics/DiagnosticEngine.h"
+#include "src/utils/logger/Logger.h"
+#include <iomanip>
+#include <sstream>
 
 namespace
 {
-constexpr std::string_view ColorReset = "\033[0m";
-constexpr std::string_view ColorKeyword = "\033[35m";
-constexpr std::string_view ColorString = "\033[32m";
-constexpr std::string_view ColorNumber = "\033[36m";
-constexpr std::string_view ColorOperator = "\033[33m";
-constexpr std::string_view ColorError = "\033[31m";
-constexpr std::string_view ColorDefault = "\033[37m";
-
-std::string_view GetTokenColor(TokenType type)
-{
-	switch (type)
-	{
-	case TokenType::Keyword:
-		return ColorKeyword;
-	case TokenType::String:
-		return ColorString;
-	case TokenType::Integer:
-	case TokenType::Float:
-		return ColorNumber;
-	case TokenType::OpAssign:
-	case TokenType::OpMove:
-	case TokenType::OpPlus:
-	case TokenType::OpMinus:
-	case TokenType::OpMul:
-	case TokenType::OpDiv:
-	case TokenType::OpEq:
-	case TokenType::OpLess:
-	case TokenType::OpGreater:
-		return ColorOperator;
-	case TokenType::Error:
-		return ColorError;
-	default:
-		return ColorDefault;
-	}
-}
+constexpr size_t TokensPerRow = 4;
+constexpr size_t ValueWidth = 10;
+constexpr size_t TypeWidth = 11;
 
 std::string TokenTypeToString(TokenType type)
 {
@@ -55,10 +24,42 @@ std::string TokenTypeToString(TokenType type)
 		return "Float";
 	case TokenType::String:
 		return "String";
+	case TokenType::NewLine:
+		return "NewLine";
 	case TokenType::OpAssign:
 		return "OpAssign";
 	case TokenType::OpMove:
 		return "OpMove";
+	case TokenType::OpEq:
+		return "OpEq";
+	case TokenType::OpNotEq:
+		return "OpNotEq";
+	case TokenType::OpLess:
+		return "OpLess";
+	case TokenType::OpGreater:
+		return "OpGreater";
+	case TokenType::OpLessEq:
+		return "OpLessEq";
+	case TokenType::OpGreaterEq:
+		return "OpGreaterEq";
+	case TokenType::OpPlus:
+		return "OpPlus";
+	case TokenType::OpMinus:
+		return "OpMinus";
+	case TokenType::OpMul:
+		return "OpMul";
+	case TokenType::OpDiv:
+		return "OpDiv";
+	case TokenType::OpMod:
+		return "OpMod";
+	case TokenType::OpShiftLeft:
+		return "ShiftLeft";
+	case TokenType::OpShiftRight:
+		return "ShiftRight";
+	case TokenType::OpBitAnd:
+		return "BitAnd";
+	case TokenType::OpRange:
+		return "Range";
 	case TokenType::BraceLeft:
 		return "BraceLeft";
 	case TokenType::BraceRight:
@@ -67,56 +68,102 @@ std::string TokenTypeToString(TokenType type)
 		return "BracketLeft";
 	case TokenType::BracketRight:
 		return "BracketRight";
-	case TokenType::Error:
-		return "Error";
+	case TokenType::ParenLeft:
+		return "ParenLeft";
+	case TokenType::ParenRight:
+		return "ParenRight";
+	case TokenType::Comma:
+		return "Comma";
+	case TokenType::Dot:
+		return "Dot";
+	case TokenType::Colon:
+		return "Colon";
+	case TokenType::At:
+		return "At";
 	case TokenType::EndOfFile:
 		return "EOF";
+	case TokenType::Error:
+		return "Error";
 	default:
-		return "Punctuation";
+		return "Unknown";
 	}
 }
 
-void PrintDiagnostics(const DiagnosticEngine& engine)
+std::string TokenDisplayValue(const Token& token)
 {
-	if (!engine.HasErrors())
+	if (token.type == TokenType::NewLine) return "\\n";
+	if (token.type == TokenType::EndOfFile) return "EOF";
+	return std::string(token.value);
+}
+
+std::string FormatCell(const Token& token)
+{
+	std::ostringstream cell;
+	cell << "[ "
+		 << std::left << std::setw(ValueWidth) << TokenDisplayValue(token)
+		 << " "
+		 << std::left << std::setw(TypeWidth) << TokenTypeToString(token.type)
+		 << "]";
+	return cell.str();
+}
+
+std::string FormatRow(const std::vector<Token>& tokens, size_t from, size_t count)
+{
+	std::ostringstream row;
+	for (size_t i = 0; i < count; ++i)
 	{
-		return;
+		if (i > 0)
+		{
+			row << " ";
+		}
+		row << FormatCell(tokens[from + i]);
 	}
+	return row.str();
+}
 
-	std::cout << "\n"
-			  << ColorError
-			  << "Найдено ошибок: " << engine.GetDiagnostics().size()
-			  << ColorReset << std::endl;
-
-	for (const auto& diag : engine.GetDiagnostics())
+void PrintTokensByRow(const std::vector<Token>& tokens)
+{
+	for (size_t i = 0; i < tokens.size(); i += TokensPerRow)
 	{
-		std::cout << "[Строка " << diag.line << ", Позиция " << diag.pos << "] "
-				  << diag.message << std::endl;
+		const size_t count = std::min(TokensPerRow, tokens.size() - i);
+		Logger::Log("\t\t" + FormatRow(tokens, i, count));
 	}
 }
 
-void AnimateToken(const Token& token)
+void PrintTokensByLine(const std::vector<Token>& tokens)
 {
-	std::cout << GetTokenColor(token.type)
-			  << "[" << TokenTypeToString(token.type) << "] "
-			  << "Лексема: '" << token.value << "' "
-			  << "(Строка: " << token.line << ", Позиция: " << token.pos << ")"
-			  << ColorReset << std::endl;
+	size_t currentIndex = 0;
+	while (currentIndex < tokens.size())
+	{
+		size_t count = 0;
+		const size_t currentLine = tokens[currentIndex].line;
 
-	std::this_thread::sleep_for(std::chrono::milliseconds(15));
+		while (currentIndex + count < tokens.size() && tokens[currentIndex + count].line == currentLine)
+		{
+			++count;
+		}
+
+		Logger::Log("\t\t" + FormatRow(tokens, currentIndex, count));
+		currentIndex += count;
+	}
 }
 } // namespace
 
-void LexerVisualizer::Visualize(const std::vector<Token>& tokens, const DiagnosticEngine& engine)
+void LexerVisualizer::Visualize(const std::vector<Token>& tokens, const DiagnosticEngine& engine, bool splitBySourceLines)
 {
-	std::cout << "[Visualizer lexer]" << std::endl;
+	Logger::Log("[Lexer]\t\tПоток токенов (" + std::to_string(tokens.size()) + "):");
 
-	for (const auto& token : tokens)
+	if (splitBySourceLines)
 	{
-		AnimateToken(token);
+		PrintTokensByLine(tokens);
+	}
+	else
+	{
+		PrintTokensByRow(tokens);
 	}
 
-	PrintDiagnostics(engine);
-
-	std::cout << "[Visualizer lexer]" << std::endl;
+	for (const auto& diag : engine.GetDiagnostics())
+	{
+		Logger::Log(DiagnosticEngine::FormatMessage(diag));
+	}
 }

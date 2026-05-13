@@ -8,9 +8,9 @@
 
 namespace
 {
-constexpr size_t AverageTokenLength = 5;
 constexpr size_t InitialPosition = 0;
 constexpr size_t InitialLine = 1;
+constexpr size_t AverageTokenLength = 5;
 
 struct LexerState
 {
@@ -18,6 +18,7 @@ struct LexerState
 	DiagnosticEngine& engine;
 	size_t pos = InitialPosition;
 	size_t line = InitialLine;
+	size_t openedBrackets = 0;
 };
 
 void AssertIsInputNotEmpty(std::string_view input)
@@ -26,32 +27,10 @@ void AssertIsInputNotEmpty(std::string_view input)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Lexer,
-			.message = "Входная строка для лексера не может быть пустой",
+			.message = "Входная строка для программы не может быть пустой",
 			.expected = "Текст программы",
-			.actual = "Пустая строка"});
+			.actual = std::string(input)});
 	}
-}
-
-void ReportUnknownSymbol(const LexerState& state, char symbol, size_t line, size_t pos)
-{
-	state.engine.Report(DiagnosticData{
-		.phase = CompilerPhase::Lexer,
-		.message = "Встречен неизвестный или недопустимый символ",
-		.expected = "Валидный токен алфавита Weasel",
-		.actual = std::string(1, symbol),
-		.line = line,
-		.pos = pos});
-}
-
-void ReportUnterminatedString(const LexerState& state, size_t line, size_t pos)
-{
-	state.engine.Report(DiagnosticData{
-		.phase = CompilerPhase::Lexer,
-		.message = "Незакрытая строковая константа",
-		.expected = "\"",
-		.actual = "Конец файла (EOF)",
-		.line = line,
-		.pos = pos});
 }
 
 bool IsAtEnd(const LexerState& state)
@@ -95,7 +74,42 @@ void SkipWhitespacesAndComments(LexerState& state)
 		}
 		else if (ch == '\n')
 		{
+			if (state.openedBrackets > 0)
+			{
+				state.line++;
+				Advance(state);
+			}
+			else
+			{
+				break;
+			}
+		}
+		else if (ch == '#')
+		{
+			while (!IsAtEnd(state) && Peek(state) != '\n')
+			{
+				Advance(state);
+			}
+		}
+		else
+		{
+			break;
+		}
+	}
+}
+
+void SkipMultipleNewLines(LexerState& state)
+{
+	while (!IsAtEnd(state))
+	{
+		const char ch = Peek(state);
+		if (ch == '\n')
+		{
 			state.line++;
+			Advance(state);
+		}
+		else if (ch == ' ' || ch == '\t' || ch == '\r')
+		{
 			Advance(state);
 		}
 		else if (ch == '#')
@@ -112,6 +126,38 @@ void SkipWhitespacesAndComments(LexerState& state)
 	}
 }
 
+Token ParseNewLine(LexerState& state)
+{
+	const size_t startPos = state.pos;
+	const size_t startLine = state.line;
+
+	SkipMultipleNewLines(state);
+
+	return Token{TokenType::NewLine, "\n", startPos, startLine};
+}
+
+void ReportUnknownSymbol(const LexerState& state, char symbol, size_t line, size_t pos)
+{
+	state.engine.Report(DiagnosticData{
+		.phase = CompilerPhase::Lexer,
+		.message = "Встречен неизвестный или недопустимый символ",
+		.expected = "Валидный токен алфавита Weasel",
+		.actual = std::string(1, symbol),
+		.line = line,
+		.pos = pos});
+}
+
+void ReportUnterminatedString(const LexerState& state, size_t line, size_t pos)
+{
+	state.engine.Report(DiagnosticData{
+		.phase = CompilerPhase::Lexer,
+		.message = "Незакрытая строковая константа",
+		.expected = "\"",
+		.actual = "Конец файла (EOF)",
+		.line = line,
+		.pos = pos});
+}
+
 bool IsIdStart(char ch)
 {
 	return std::isalpha(static_cast<unsigned char>(ch)) || ch == '_';
@@ -124,11 +170,10 @@ bool IsIdChar(char ch)
 
 bool IsKeyword(std::string_view text)
 {
-	// TODO: подумать...
 	constexpr std::array<std::string_view, 51> keywords = {
-		"val", "var", "def", "s", "u", "bitten", "little", "number", "longer", "single", "double", "boolen", "string", "voided", "planar", "vector", "quadra", "acolor", "linear", "matrix", "slices", "buffer", "rpoint", "fpoint", "struct", "unions", "enumer", "thread", "wpoint", "spoint", "upoint", "random", "when", "else", "run", "rep", "in", "and", "orr", "not", "bnd", "bor", "bxr", "bnt", "import", "ass", "als", "return", "true", "false", "compti"};
+		"acolor", "als", "and", "ass", "bitten", "bnd", "bnt", "boolen", "bor", "buffer", "bxr", "compti", "def", "double", "else", "enumer", "false", "fpoint", "import", "in", "linear", "little", "longer", "matrix", "not", "number", "orr", "planar", "quadra", "random", "rep", "return", "rpoint", "run", "s", "single", "slices", "spoint", "string", "struct", "thread", "true", "u", "unions", "upoint", "val", "var", "vector", "voided", "when", "wpoint"};
 
-	return std::ranges::find(keywords, text) != keywords.end();
+	return std::ranges::binary_search(keywords, text);
 }
 
 Token ParseIdOrKeyword(LexerState& state)
@@ -193,7 +238,7 @@ Token ParseString(LexerState& state)
 
 	if (IsAtEnd(state))
 	{
-		ReportUnterminatedString(state, state.line, state.pos);
+		ReportUnterminatedString(state, startLine, startPos);
 	}
 	else
 	{
@@ -210,6 +255,19 @@ Token MakeToken(TokenType type, size_t startPos, size_t length, const LexerState
 	return Token{type, state.source.substr(startPos, length), startPos, line};
 }
 
+void HandleBracketOpen(LexerState& state)
+{
+	state.openedBrackets++;
+}
+
+void HandleBracketClose(LexerState& state)
+{
+	if (state.openedBrackets > 0)
+	{
+		state.openedBrackets--;
+	}
+}
+
 Token ParseOperatorOrPunctuation(LexerState& state)
 {
 	const size_t startPos = state.pos;
@@ -218,8 +276,6 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 
 	switch (ch)
 	{
-	case ';':
-		return MakeToken(TokenType::Semicolon, startPos, 1, state, startLine);
 	case ':':
 		if (Peek(state) == '=')
 		{
@@ -291,12 +347,16 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 	case ',':
 		return MakeToken(TokenType::Comma, startPos, 1, state, startLine);
 	case '(':
+		HandleBracketOpen(state);
 		return MakeToken(TokenType::ParenLeft, startPos, 1, state, startLine);
 	case ')':
+		HandleBracketClose(state);
 		return MakeToken(TokenType::ParenRight, startPos, 1, state, startLine);
 	case '[':
+		HandleBracketOpen(state);
 		return MakeToken(TokenType::BracketLeft, startPos, 1, state, startLine);
 	case ']':
+		HandleBracketClose(state);
 		return MakeToken(TokenType::BracketRight, startPos, 1, state, startLine);
 	case '{':
 		return MakeToken(TokenType::BraceLeft, startPos, 1, state, startLine);
@@ -320,6 +380,11 @@ Token GetNextToken(LexerState& state)
 	}
 
 	const char ch = Peek(state);
+
+	if (ch == '\n')
+	{
+		return ParseNewLine(state);
+	}
 
 	if (IsIdStart(ch))
 	{
@@ -347,9 +412,10 @@ std::vector<Token> CollectTokens(LexerState& state)
 	while (true)
 	{
 		auto token = GetNextToken(state);
+		auto type = token.type;
 		tokens.emplace_back(std::move(token));
 
-		if (token.type == TokenType::EndOfFile)
+		if (type == TokenType::EndOfFile)
 		{
 			break;
 		}

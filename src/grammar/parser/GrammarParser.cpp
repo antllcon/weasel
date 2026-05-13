@@ -1,25 +1,59 @@
 #include "GrammarParser.h"
+#include "src/diagnostics/CompilationException.h"
 #include <cctype>
 #include <fstream>
 #include <sstream>
-#include <stdexcept>
+#include <unordered_set>
 #include <vector>
 
 namespace
 {
-void AssertIsFileOpened(bool isOpen)
+void AssertIsFileOpened(bool isOpen, const std::filesystem::path& path)
 {
 	if (!isOpen)
 	{
-		throw std::runtime_error("Не удалось открыть файл с грамматикой");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Parser,
+			.message = "Не удалось открыть файл с грамматикой",
+			.actual = path.string()});
 	}
 }
 
-void AssertIsRuleValid(bool isValid)
+void AssertIsRuleValid(bool isValid, const std::string& line)
 {
 	if (!isValid)
 	{
-		throw std::runtime_error("Синтаксическая ошибка: отсутствует разделитель -> в правиле");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Parser,
+			.message = "Синтаксическая ошибка: отсутствует разделитель ->",
+			.expected = "NonTerminal -> ...",
+			.actual = line});
+	}
+}
+
+void AssertIsAllNonTerminalsDefined(const raw::Rules& rules)
+{
+	std::unordered_set<std::string> defined;
+	for (const auto& rule : rules)
+	{
+		defined.insert(rule.name);
+	}
+
+	for (const auto& [name, alternatives] : rules)
+	{
+		for (const auto& alt : alternatives)
+		{
+			for (const auto& symbol : alt)
+			{
+				if (!IsTerm(symbol) && !defined.contains(symbol))
+				{
+					throw CompilationException(DiagnosticData{
+						.phase = CompilerPhase::Parser,
+						.message = "Нетерминал '" + symbol + "' используется, но не определён",
+						.actual = symbol});
+				}
+			}
+		}
 	}
 }
 
@@ -117,7 +151,7 @@ void ParseLine(const std::string& line, raw::Rules& rules)
 	}
 
 	const size_t arrowPos = trimmedLine.find("->");
-	AssertIsRuleValid(arrowPos != std::string::npos);
+	AssertIsRuleValid(arrowPos != std::string::npos, trimmedLine);
 
 	const std::string lhs = TrimWhitespace(trimmedLine.substr(0, arrowPos));
 	const std::string rhs = TrimWhitespace(trimmedLine.substr(arrowPos + 2));
@@ -148,7 +182,7 @@ void ParseLine(const std::string& line, raw::Rules& rules)
 raw::Rules GrammarParser::ParseFile(const std::filesystem::path& path)
 {
 	std::ifstream file(path);
-	AssertIsFileOpened(file.is_open());
+	AssertIsFileOpened(file.is_open(), path);
 
 	std::stringstream buffer;
 	buffer << file.rdbuf();
@@ -167,5 +201,6 @@ raw::Rules GrammarParser::ParseString(const std::string& content)
 		ParseLine(line, rules);
 	}
 
+	AssertIsAllNonTerminalsDefined(rules);
 	return rules;
 }

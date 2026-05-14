@@ -1,6 +1,7 @@
 #include "NasmCodeGenerator.h"
 
 #include "src/compiler/ast/ArrayLiteralExpr.h"
+#include "src/compiler/ast/DoWhileStmt.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
@@ -273,6 +274,11 @@ void NasmCodeGenerator::Visit(const IfStmt& node)
 	}
 
 	EmitLabel(labelEnd);
+}
+
+void NasmCodeGenerator::Visit(const DoWhileStmt& /*node*/)
+{
+	throw std::runtime_error("Генерация NASM-кода для DoWhileStmt не реализована");
 }
 
 void NasmCodeGenerator::Visit(const RunStmt& node)

@@ -1,5 +1,6 @@
 #pragma once
 
+class DoWhileStmt;
 class ProgramNode;
 class StructDeclStmt;
 class UnionDeclStmt;
@@ -48,6 +49,7 @@ public:
 	virtual void Visit(const IndexExpr& node) = 0;
 	virtual void Visit(const MemberAccessExpr& node) = 0;
 	virtual void Visit(const BlockStmt& node) = 0;
+	virtual void Visit(const DoWhileStmt& node) = 0;
 	virtual void Visit(const RunStmt& node) = 0;
 	virtual void Visit(const RepStmt& node) = 0;
 	virtual void Visit(const VarDeclStmt& node) = 0;

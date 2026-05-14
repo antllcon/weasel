@@ -1,4 +1,5 @@
 #include "FrontendPipeline.h"
+#include "src/compiler/ast/visualizer/AstVisualizer.h"
 #include "src/compiler/cst_to_ast/CstToAstConverter.h"
 #include "src/compiler/lexer/Lexer.h"
 #include "src/compiler/reader/SourceLoader.h"
@@ -74,6 +75,7 @@ AstTree RunAstConversionPhase(const CstTree& cstRoot, const std::filesystem::pat
 	ScopedTimer t("Конвертация CST в AST");
 	auto astRoot = CstToAstConverter::Convert(*cstRoot);
 	AssertIsAstValid(astRoot.get(), sourceFile);
+	AstVisualizer::Visualize(*astRoot);
 	return astRoot;
 }
 

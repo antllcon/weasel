@@ -1,6 +1,7 @@
 #include "CodeGenerator.h"
 
 #include "src/compiler/ast/ArrayLiteralExpr.h"
+#include "src/compiler/ast/DoWhileStmt.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
@@ -311,6 +312,11 @@ void CodeGenerator::Visit(const IdentifierExpr& node)
 	AssertIsIdentifierResolved(it != m_slotMap.end(), node.GetName());
 	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
 	m_chunk.WriteUint32(it->second, m_currentLine);
+}
+
+void CodeGenerator::Visit(const DoWhileStmt& /*node*/)
+{
+	throw std::runtime_error("Генерация кода для DoWhileStmt не реализована");
 }
 
 void CodeGenerator::Visit(const RunStmt& node)

@@ -30,6 +30,7 @@ public:
 	void Visit(const IndexExpr& node) override;
 	void Visit(const MemberAccessExpr& node) override;
 	void Visit(const BlockStmt& node) override;
+	void Visit(const DoWhileStmt& node) override;
 	void Visit(const RunStmt& node) override;
 	void Visit(const RepStmt& node) override;
 	void Visit(const VarDeclStmt& node) override;

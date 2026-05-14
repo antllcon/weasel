@@ -20,6 +20,7 @@ private:
 	void AnalyzeIf(class IfStmt& node);
 	void AnalyzeRep(class RepStmt& node);
 	void AnalyzeReturn(class ReturnStmt& node);
+	void AnalyzeDoWhile(class DoWhileStmt& node);
 	void AnalyzeRun(class RunStmt& node);
 
 	SymbolTable m_table;

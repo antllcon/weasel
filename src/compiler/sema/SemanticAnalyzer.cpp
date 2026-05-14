@@ -1,6 +1,7 @@
 #include "SemanticAnalyzer.h"
 
 #include "src/compiler/ast/AssignStmt.h"
+#include "src/compiler/ast/DoWhileStmt.h"
 #include "src/compiler/ast/ExprStmt.h"
 #include "src/compiler/ast/BlockStmt.h"
 #include "src/compiler/ast/FunctionDeclStmt.h"
@@ -89,6 +90,10 @@ void SemanticAnalyzer::AnalyzeBlock(BlockStmt& node)
 		{
 			AnalyzeRep(*repStmt);
 		}
+		else if (auto* doWhileStmt = dynamic_cast<DoWhileStmt*>(&stmt))
+		{
+			AnalyzeDoWhile(*doWhileStmt);
+		}
 		else if (auto* runStmt = dynamic_cast<RunStmt*>(&stmt))
 		{
 			AnalyzeRun(*runStmt);
@@ -149,6 +154,13 @@ void SemanticAnalyzer::AnalyzeRep(RepStmt& node)
 	m_slotMap[iterName] = slot;
 
 	AnalyzeBlock(const_cast<BlockStmt&>(dynamic_cast<const BlockStmt&>(node.GetOriginalBody())));
+	m_table.LeaveScope();
+}
+
+void SemanticAnalyzer::AnalyzeDoWhile(DoWhileStmt& node)
+{
+	m_table.EnterScope();
+	AnalyzeBlock(const_cast<BlockStmt&>(dynamic_cast<const BlockStmt&>(node.GetBody())));
 	m_table.LeaveScope();
 }
 

@@ -36,49 +36,151 @@ void AssertIsGotoFound(bool isFound, const std::string& nonTerminal)
 	}
 }
 
-bool IsNoiseNewLine(const std::vector<Token>& tokens, size_t i, TokenType prevType)
+bool IsDoWhileRun(const std::vector<Token>& tokens, size_t runIdx)
 {
-	if (prevType == TokenType::BraceLeft || prevType == TokenType::BraceRight)
+	for (size_t k = runIdx; k > 0; --k)
 	{
-		return true;
-	}
-
-	for (size_t j = i + 1; j < tokens.size(); ++j)
-	{
-		if (tokens[j].type == TokenType::NewLine)
-		{
+		if (tokens[k - 1].type == TokenType::NewLine)
 			continue;
-		}
-		if (tokens[j].type == TokenType::BraceLeft || (tokens[j].type == TokenType::Keyword && tokens[j].value == "else"))
-		{
-			return true;
-		}
-		break;
+		return tokens[k - 1].type == TokenType::BraceRight;
 	}
+	return false;
+}
+
+std::vector<bool> FindDoWhileOpeners(const std::vector<Token>& tokens)
+{
+	std::vector<bool> result(tokens.size(), false);
+	std::vector<size_t> openBraces;
+
+	for (size_t i = 0; i < tokens.size(); ++i)
+	{
+		if (tokens[i].type == TokenType::BraceLeft)
+		{
+			openBraces.push_back(i);
+		}
+		else if (tokens[i].type == TokenType::BraceRight && !openBraces.empty())
+		{
+			const size_t openIdx = openBraces.back();
+			openBraces.pop_back();
+			for (size_t k = i + 1; k < tokens.size(); ++k)
+			{
+				if (tokens[k].type == TokenType::NewLine)
+					continue;
+				if (tokens[k].type == TokenType::Keyword && tokens[k].value == "run")
+					result[openIdx] = true;
+				break;
+			}
+		}
+	}
+	return result;
+}
+
+std::vector<bool> FindDoWhileConditionClosers(const std::vector<Token>& tokens)
+{
+	std::vector<bool> result(tokens.size(), false);
+
+	for (size_t i = 0; i < tokens.size(); ++i)
+	{
+		if (tokens[i].type != TokenType::Keyword || tokens[i].value != "run")
+			continue;
+		if (!IsDoWhileRun(tokens, i))
+			continue;
+
+		int depth = 0;
+		for (size_t k = i + 1; k < tokens.size(); ++k)
+		{
+			if (tokens[k].type == TokenType::ParenLeft)
+				++depth;
+			else if (tokens[k].type == TokenType::ParenRight)
+			{
+				if (--depth == 0)
+				{
+					result[k] = true;
+					break;
+				}
+			}
+		}
+	}
+	return result;
+}
+
+size_t FindNextMeaningfulIndex(const std::vector<Token>& tokens, size_t pos)
+{
+	for (size_t k = pos + 1; k < tokens.size(); ++k)
+	{
+		if (tokens[k].type != TokenType::NewLine)
+			return k;
+	}
+	return tokens.size();
+}
+
+bool IsNoiseNewLine(
+	int braceDepth,
+	TokenType prevType,
+	size_t prevIdx,
+	TokenType nextType,
+	size_t nextIdx,
+	const std::vector<bool>& doWhileOpeners,
+	const std::vector<bool>& doWhileCondClosers)
+{
+	if (braceDepth == 0)
+		return true;
+	if (prevType == TokenType::BraceLeft || prevType == TokenType::BraceRight)
+		return true;
+	if (prevType == TokenType::ParenRight && doWhileCondClosers[prevIdx])
+		return true;
+	if (nextType == TokenType::BraceLeft && !doWhileOpeners[nextIdx])
+		return true;
 	return false;
 }
 
 std::vector<Token> FilterNewLines(const std::vector<Token>& tokens)
 {
+	const auto doWhileOpeners = FindDoWhileOpeners(tokens);
+	const auto doWhileCondClosers = FindDoWhileConditionClosers(tokens);
+
 	std::vector<Token> result;
 	result.reserve(tokens.size());
-	auto prevType = TokenType::Error;
+
+	int braceDepth = 0;
+	size_t prevMeaningfulIdx = tokens.size();
 
 	for (size_t i = 0; i < tokens.size(); ++i)
 	{
-		if (tokens[i].type == TokenType::NewLine)
+		const auto& tok = tokens[i];
+
+		if (tok.type != TokenType::NewLine)
 		{
-			if (!IsNoiseNewLine(tokens, i, prevType))
-			{
-				result.push_back(tokens[i]);
-			}
+			if (tok.type == TokenType::BraceLeft)
+				++braceDepth;
+			else if (tok.type == TokenType::BraceRight)
+				--braceDepth;
+
+			result.push_back(tok);
+			prevMeaningfulIdx = i;
+			continue;
 		}
-		else
+
+		if (prevMeaningfulIdx == tokens.size())
+			continue;
+
+		const size_t nextIdx = FindNextMeaningfulIndex(tokens, i);
+		if (nextIdx == tokens.size())
+			continue;
+
+		if (!IsNoiseNewLine(
+				braceDepth,
+				tokens[prevMeaningfulIdx].type,
+				prevMeaningfulIdx,
+				tokens[nextIdx].type,
+				nextIdx,
+				doWhileOpeners,
+				doWhileCondClosers))
 		{
-			result.push_back(tokens[i]);
-			prevType = tokens[i].type;
+			result.push_back(tok);
 		}
 	}
+
 	return result;
 }
 

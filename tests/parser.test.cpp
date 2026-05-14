@@ -123,7 +123,7 @@ TEST_F(ParserTest, EmptyTokensThrows)
 // Проверка выбрасывания исключения при неожиданном токене
 TEST_F(ParserTest, UnexpectedTokenThrows)
 {
-    EXPECT_THROW(Parse({Tok("num", "42"), Tok("#", "")}), std::runtime_error);
+    EXPECT_THROW(Parse({Tok("num", "144"), Tok("#", "")}), std::runtime_error);
 }
 
 // Проверка выбрасывания исключения при незавершенном выражении
@@ -146,7 +146,7 @@ TEST_F(ParserTest, EmptyProgram)
     EXPECT_TRUE(declList->children.empty());
 }
 
-// Проверка корректного корневого узла для аугментированной грамматики
+// Проверка корректного корневого узла для пустой грамматики
 TEST_F(ParserTest, RootLabelIsAugmentedStart)
 {
     auto root = Parse({Tok("#", "")});
@@ -313,13 +313,13 @@ TEST_F(ParserTest, SimpleAssign)
 // Проверка парсинга одиночного числа
 TEST_F(ParserTest, SingleNumber)
 {
-    auto root = Parse(WrapInFunc({Tok("num", "42"), Tok("nl", "\n")}));
+    auto root = Parse(WrapInFunc({Tok("num", "67"), Tok("nl", "\n")}));
 
     ASSERT_NE(root, nullptr);
     auto primary = Find(root.get(), "PrimaryExpr");
     ASSERT_NE(primary, nullptr);
     EXPECT_EQ(primary->children[0]->label, "num");
-    EXPECT_EQ(primary->children[0]->value, "42");
+    EXPECT_EQ(primary->children[0]->value, "67");
 }
 
 // Проверка левоассоциативности сложения
@@ -742,7 +742,7 @@ TEST_F(ParserTest, ForLoop2D)
 // Проверка возврата с выражением
 TEST_F(ParserTest, ReturnWithExpr)
 {
-    auto root = Parse(WrapInFunc({Tok("return", "return"), Tok("num", "42"), Tok("nl", "\n")}));
+    auto root = Parse(WrapInFunc({Tok("return", "return"), Tok("num", "67"), Tok("nl", "\n")}));
 
     ASSERT_NE(root, nullptr);
     auto retStmt = Find(root.get(), "ReturnStmt");

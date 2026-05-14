@@ -1,5 +1,4 @@
 #include "AstVisualizer.h"
-
 #include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
@@ -115,8 +114,9 @@ std::string FormatType(const std::string& sign, const std::string& name)
 void AstVisualizer::Visualize(const AstNode& root)
 {
 	AstVisualizer vis;
-	vis.m_stream << "[ast]\t\tАбстрактное синтаксическое дерево:\n";
-	vis.m_stream << "\t\t";
+	vis.m_prefix = "\t\t";
+	vis.m_isLast = true;
+	vis.m_stream << "[ast]\t\tАбстрактное синтаксическое дерево:" << std::endl;
 	root.Accept(vis);
 	Logger::Log(vis.m_stream.str());
 }
@@ -125,7 +125,7 @@ void AstVisualizer::PrintNode(const std::string& label)
 {
 	m_stream << m_prefix;
 	m_stream << (m_isLast ? "└── " : "├── ");
-	m_stream << label << "\n";
+	m_stream << label << std::endl;
 }
 
 void AstVisualizer::PrintLeaf(const std::string& label, bool isLast)
@@ -133,7 +133,7 @@ void AstVisualizer::PrintLeaf(const std::string& label, bool isLast)
 	const std::string childConnector = m_isLast ? "    " : "│   ";
 	m_stream << m_prefix << childConnector;
 	m_stream << (isLast ? "└── " : "├── ");
-	m_stream << label << "\n";
+	m_stream << label << std::endl;
 }
 
 void AstVisualizer::VisitChild(const AstNode& child, bool isLast)
@@ -151,7 +151,7 @@ void AstVisualizer::VisitChild(const AstNode& child, bool isLast)
 
 void AstVisualizer::Visit(const ProgramNode& node)
 {
-	m_stream << "Program\n";
+	m_stream << m_prefix << "Program" << std::endl;
 
 	const auto& decls = node.GetDeclarations();
 	for (size_t i = 0; i < decls.size(); ++i)
@@ -242,7 +242,10 @@ void AstVisualizer::Visit(const RepStmt& node)
 	std::string label = "For (";
 	for (size_t i = 0; i < iters.size(); ++i)
 	{
-		if (i > 0) label += ", ";
+		if (i > 0)
+		{
+			label += ", ";
+		}
 		label += iters[i];
 	}
 	label += ")";
@@ -370,7 +373,7 @@ void AstVisualizer::Visit(const EnumDeclStmt& node)
 	}
 }
 
-void AstVisualizer::Visit(const ErrorExpr& /*node*/)
+void AstVisualizer::Visit(const ErrorExpr&)
 {
 	PrintNode("ErrorExpr");
 }

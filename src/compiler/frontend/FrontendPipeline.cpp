@@ -4,6 +4,7 @@
 #include "src/compiler/lexer/Lexer.h"
 #include "src/compiler/reader/SourceLoader.h"
 #include "src/compiler/sema/SemanticAnalyzer.h"
+#include "src/compiler/sema/SymbolTableVisualizer.h"
 #include "src/diagnostics/CompilationException.h"
 #include "src/grammar/lalr/LalrParser.h"
 #include "src/utils/logger/timer/ScopedTimer.h"
@@ -14,7 +15,7 @@ using SourceCode = std::string;
 using TokenStream = std::vector<Token>;
 using CstTree = std::unique_ptr<CstNode>;
 using AstTree = std::unique_ptr<AstNode>;
-using SymbolTable = std::unordered_map<std::string, uint32_t>;
+using ResolvedSymbols = std::unordered_map<std::string, SymbolInfo>;
 
 namespace
 {
@@ -79,11 +80,13 @@ AstTree RunAstConversionPhase(const CstTree& cstRoot, const std::filesystem::pat
 	return astRoot;
 }
 
-SymbolTable RunSemanticPhase(AstNode& astRoot)
+ResolvedSymbols RunSemanticPhase(AstNode& astRoot, DiagnosticEngine& engine)
 {
 	ScopedTimer t("Семантический анализ");
 	SemanticAnalyzer sema;
-	return sema.Analyze(astRoot);
+	auto resolvedSymbols = sema.Analyze(astRoot, engine);
+	SymbolTableVisualizer::Visualize(resolvedSymbols);
+	return resolvedSymbols;
 }
 } // namespace
 
@@ -97,8 +100,9 @@ std::optional<FrontendResult> Run(const std::filesystem::path& sourceFile, const
 
 	auto cstRoot = RunParserPhase(tokens, context, sourceFile);
 	auto astRoot = RunAstConversionPhase(cstRoot, sourceFile);
-	auto slotMap = RunSemanticPhase(*astRoot);
+	auto symbols = RunSemanticPhase(*astRoot, engine);
+	if (engine.HasErrors()) return std::nullopt;
 
-	return FrontendResult{std::move(astRoot), std::move(slotMap)};
+	return FrontendResult{std::move(astRoot), std::move(symbols)};
 }
 } // namespace FrontendPipline

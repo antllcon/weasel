@@ -1,6 +1,7 @@
 #pragma once
 
 #include "src/compiler/ast/AstNode.h"
+#include "src/compiler/sema/SymbolTable.h"
 #include "src/diagnostics/DiagnosticEngine.h"
 #include "src/grammar/context/LanguageContext.h"
 
@@ -16,7 +17,7 @@ namespace FrontendPipline
 struct FrontendResult
 {
 	std::unique_ptr<AstNode> ast;
-	std::unordered_map<std::string, uint32_t> slotMap;
+	std::unordered_map<std::string, SymbolInfo> symbols;
 };
 
 [[nodiscard]] std::optional<FrontendResult> Run(

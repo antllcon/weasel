@@ -1,6 +1,7 @@
 #pragma once
 #include "src/compiler/ast/AstNode.h"
 #include "src/compiler/ast/IAstVisitor.h"
+#include "src/compiler/sema/SymbolTable.h"
 #include "src/compiler/vm/chunk/Chunk.h"
 #include <cstdint>
 #include <string>
@@ -9,7 +10,7 @@
 class CodeGenerator final : public IAstVisitor
 {
 public:
-	explicit CodeGenerator(std::unordered_map<std::string, uint32_t> slotMap);
+	explicit CodeGenerator(std::unordered_map<std::string, SymbolInfo> symbols);
 
 	[[nodiscard]] Chunk Generate(const AstNode& root);
 
@@ -44,7 +45,7 @@ private:
 	void EmitLogicalNot();
 	void EmitConstantU32(uint32_t value);
 
-	std::unordered_map<std::string, uint32_t> m_slotMap;
+	std::unordered_map<std::string, SymbolInfo> m_symbols;
 	Chunk m_chunk;
 	uint32_t m_currentLine = 0;
 };

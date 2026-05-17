@@ -1,176 +1,231 @@
 #include "SemanticAnalyzer.h"
 
+#include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/AssignStmt.h"
-#include "src/compiler/ast/DoWhileStmt.h"
-#include "src/compiler/ast/ExprStmt.h"
+#include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
+#include "src/compiler/ast/BoolExpr.h"
+#include "src/compiler/ast/DoWhileStmt.h"
+#include "src/compiler/ast/EnumDeclStmt.h"
+#include "src/compiler/ast/ErrorExpr.h"
+#include "src/compiler/ast/ExprStmt.h"
+#include "src/compiler/ast/FunctionCallExpr.h"
 #include "src/compiler/ast/FunctionDeclStmt.h"
+#include "src/compiler/ast/IdentifierExpr.h"
 #include "src/compiler/ast/IfStmt.h"
+#include "src/compiler/ast/ImplicitCastExpr.h"
+#include "src/compiler/ast/IndexExpr.h"
+#include "src/compiler/ast/MemberAccessExpr.h"
+#include "src/compiler/ast/NumberExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
+#include "src/compiler/ast/StringExpr.h"
+#include "src/compiler/ast/StructDeclStmt.h"
+#include "src/compiler/ast/UnaryExpr.h"
+#include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
-
-#include <stdexcept>
+#include "src/diagnostics/CompilationException.h"
 
 namespace
 {
-void AssertIsVariableDeclared(bool isDeclared, const std::string& name)
-{
-	if (!isDeclared)
-	{
-		throw std::runtime_error("Переменная не объявлена: " + name);
-	}
-}
-
 void AssertIsVariableNotRedeclared(bool isNew, const std::string& name)
 {
 	if (!isNew)
 	{
-		throw std::runtime_error("Переменная уже объявлена в текущей области видимости: " + name);
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Переменная уже объявлена в текущей области видимости: " + name});
 	}
 }
 } // namespace
 
-std::unordered_map<std::string, uint32_t> SemanticAnalyzer::Analyze(AstNode& root)
+std::unordered_map<std::string, SymbolInfo> SemanticAnalyzer::Analyze(AstNode& root, DiagnosticEngine& engine)
 {
-	AnalyzeNode(root);
-	return m_slotMap;
+	m_engine = &engine;
+	root.Accept(*this);
+	return std::move(m_resolvedSymbols);
 }
 
-void SemanticAnalyzer::AnalyzeNode(AstNode& node)
-{
-	if (auto* program = dynamic_cast<ProgramNode*>(&node))
-	{
-		AnalyzeProgram(*program);
-		return;
-	}
-	if (auto* funcDecl = dynamic_cast<FunctionDeclStmt*>(&node))
-	{
-		AnalyzeFuncDecl(*funcDecl);
-		return;
-	}
-	throw std::runtime_error("Неподдерживаемый тип узла AST");
-}
-
-void SemanticAnalyzer::AnalyzeProgram(ProgramNode& node)
+void SemanticAnalyzer::Visit(const ProgramNode& node)
 {
 	for (const auto& decl : node.GetDeclarations())
 	{
-		AnalyzeNode(*decl);
+		decl->Accept(*this);
 	}
 }
 
-void SemanticAnalyzer::AnalyzeFuncDecl(FunctionDeclStmt& node)
+void SemanticAnalyzer::Visit(const FunctionDeclStmt& node)
 {
+	m_nextSlot = 0;
 	m_table.EnterScope();
-	AnalyzeBlock(const_cast<BlockStmt&>(node.GetBody()));
+	node.GetBody().Accept(*this);
 	m_table.LeaveScope();
 }
 
-void SemanticAnalyzer::AnalyzeBlock(BlockStmt& node)
+void SemanticAnalyzer::Visit(const BlockStmt& node)
 {
-	for (const auto& stmtPtr : node.GetStmts())
+	for (const auto& stmt : node.GetStmts())
 	{
-		auto& stmt = *stmtPtr;
-		if (auto* varDecl = dynamic_cast<VarDeclStmt*>(&stmt))
-		{
-			AnalyzeVarDecl(*varDecl);
-		}
-		else if (auto* assign = dynamic_cast<AssignStmt*>(&stmt))
-		{
-			AnalyzeAssign(*assign);
-		}
-		else if (auto* ifStmt = dynamic_cast<IfStmt*>(&stmt))
-		{
-			AnalyzeIf(*ifStmt);
-		}
-		else if (auto* repStmt = dynamic_cast<RepStmt*>(&stmt))
-		{
-			AnalyzeRep(*repStmt);
-		}
-		else if (auto* doWhileStmt = dynamic_cast<DoWhileStmt*>(&stmt))
-		{
-			AnalyzeDoWhile(*doWhileStmt);
-		}
-		else if (auto* runStmt = dynamic_cast<RunStmt*>(&stmt))
-		{
-			AnalyzeRun(*runStmt);
-		}
-		else if (auto* retStmt = dynamic_cast<ReturnStmt*>(&stmt))
-		{
-			AnalyzeReturn(*retStmt);
-		}
-		else if (dynamic_cast<ExprStmt*>(&stmt))
-		{
-		}
+		stmt->Accept(*this);
 	}
 }
 
-void SemanticAnalyzer::AnalyzeVarDecl(VarDeclStmt& node)
+void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 {
 	const uint32_t slot = m_nextSlot++;
-	const bool isNew = m_table.Declare(node.GetName(), nullptr, node.GetModifier() == VarModifier::Var, slot);
+	const bool isMutable = node.GetModifier() == VarModifier::Var;
+	const bool isNew = m_table.Declare(node.GetName(), nullptr, isMutable, slot);
 	AssertIsVariableNotRedeclared(isNew, node.GetName());
-	m_slotMap[node.GetName()] = slot;
+	m_resolvedSymbols[node.GetName()] = SymbolInfo{nullptr, slot, isMutable};
+
+	if (node.GetInit())
+	{
+		node.GetInit()->Accept(*this);
+	}
 }
 
-void SemanticAnalyzer::AnalyzeAssign(AssignStmt& /*node*/)
+void SemanticAnalyzer::Visit(const AssignStmt& node)
 {
+	node.GetLhs().Accept(*this);
+	node.GetRhs().Accept(*this);
 }
 
-void SemanticAnalyzer::AnalyzeIf(IfStmt& node)
+void SemanticAnalyzer::Visit(const IfStmt& node)
 {
+	node.GetCondition().Accept(*this);
+
 	m_table.EnterScope();
-	AnalyzeBlock(const_cast<BlockStmt&>(node.GetThenBlock()));
+	node.GetThenBlock().Accept(*this);
 	m_table.LeaveScope();
 
 	const Stmt* elseNode = node.GetElseNode();
-	if (elseNode == nullptr)
+	if (!elseNode)
 	{
 		return;
 	}
 
-	if (auto* elseIf = dynamic_cast<const IfStmt*>(elseNode))
+	if (const auto* elseIf = dynamic_cast<const IfStmt*>(elseNode))
 	{
-		AnalyzeIf(const_cast<IfStmt&>(*elseIf));
+		elseIf->Accept(*this);
 	}
-	else if (auto* elseBlock = dynamic_cast<const BlockStmt*>(elseNode))
+	else if (const auto* elseBlock = dynamic_cast<const BlockStmt*>(elseNode))
 	{
 		m_table.EnterScope();
-		AnalyzeBlock(const_cast<BlockStmt&>(*elseBlock));
+		elseBlock->Accept(*this);
 		m_table.LeaveScope();
 	}
 }
 
-void SemanticAnalyzer::AnalyzeRep(RepStmt& node)
+void SemanticAnalyzer::Visit(const RepStmt& node)
 {
 	m_table.EnterScope();
-	const std::string& iterName = node.GetIterators()[0];
-	const uint32_t slot = m_nextSlot++;
-	const bool isNew = m_table.Declare(iterName, nullptr, true, slot);
-	AssertIsVariableNotRedeclared(isNew, iterName);
-	m_slotMap[iterName] = slot;
 
-	AnalyzeBlock(const_cast<BlockStmt&>(dynamic_cast<const BlockStmt&>(node.GetOriginalBody())));
+	for (const auto& iterName : node.GetIterators())
+	{
+		const uint32_t slot = m_nextSlot++;
+		const bool isNew = m_table.Declare(iterName, nullptr, true, slot);
+		AssertIsVariableNotRedeclared(isNew, iterName);
+		m_resolvedSymbols[iterName] = SymbolInfo{nullptr, slot, true};
+	}
+
+	node.GetOriginalBody().Accept(*this);
 	m_table.LeaveScope();
 }
 
-void SemanticAnalyzer::AnalyzeDoWhile(DoWhileStmt& node)
+void SemanticAnalyzer::Visit(const RunStmt& node)
 {
+	node.GetCondition().Accept(*this);
 	m_table.EnterScope();
-	AnalyzeBlock(const_cast<BlockStmt&>(dynamic_cast<const BlockStmt&>(node.GetBody())));
+	node.GetBody().Accept(*this);
 	m_table.LeaveScope();
 }
 
-void SemanticAnalyzer::AnalyzeRun(RunStmt& node)
+void SemanticAnalyzer::Visit(const DoWhileStmt& node)
 {
 	m_table.EnterScope();
-	AnalyzeBlock(const_cast<BlockStmt&>(dynamic_cast<const BlockStmt&>(node.GetBody())));
+	node.GetBody().Accept(*this);
 	m_table.LeaveScope();
+	node.GetCondition().Accept(*this);
 }
 
-void SemanticAnalyzer::AnalyzeReturn(ReturnStmt& /*node*/)
+void SemanticAnalyzer::Visit(const ReturnStmt& node)
+{
+	if (node.GetValue())
+	{
+		node.GetValue()->Accept(*this);
+	}
+}
+
+void SemanticAnalyzer::Visit(const ExprStmt& node)
+{
+	node.GetExpr().Accept(*this);
+}
+
+void SemanticAnalyzer::Visit(const IdentifierExpr& /*node*/)
+{
+}
+
+void SemanticAnalyzer::Visit(const BinaryExpr& node)
+{
+	node.GetLeft().Accept(*this);
+	node.GetRight().Accept(*this);
+}
+
+void SemanticAnalyzer::Visit(const UnaryExpr& node)
+{
+	node.GetOperand().Accept(*this);
+}
+
+void SemanticAnalyzer::Visit(const FunctionCallExpr& node)
+{
+	for (const auto& arg : node.GetArgs())
+	{
+		arg->Accept(*this);
+	}
+}
+
+void SemanticAnalyzer::Visit(const NumberExpr& /*node*/)
+{
+}
+
+void SemanticAnalyzer::Visit(const StringExpr& /*node*/)
+{
+}
+
+void SemanticAnalyzer::Visit(const BoolExpr& /*node*/)
+{
+}
+
+void SemanticAnalyzer::Visit(const ArrayLiteralExpr& /*node*/)
+{
+}
+
+void SemanticAnalyzer::Visit(const IndexExpr& /*node*/)
+{
+}
+
+void SemanticAnalyzer::Visit(const MemberAccessExpr& /*node*/)
+{
+}
+
+void SemanticAnalyzer::Visit(const ImplicitCastExpr& /*node*/)
+{
+}
+
+void SemanticAnalyzer::Visit(const ErrorExpr& /*node*/)
+{
+}
+
+void SemanticAnalyzer::Visit(const StructDeclStmt& /*node*/)
+{
+}
+
+void SemanticAnalyzer::Visit(const UnionDeclStmt& /*node*/)
+{
+}
+
+void SemanticAnalyzer::Visit(const EnumDeclStmt& /*node*/)
 {
 }

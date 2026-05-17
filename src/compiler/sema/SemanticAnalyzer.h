@@ -1,29 +1,46 @@
 #pragma once
 #include "SymbolTable.h"
 #include "src/compiler/ast/AstNode.h"
-#include <cstdint>
+#include "src/compiler/ast/IAstVisitor.h"
+#include "src/diagnostics/DiagnosticEngine.h"
 #include <string>
 #include <unordered_map>
 
-class SemanticAnalyzer
+class SemanticAnalyzer : public IAstVisitor
 {
 public:
-	[[nodiscard]] std::unordered_map<std::string, uint32_t> Analyze(AstNode& root);
+	[[nodiscard]] std::unordered_map<std::string, SymbolInfo> Analyze(AstNode& root, DiagnosticEngine& engine);
 
 private:
-	void AnalyzeNode(AstNode& node);
-	void AnalyzeProgram(class ProgramNode& node);
-	void AnalyzeFuncDecl(class FunctionDeclStmt& node);
-	void AnalyzeBlock(class BlockStmt& node);
-	void AnalyzeVarDecl(class VarDeclStmt& node);
-	void AnalyzeAssign(class AssignStmt& node);
-	void AnalyzeIf(class IfStmt& node);
-	void AnalyzeRep(class RepStmt& node);
-	void AnalyzeReturn(class ReturnStmt& node);
-	void AnalyzeDoWhile(class DoWhileStmt& node);
-	void AnalyzeRun(class RunStmt& node);
+	void Visit(const ProgramNode& node) override;
+	void Visit(const FunctionDeclStmt& node) override;
+	void Visit(const BlockStmt& node) override;
+	void Visit(const VarDeclStmt& node) override;
+	void Visit(const AssignStmt& node) override;
+	void Visit(const IfStmt& node) override;
+	void Visit(const RepStmt& node) override;
+	void Visit(const RunStmt& node) override;
+	void Visit(const DoWhileStmt& node) override;
+	void Visit(const ReturnStmt& node) override;
+	void Visit(const ExprStmt& node) override;
+	void Visit(const IdentifierExpr& node) override;
+	void Visit(const BinaryExpr& node) override;
+	void Visit(const UnaryExpr& node) override;
+	void Visit(const FunctionCallExpr& node) override;
+	void Visit(const NumberExpr& node) override;
+	void Visit(const StringExpr& node) override;
+	void Visit(const BoolExpr& node) override;
+	void Visit(const ArrayLiteralExpr& node) override;
+	void Visit(const IndexExpr& node) override;
+	void Visit(const MemberAccessExpr& node) override;
+	void Visit(const ImplicitCastExpr& node) override;
+	void Visit(const ErrorExpr& node) override;
+	void Visit(const StructDeclStmt& node) override;
+	void Visit(const UnionDeclStmt& node) override;
+	void Visit(const EnumDeclStmt& node) override;
 
 	SymbolTable m_table;
+	DiagnosticEngine* m_engine = nullptr;
 	uint32_t m_nextSlot = 0;
-	std::unordered_map<std::string, uint32_t> m_slotMap;
+	std::unordered_map<std::string, SymbolInfo> m_resolvedSymbols;
 };

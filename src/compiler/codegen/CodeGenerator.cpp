@@ -1,31 +1,20 @@
 #include "CodeGenerator.h"
-
 #include "src/compiler/ast/ArrayLiteralExpr.h"
-#include "src/compiler/ast/DoWhileStmt.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
-#include "src/compiler/ast/BoolExpr.h"
-#include "src/compiler/ast/EnumDeclStmt.h"
-#include "src/compiler/ast/ErrorExpr.h"
 #include "src/compiler/ast/ExprStmt.h"
 #include "src/compiler/ast/FunctionCallExpr.h"
 #include "src/compiler/ast/FunctionDeclStmt.h"
 #include "src/compiler/ast/IdentifierExpr.h"
 #include "src/compiler/ast/IfStmt.h"
-#include "src/compiler/ast/ImplicitCastExpr.h"
-#include "src/compiler/ast/IndexExpr.h"
-#include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumberExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
-#include "src/compiler/ast/StringExpr.h"
-#include "src/compiler/ast/StructDeclStmt.h"
-#include "src/compiler/ast/UnaryExpr.h"
-#include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
+#include "src/compiler/sema/SymbolTable.h"
 #include "src/compiler/vm/value/Value.h"
 
 #include <stdexcept>
@@ -50,8 +39,8 @@ void AssertIsLhsIdentifier(bool isId)
 }
 } // namespace
 
-CodeGenerator::CodeGenerator(std::unordered_map<std::string, uint32_t> slotMap)
-	: m_slotMap(std::move(slotMap))
+CodeGenerator::CodeGenerator(std::unordered_map<std::string, SymbolInfo> symbols)
+	: m_symbols(std::move(symbols))
 {
 }
 
@@ -165,11 +154,11 @@ void CodeGenerator::Visit(const AssignStmt& node)
 	const auto* id = dynamic_cast<const IdentifierExpr*>(&node.GetLhs());
 	AssertIsLhsIdentifier(id != nullptr);
 
-	const auto it = m_slotMap.find(id->GetName());
-	AssertIsIdentifierResolved(it != m_slotMap.end(), id->GetName());
+	const auto it = m_symbols.find(id->GetName());
+	AssertIsIdentifierResolved(it != m_symbols.end(), id->GetName());
 
 	m_chunk.WriteOpCode(OpCode::StoreLocal, m_currentLine);
-	m_chunk.WriteUint32(it->second, m_currentLine);
+	m_chunk.WriteUint32(it->second.stackSlot, m_currentLine);
 }
 
 void CodeGenerator::Visit(const IfStmt& node)
@@ -199,9 +188,9 @@ void CodeGenerator::Visit(const IfStmt& node)
 void CodeGenerator::Visit(const RepStmt& node)
 {
 	const std::string& iterName = node.GetIterators()[0];
-	const auto it = m_slotMap.find(iterName);
-	AssertIsIdentifierResolved(it != m_slotMap.end(), iterName);
-	const uint32_t iterSlot = it->second;
+	const auto it = m_symbols.find(iterName);
+	AssertIsIdentifierResolved(it != m_symbols.end(), iterName);
+	const uint32_t iterSlot = it->second.stackSlot;
 
 	node.GetRanges()[0]->Accept(*this);
 
@@ -297,6 +286,16 @@ void CodeGenerator::Visit(const BinaryExpr& node)
 	case BinaryOpKind::LogicalOr:
 		m_chunk.WriteOpCode(OpCode::BitOr, m_currentLine);
 		break;
+	case BinaryOpKind::ShiftLeft:
+		break;
+	case BinaryOpKind::ShiftRight:
+		break;
+	case BinaryOpKind::BitwiseAnd:
+		break;
+	case BinaryOpKind::BitwiseOr:
+		break;
+	case BinaryOpKind::BitwiseXor:
+		break;
 	}
 }
 
@@ -308,10 +307,10 @@ void CodeGenerator::Visit(const NumberExpr& node)
 
 void CodeGenerator::Visit(const IdentifierExpr& node)
 {
-	const auto it = m_slotMap.find(node.GetName());
-	AssertIsIdentifierResolved(it != m_slotMap.end(), node.GetName());
+	const auto it = m_symbols.find(node.GetName());
+	AssertIsIdentifierResolved(it != m_symbols.end(), node.GetName());
 	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
-	m_chunk.WriteUint32(it->second, m_currentLine);
+	m_chunk.WriteUint32(it->second.stackSlot, m_currentLine);
 }
 
 void CodeGenerator::Visit(const DoWhileStmt& /*node*/)

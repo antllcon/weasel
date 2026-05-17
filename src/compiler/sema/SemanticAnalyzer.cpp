@@ -128,16 +128,21 @@ bool IsLogicalOp(BinaryOpKind op)
 }
 } // namespace
 
-std::unordered_map<std::string, SymbolInfo> SemanticAnalyzer::Analyze(AstNode& root, DiagnosticEngine& engine)
+SemanticAnalyzer::SemaResult SemanticAnalyzer::Analyze(AstNode& root, DiagnosticEngine& engine)
 {
 	m_engine = &engine;
 	CollectFunctions(root);
 	root.Accept(*this);
-	return std::move(m_resolvedSymbols);
+	return SemaResult{std::move(m_resolvedSymbols), std::move(m_functions)};
 }
 
 void SemanticAnalyzer::CollectFunctions(const AstNode& root)
 {
+	FunctionInfo printInfo;
+	printInfo.returnType = ScalarTypeInfo::Make(BaseType::Voided);
+	printInfo.params.emplace_back("value", ScalarTypeInfo::Make(BaseType::Number));
+	m_functions["print"] = std::move(printInfo);
+
 	const auto* program = dynamic_cast<const ProgramNode*>(&root);
 	if (!program)
 		return;

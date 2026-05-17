@@ -11,13 +11,19 @@
 class SemanticAnalyzer : public IAstVisitor
 {
 public:
-	[[nodiscard]] std::unordered_map<std::string, SymbolInfo> Analyze(AstNode& root, DiagnosticEngine& engine);
-
 	struct FunctionInfo
 	{
 		std::shared_ptr<TypeInfo> returnType;
 		std::vector<std::pair<std::string, std::shared_ptr<TypeInfo>>> params;
 	};
+
+	struct SemaResult
+	{
+		std::unordered_map<std::string, SymbolInfo>   symbols;
+		std::unordered_map<std::string, FunctionInfo> functions;
+	};
+
+	[[nodiscard]] SemaResult Analyze(AstNode& root, DiagnosticEngine& engine);
 
 private:
 	void CollectFunctions(const AstNode& root);

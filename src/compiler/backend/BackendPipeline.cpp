@@ -36,7 +36,7 @@ void RegisterStdlibFunctions(VirtualMachine& vm)
 Chunk GenerateBytecode(FrontendPipline::FrontendResult& result)
 {
 	ScopedTimer t("Генерация кода (Backend)");
-	CodeGenerator backend(std::move(result.symbols));
+	CodeGenerator backend(std::move(result.symbols), std::move(result.functions));
 	return backend.Generate(*result.ast);
 }
 

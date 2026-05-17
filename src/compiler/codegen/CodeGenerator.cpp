@@ -39,14 +39,36 @@ void AssertIsLhsIdentifier(bool isId)
 }
 } // namespace
 
-CodeGenerator::CodeGenerator(std::unordered_map<std::string, SymbolInfo> symbols)
+CodeGenerator::CodeGenerator(
+	std::unordered_map<std::string, SymbolInfo>                     symbols,
+	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions)
 	: m_symbols(std::move(symbols))
+	, m_functions(std::move(functions))
 {
 }
 
 Chunk CodeGenerator::Generate(const AstNode& root)
 {
+	m_chunk.WriteOpCode(OpCode::Call, m_currentLine);
+	const uint32_t mainPatchOffset = m_chunk.GetCodeSize();
+	m_chunk.WriteUint32(0, m_currentLine);
+	m_chunk.WriteUint32(0, m_currentLine);
+	m_unresolvedCalls.push_back({mainPatchOffset, "main"});
+
+	m_chunk.WriteOpCode(OpCode::Return, m_currentLine);
+
 	root.Accept(*this);
+
+	for (const auto& call : m_unresolvedCalls)
+	{
+		if (!m_functionOffsets.contains(call.funcName))
+		{
+			throw std::runtime_error(
+				"Бэкенд: не найдена реализация функции " + call.funcName);
+		}
+		m_chunk.PatchUint32(call.patchOffset, m_functionOffsets[call.funcName]);
+	}
+
 	return std::move(m_chunk);
 }
 
@@ -118,7 +140,17 @@ void CodeGenerator::Visit(const EnumDeclStmt& /*node*/)
 
 void CodeGenerator::Visit(const FunctionDeclStmt& node)
 {
+	m_chunk.WriteOpCode(OpCode::Jump, m_currentLine);
+	const uint32_t jumpPatch = m_chunk.GetCodeSize();
+	m_chunk.WriteUint32(0, m_currentLine);
+
+	m_functionOffsets[node.GetName()] = m_chunk.GetCodeSize();
 	node.GetBody().Accept(*this);
+
+	EmitConstantU32(0);
+	m_chunk.WriteOpCode(OpCode::Return, m_currentLine);
+
+	m_chunk.PatchUint32(jumpPatch, m_chunk.GetCodeSize());
 }
 
 void CodeGenerator::Visit(const BlockStmt& node)
@@ -359,13 +391,17 @@ void CodeGenerator::Visit(const FunctionCallExpr& node)
 		{"print", 0},
 	};
 
-	const auto it = nativeIds.find(node.GetName());
-	if (it == nativeIds.end())
+	if (const auto it = nativeIds.find(node.GetName()); it != nativeIds.end())
 	{
-		throw std::runtime_error("Неизвестная нативная функция: " + node.GetName());
+		m_chunk.WriteOpCode(OpCode::CallNative, m_currentLine);
+		m_chunk.WriteUint32(it->second, m_currentLine);
+		m_chunk.WriteUint32(argCount, m_currentLine);
+		return;
 	}
 
-	m_chunk.WriteOpCode(OpCode::CallNative, m_currentLine);
-	m_chunk.WriteUint32(it->second, m_currentLine);
+	m_chunk.WriteOpCode(OpCode::Call, m_currentLine);
+	const uint32_t patchOffset = m_chunk.GetCodeSize();
+	m_chunk.WriteUint32(0, m_currentLine);
 	m_chunk.WriteUint32(argCount, m_currentLine);
+	m_unresolvedCalls.push_back({patchOffset, node.GetName()});
 }

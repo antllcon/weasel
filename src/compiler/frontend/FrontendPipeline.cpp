@@ -17,7 +17,7 @@ using SourceCode = std::string;
 using TokenStream = std::vector<Token>;
 using CstTree = std::unique_ptr<CstNode>;
 using AstTree = std::unique_ptr<AstNode>;
-using ResolvedSymbols = std::unordered_map<std::string, SymbolInfo>;
+using SemaResult = SemanticAnalyzer::SemaResult;
 
 namespace
 {
@@ -85,13 +85,13 @@ AstTree RunAstConversionPhase(const CstTree& cstRoot, const std::filesystem::pat
 	return astRoot;
 }
 
-ResolvedSymbols RunSemanticPhase(AstNode& astRoot, DiagnosticEngine& engine)
+SemaResult RunSemanticPhase(AstNode& astRoot, DiagnosticEngine& engine)
 {
 	ScopedTimer t("Семантический анализ");
 	SemanticAnalyzer sema;
-	auto resolvedSymbols = sema.Analyze(astRoot, engine);
-	SymbolTableVisualizer::Visualize(resolvedSymbols);
-	return resolvedSymbols;
+	auto result = sema.Analyze(astRoot, engine);
+	SymbolTableVisualizer::Visualize(result.symbols);
+	return result;
 }
 } // namespace
 
@@ -105,9 +105,12 @@ std::optional<FrontendResult> Run(const std::filesystem::path& sourceFile, const
 
 	auto cstRoot = RunParserPhase(tokens, context, sourceFile);
 	auto astRoot = RunAstConversionPhase(cstRoot, sourceFile);
-	auto symbols = RunSemanticPhase(*astRoot, engine);
+	auto semaResult = RunSemanticPhase(*astRoot, engine);
 	if (engine.HasErrors()) return std::nullopt;
 
-	return FrontendResult{std::move(astRoot), std::move(symbols)};
+	return FrontendResult{
+		std::move(astRoot),
+		std::move(semaResult.symbols),
+		std::move(semaResult.functions)};
 }
 } // namespace FrontendPipline

@@ -26,6 +26,7 @@
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
+#include "src/compiler/ast/TypeInfo.h"
 #include "src/diagnostics/CompilationException.h"
 
 namespace
@@ -39,13 +40,126 @@ void AssertIsVariableNotRedeclared(bool isNew, const std::string& name)
 			.message = "Переменная уже объявлена в текущей области видимости: " + name});
 	}
 }
+
+void AssertIsLhsIdentifier(const Expr& lhs)
+{
+	if (!dynamic_cast<const IdentifierExpr*>(&lhs))
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Левая часть присваивания должна быть идентификатором"});
+	}
+}
+
+void AssertIsMutable(const SymbolInfo& info, const std::string& name)
+{
+	if (!info.isMutable)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Нельзя присвоить значение неизменяемой переменной: " + name});
+	}
+}
+
+void AssertIsTypesMatch(
+	const std::shared_ptr<TypeInfo>& expected,
+	const std::shared_ptr<TypeInfo>& actual,
+	const std::string& context)
+{
+	if (!expected || !actual)
+		return;
+	if (expected->GetName() != actual->GetName())
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Несовместимые типы в " + context
+			           + ": ожидался " + expected->GetName()
+			           + ", получен " + actual->GetName()});
+	}
+}
+
+void AssertIsBoolen(const std::shared_ptr<TypeInfo>& type, size_t line, size_t pos)
+{
+	if (!type)
+		return;
+	const auto* scalar = dynamic_cast<const ScalarTypeInfo*>(type.get());
+	if (!scalar || scalar->GetBaseType() != BaseType::Boolen)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Условие должно быть типа boolen, получен: " + type->GetName(),
+			.line = line,
+			.pos = pos});
+	}
+}
+
+void AssertIsArgCountMatch(size_t expected, size_t actual, const std::string& name)
+{
+	if (expected != actual)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Неверное количество аргументов при вызове функции " + name
+			           + ": ожидалось " + std::to_string(expected)
+			           + ", получено " + std::to_string(actual)});
+	}
+}
+
+void AssertIsFunctionExists(bool exists, const std::string& name)
+{
+	if (!exists)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Вызов необъявленной функции: " + name});
+	}
+}
+
+bool IsComparisonOp(BinaryOpKind op)
+{
+	return op == BinaryOpKind::Eq || op == BinaryOpKind::NotEq
+	    || op == BinaryOpKind::Less || op == BinaryOpKind::Greater
+	    || op == BinaryOpKind::LessEq || op == BinaryOpKind::GreaterEq;
+}
+
+bool IsLogicalOp(BinaryOpKind op)
+{
+	return op == BinaryOpKind::LogicalAnd || op == BinaryOpKind::LogicalOr;
+}
 } // namespace
 
 std::unordered_map<std::string, SymbolInfo> SemanticAnalyzer::Analyze(AstNode& root, DiagnosticEngine& engine)
 {
 	m_engine = &engine;
+	CollectFunctions(root);
 	root.Accept(*this);
 	return std::move(m_resolvedSymbols);
+}
+
+void SemanticAnalyzer::CollectFunctions(const AstNode& root)
+{
+	const auto* program = dynamic_cast<const ProgramNode*>(&root);
+	if (!program)
+		return;
+
+	for (const auto& decl : program->GetDeclarations())
+	{
+		const auto* fn = dynamic_cast<const FunctionDeclStmt*>(decl.get());
+		if (!fn)
+			continue;
+
+		FunctionInfo info;
+		info.returnType = ScalarTypeInfo::FromStrings(
+			fn->GetReturnTypeSign(), fn->GetReturnTypeName());
+
+		for (const auto& param : fn->GetParams())
+		{
+			auto paramType = ScalarTypeInfo::FromStrings(param.typeSign, param.typeName);
+			info.params.emplace_back(param.name, std::move(paramType));
+		}
+
+		m_functions[fn->GetName()] = std::move(info);
+	}
 }
 
 void SemanticAnalyzer::Visit(const ProgramNode& node)
@@ -59,9 +173,20 @@ void SemanticAnalyzer::Visit(const ProgramNode& node)
 void SemanticAnalyzer::Visit(const FunctionDeclStmt& node)
 {
 	m_nextSlot = 0;
+	m_currentReturnType = m_functions[node.GetName()].returnType;
+
 	m_table.EnterScope();
+	for (const auto& param : node.GetParams())
+	{
+		const uint32_t slot = m_nextSlot++;
+		auto paramType = ScalarTypeInfo::FromStrings(param.typeSign, param.typeName);
+		m_table.Declare(param.name, paramType, false, slot);
+		m_resolvedSymbols[param.name] = SymbolInfo{std::move(paramType), slot, false};
+	}
 	node.GetBody().Accept(*this);
 	m_table.LeaveScope();
+
+	m_currentReturnType = nullptr;
 }
 
 void SemanticAnalyzer::Visit(const BlockStmt& node)
@@ -74,27 +199,46 @@ void SemanticAnalyzer::Visit(const BlockStmt& node)
 
 void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 {
-	const uint32_t slot = m_nextSlot++;
-	const bool isMutable = node.GetModifier() == VarModifier::Var;
-	const bool isNew = m_table.Declare(node.GetName(), nullptr, isMutable, slot);
-	AssertIsVariableNotRedeclared(isNew, node.GetName());
-	m_resolvedSymbols[node.GetName()] = SymbolInfo{nullptr, slot, isMutable};
-
 	if (node.GetInit())
 	{
 		node.GetInit()->Accept(*this);
 	}
+
+	const uint32_t slot = m_nextSlot++;
+	const bool isMutable = node.GetModifier() == VarModifier::Var;
+	auto type = ScalarTypeInfo::FromStrings(node.GetTypeSign(), node.GetTypeName());
+
+	const bool isNew = m_table.Declare(node.GetName(), type, isMutable, slot);
+	AssertIsVariableNotRedeclared(isNew, node.GetName());
+	m_resolvedSymbols[node.GetName()] = SymbolInfo{type, slot, isMutable};
 }
 
 void SemanticAnalyzer::Visit(const AssignStmt& node)
 {
+	AssertIsLhsIdentifier(node.GetLhs());
+
 	node.GetLhs().Accept(*this);
 	node.GetRhs().Accept(*this);
+
+	const auto& ident = static_cast<const IdentifierExpr&>(node.GetLhs());
+	auto info = m_table.Resolve(ident.GetName());
+	if (!info)
+		return;
+
+	AssertIsMutable(*info, ident.GetName());
+	AssertIsTypesMatch(
+		node.GetLhs().GetResolvedType(),
+		node.GetRhs().GetResolvedType(),
+		"присваивании переменной " + ident.GetName());
 }
 
 void SemanticAnalyzer::Visit(const IfStmt& node)
 {
 	node.GetCondition().Accept(*this);
+	AssertIsBoolen(
+		node.GetCondition().GetResolvedType(),
+		node.GetCondition().GetRange().start.line,
+		node.GetCondition().GetRange().start.pos);
 
 	m_table.EnterScope();
 	node.GetThenBlock().Accept(*this);
@@ -137,6 +281,10 @@ void SemanticAnalyzer::Visit(const RepStmt& node)
 void SemanticAnalyzer::Visit(const RunStmt& node)
 {
 	node.GetCondition().Accept(*this);
+	AssertIsBoolen(
+		node.GetCondition().GetResolvedType(),
+		node.GetCondition().GetRange().start.line,
+		node.GetCondition().GetRange().start.pos);
 	m_table.EnterScope();
 	node.GetBody().Accept(*this);
 	m_table.LeaveScope();
@@ -148,14 +296,22 @@ void SemanticAnalyzer::Visit(const DoWhileStmt& node)
 	node.GetBody().Accept(*this);
 	m_table.LeaveScope();
 	node.GetCondition().Accept(*this);
+	AssertIsBoolen(
+		node.GetCondition().GetResolvedType(),
+		node.GetCondition().GetRange().start.line,
+		node.GetCondition().GetRange().start.pos);
 }
 
 void SemanticAnalyzer::Visit(const ReturnStmt& node)
 {
-	if (node.GetValue())
-	{
-		node.GetValue()->Accept(*this);
-	}
+	if (!node.GetValue())
+		return;
+
+	node.GetValue()->Accept(*this);
+	AssertIsTypesMatch(
+		m_currentReturnType,
+		node.GetValue()->GetResolvedType(),
+		"возвращаемом значении функции");
 }
 
 void SemanticAnalyzer::Visit(const ExprStmt& node)
@@ -163,14 +319,48 @@ void SemanticAnalyzer::Visit(const ExprStmt& node)
 	node.GetExpr().Accept(*this);
 }
 
-void SemanticAnalyzer::Visit(const IdentifierExpr& /*node*/)
+void SemanticAnalyzer::Visit(const IdentifierExpr& node)
 {
+	auto result = m_table.Resolve(node.GetName());
+	if (!result)
+	{
+		m_engine->Report(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Использование необъявленной переменной: " + node.GetName(),
+			.line = node.GetRange().start.line,
+			.pos = node.GetRange().start.pos});
+		return;
+	}
+	const_cast<IdentifierExpr&>(node).SetResolvedType(result->type);
 }
 
 void SemanticAnalyzer::Visit(const BinaryExpr& node)
 {
 	node.GetLeft().Accept(*this);
 	node.GetRight().Accept(*this);
+
+	auto leftType = node.GetLeft().GetResolvedType();
+	auto rightType = node.GetRight().GetResolvedType();
+
+	if (leftType && rightType && leftType->GetName() != rightType->GetName())
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Несовместимые типы операндов: "
+			           + leftType->GetName() + " и " + rightType->GetName()});
+	}
+
+	std::shared_ptr<TypeInfo> resultType;
+	if (IsComparisonOp(node.GetOp()) || IsLogicalOp(node.GetOp()))
+	{
+		resultType = ScalarTypeInfo::Make(BaseType::Boolen);
+	}
+	else
+	{
+		resultType = leftType;
+	}
+
+	const_cast<BinaryExpr&>(node).SetResolvedType(resultType);
 }
 
 void SemanticAnalyzer::Visit(const UnaryExpr& node)
@@ -184,18 +374,40 @@ void SemanticAnalyzer::Visit(const FunctionCallExpr& node)
 	{
 		arg->Accept(*this);
 	}
+
+	AssertIsFunctionExists(m_functions.contains(node.GetName()), node.GetName());
+
+	const auto& fn = m_functions[node.GetName()];
+	AssertIsArgCountMatch(fn.params.size(), node.GetArgs().size(), node.GetName());
+
+	for (size_t i = 0; i < fn.params.size(); ++i)
+	{
+		AssertIsTypesMatch(
+			fn.params[i].second,
+			node.GetArgs()[i]->GetResolvedType(),
+			"аргументе " + fn.params[i].first + " функции " + node.GetName());
+	}
+
+	const_cast<FunctionCallExpr&>(node).SetResolvedType(fn.returnType);
 }
 
-void SemanticAnalyzer::Visit(const NumberExpr& /*node*/)
+void SemanticAnalyzer::Visit(const NumberExpr& node)
 {
+	auto base = node.IsFloat() ? BaseType::Double : BaseType::Number;
+	auto type = ScalarTypeInfo::Make(base);
+	const_cast<NumberExpr&>(node).SetResolvedType(type);
 }
 
-void SemanticAnalyzer::Visit(const StringExpr& /*node*/)
+void SemanticAnalyzer::Visit(const StringExpr& node)
 {
+	auto type = ScalarTypeInfo::Make(BaseType::String);
+	const_cast<StringExpr&>(node).SetResolvedType(type);
 }
 
-void SemanticAnalyzer::Visit(const BoolExpr& /*node*/)
+void SemanticAnalyzer::Visit(const BoolExpr& node)
 {
+	auto type = ScalarTypeInfo::Make(BaseType::Boolen);
+	const_cast<BoolExpr&>(node).SetResolvedType(type);
 }
 
 void SemanticAnalyzer::Visit(const ArrayLiteralExpr& /*node*/)

@@ -3,15 +3,24 @@
 #include "src/compiler/ast/AstNode.h"
 #include "src/compiler/ast/IAstVisitor.h"
 #include "src/diagnostics/DiagnosticEngine.h"
+#include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 class SemanticAnalyzer : public IAstVisitor
 {
 public:
 	[[nodiscard]] std::unordered_map<std::string, SymbolInfo> Analyze(AstNode& root, DiagnosticEngine& engine);
 
+	struct FunctionInfo
+	{
+		std::shared_ptr<TypeInfo> returnType;
+		std::vector<std::pair<std::string, std::shared_ptr<TypeInfo>>> params;
+	};
+
 private:
+	void CollectFunctions(const AstNode& root);
 	void Visit(const ProgramNode& node) override;
 	void Visit(const FunctionDeclStmt& node) override;
 	void Visit(const BlockStmt& node) override;
@@ -42,5 +51,7 @@ private:
 	SymbolTable m_table;
 	DiagnosticEngine* m_engine = nullptr;
 	uint32_t m_nextSlot = 0;
-	std::unordered_map<std::string, SymbolInfo> m_resolvedSymbols;
+	std::unordered_map<std::string, SymbolInfo>    m_resolvedSymbols;
+	std::unordered_map<std::string, FunctionInfo>  m_functions;
+	std::shared_ptr<TypeInfo>                      m_currentReturnType;
 };

@@ -2,10 +2,12 @@
 #include "src/compiler/ast/visualizer/AstVisualizer.h"
 #include "src/compiler/cst_to_ast/CstToAstConverter.h"
 #include "src/compiler/lexer/Lexer.h"
+#include "src/compiler/lexer/visualizer/LexerVisualizer.h"
 #include "src/compiler/reader/SourceLoader.h"
 #include "src/compiler/sema/SemanticAnalyzer.h"
 #include "src/compiler/sema/SymbolTableVisualizer.h"
 #include "src/diagnostics/CompilationException.h"
+#include "src/grammar/cst/CstVisualizer.h"
 #include "src/grammar/lalr/LalrParser.h"
 #include "src/utils/logger/timer/ScopedTimer.h"
 
@@ -60,7 +62,9 @@ SourceCode ReadSourceFile(const std::filesystem::path& filePath)
 TokenStream RunLexerPhase(const SourceCode& sourceCode, DiagnosticEngine& engine)
 {
 	ScopedTimer t("Лексический анализ");
-	return Lexer::Tokenize(sourceCode, engine);
+	auto tokens = Lexer::Tokenize(sourceCode, engine);
+	LexerVisualizer::Visualize(tokens, engine, false);
+	return tokens;
 }
 
 CstTree RunParserPhase(const TokenStream& tokens, const LanguageContext& context, const std::filesystem::path& sourceFile)
@@ -68,6 +72,7 @@ CstTree RunParserPhase(const TokenStream& tokens, const LanguageContext& context
 	ScopedTimer t("Синтаксический анализ");
 	auto cstRoot = LalrParser::ParseTokenStream(*context.lalrTable, tokens, true);
 	AssertIsCstValid(cstRoot.get(), sourceFile);
+	CstVisualizer::Visualize(*cstRoot);
 	return cstRoot;
 }
 

@@ -477,9 +477,6 @@ std::unique_ptr<CstNode> ParseTokenStream(
 		inputTokens.push_back(MapTokenToCstInput(token));
 	}
 
-	auto cst = ParseToTree(table, inputTokens);
-	CstVisualizer::Visualize(*cst);
-
-	return cst;
+	return  ParseToTree(table, inputTokens);
 }
 } // namespace LalrParser

@@ -15,6 +15,7 @@
 #include "src/compiler/ast/RunStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
 #include "src/compiler/sema/SymbolTable.h"
+#include "src/compiler/stdlib/NativeRegistry.h"
 #include "src/compiler/vm/value/Value.h"
 
 #include <stdexcept>
@@ -387,14 +388,10 @@ void CodeGenerator::Visit(const FunctionCallExpr& node)
 
 	const auto argCount = static_cast<uint32_t>(node.GetArgs().size());
 
-	static const std::unordered_map<std::string, uint32_t> nativeIds = {
-		{"print", 0},
-	};
-
-	if (const auto it = nativeIds.find(node.GetName()); it != nativeIds.end())
+	if (const auto* native = NativeRegistry::FindByName(node.GetName()))
 	{
 		m_chunk.WriteOpCode(OpCode::CallNative, m_currentLine);
-		m_chunk.WriteUint32(it->second, m_currentLine);
+		m_chunk.WriteUint32(native->id, m_currentLine);
 		m_chunk.WriteUint32(argCount, m_currentLine);
 		return;
 	}

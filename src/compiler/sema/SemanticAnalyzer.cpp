@@ -23,10 +23,11 @@
 #include "src/compiler/ast/RunStmt.h"
 #include "src/compiler/ast/StringExpr.h"
 #include "src/compiler/ast/StructDeclStmt.h"
+#include "src/compiler/ast/TypeInfo.h"
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
-#include "src/compiler/ast/TypeInfo.h"
+#include "src/compiler/stdlib/NativeRegistry.h"
 #include "src/diagnostics/CompilationException.h"
 
 namespace
@@ -73,8 +74,8 @@ void AssertIsTypesMatch(
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Semantic,
 			.message = "Несовместимые типы в " + context
-			           + ": ожидался " + expected->GetName()
-			           + ", получен " + actual->GetName()});
+				+ ": ожидался " + expected->GetName()
+				+ ", получен " + actual->GetName()});
 	}
 }
 
@@ -100,8 +101,8 @@ void AssertIsArgCountMatch(size_t expected, size_t actual, const std::string& na
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Semantic,
 			.message = "Неверное количество аргументов при вызове функции " + name
-			           + ": ожидалось " + std::to_string(expected)
-			           + ", получено " + std::to_string(actual)});
+				+ ": ожидалось " + std::to_string(expected)
+				+ ", получено " + std::to_string(actual)});
 	}
 }
 
@@ -118,8 +119,8 @@ void AssertIsFunctionExists(bool exists, const std::string& name)
 bool IsComparisonOp(BinaryOpKind op)
 {
 	return op == BinaryOpKind::Eq || op == BinaryOpKind::NotEq
-	    || op == BinaryOpKind::Less || op == BinaryOpKind::Greater
-	    || op == BinaryOpKind::LessEq || op == BinaryOpKind::GreaterEq;
+		|| op == BinaryOpKind::Less || op == BinaryOpKind::Greater
+		|| op == BinaryOpKind::LessEq || op == BinaryOpKind::GreaterEq;
 }
 
 bool IsLogicalOp(BinaryOpKind op)
@@ -138,10 +139,13 @@ SemanticAnalyzer::SemaResult SemanticAnalyzer::Analyze(AstNode& root, Diagnostic
 
 void SemanticAnalyzer::CollectFunctions(const AstNode& root)
 {
-	FunctionInfo printInfo;
-	printInfo.returnType = ScalarTypeInfo::Make(BaseType::Voided);
-	printInfo.params.emplace_back("value", ScalarTypeInfo::Make(BaseType::Number));
-	m_functions["print"] = std::move(printInfo);
+	for (const auto& native : NativeRegistry::GetAll())
+	{
+		FunctionInfo info;
+		info.returnType = native.returnType;
+		info.params = native.params;
+		m_functions[native.name] = std::move(info);
+	}
 
 	const auto* program = dynamic_cast<const ProgramNode*>(&root);
 	if (!program)
@@ -352,7 +356,7 @@ void SemanticAnalyzer::Visit(const BinaryExpr& node)
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Semantic,
 			.message = "Несовместимые типы операндов: "
-			           + leftType->GetName() + " и " + rightType->GetName()});
+				+ leftType->GetName() + " и " + rightType->GetName()});
 	}
 
 	std::shared_ptr<TypeInfo> resultType;

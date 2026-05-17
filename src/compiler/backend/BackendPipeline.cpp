@@ -1,13 +1,13 @@
 #include "BackendPipeline.h"
 #include "src/compiler/backend/nasm/NasmCodeGenerator.h"
 #include "src/compiler/codegen/CodeGenerator.h"
+#include "src/compiler/stdlib/NativeRegistry.h"
 #include "src/compiler/vm/machine/VirtualMachine.h"
 #include "src/diagnostics/CompilationException.h"
 #include "src/utils/logger/Logger.h"
 #include "src/utils/logger/timer/ScopedTimer.h"
 
 #include <fstream>
-#include <iostream>
 
 namespace
 {
@@ -24,13 +24,10 @@ void AssertIsFileOpenedForWrite(const std::ofstream& file, const std::filesystem
 
 void RegisterStdlibFunctions(VirtualMachine& vm)
 {
-	vm.RegisterNativeFunction(0, [](std::span<const Value> args) -> Value {
-		if (!args.empty())
-		{
-			std::cout << args[0].As<uint32_t>() << std::endl;
-		}
-		return Value(static_cast<uint32_t>(0));
-	});
+	for (const auto& native : NativeRegistry::GetAll())
+	{
+		vm.RegisterNativeFunction(native.id, native.callback);
+	}
 }
 
 Chunk GenerateBytecode(FrontendPipline::FrontendResult& result)

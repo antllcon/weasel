@@ -127,6 +127,22 @@ bool IsLogicalOp(BinaryOpKind op)
 {
 	return op == BinaryOpKind::LogicalAnd || op == BinaryOpKind::LogicalOr;
 }
+
+void ReportIfTypesMismatch(
+	DiagnosticEngine& engine,
+	const std::shared_ptr<TypeInfo>& left,
+	const std::shared_ptr<TypeInfo>& right,
+	const SourceRange& range)
+{
+	if (!left || !right || left->GetName() == right->GetName())
+		return;
+
+	engine.Report(DiagnosticData{
+		.phase = CompilerPhase::Semantic,
+		.message = "Несовместимые типы операндов: " + left->GetName() + " и " + right->GetName(),
+		.line = range.start.line,
+		.pos = range.start.pos});
+}
 } // namespace
 
 SemanticAnalyzer::SemaResult SemanticAnalyzer::Analyze(AstNode& root, DiagnosticEngine& engine)
@@ -348,26 +364,14 @@ void SemanticAnalyzer::Visit(const BinaryExpr& node)
 	node.GetLeft().Accept(*this);
 	node.GetRight().Accept(*this);
 
-	auto leftType = node.GetLeft().GetResolvedType();
-	auto rightType = node.GetRight().GetResolvedType();
+	const auto leftType = node.GetLeft().GetResolvedType();
+	const auto rightType = node.GetRight().GetResolvedType();
 
-	if (leftType && rightType && leftType->GetName() != rightType->GetName())
-	{
-		throw CompilationException(DiagnosticData{
-			.phase = CompilerPhase::Semantic,
-			.message = "Несовместимые типы операндов: "
-				+ leftType->GetName() + " и " + rightType->GetName()});
-	}
+	ReportIfTypesMismatch(*m_engine, leftType, rightType, node.GetRange());
 
-	std::shared_ptr<TypeInfo> resultType;
-	if (IsComparisonOp(node.GetOp()) || IsLogicalOp(node.GetOp()))
-	{
-		resultType = ScalarTypeInfo::Make(BaseType::Boolen);
-	}
-	else
-	{
-		resultType = leftType;
-	}
+	const auto resultType = (IsComparisonOp(node.GetOp()) || IsLogicalOp(node.GetOp()))
+		? ScalarTypeInfo::Make(BaseType::Boolen)
+		: leftType;
 
 	const_cast<BinaryExpr&>(node).SetResolvedType(resultType);
 }

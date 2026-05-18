@@ -38,10 +38,26 @@ void AssertIsLhsIdentifier(bool isId)
 		throw std::runtime_error("Левая часть присваивания должна быть идентификатором");
 	}
 }
+
+void EmitNativeCall(Chunk& chunk, uint32_t nativeId, uint32_t argCount, uint32_t line)
+{
+	chunk.WriteOpCode(OpCode::CallNative, line);
+	chunk.WriteUint32(nativeId, line);
+	chunk.WriteUint32(argCount, line);
+}
+
+uint32_t EmitCallWithPlaceholder(Chunk& chunk, uint32_t argCount, uint32_t line)
+{
+	chunk.WriteOpCode(OpCode::Call, line);
+	const uint32_t patchOffset = chunk.GetCodeSize();
+	chunk.WriteUint32(0, line);
+	chunk.WriteUint32(argCount, line);
+	return patchOffset;
+}
 } // namespace
 
 CodeGenerator::CodeGenerator(
-	std::unordered_map<std::string, SymbolInfo>                     symbols,
+	std::unordered_map<std::string, SymbolInfo> symbols,
 	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions)
 	: m_symbols(std::move(symbols))
 	, m_functions(std::move(functions))
@@ -390,15 +406,10 @@ void CodeGenerator::Visit(const FunctionCallExpr& node)
 
 	if (const auto* native = NativeRegistry::FindByName(node.GetName()))
 	{
-		m_chunk.WriteOpCode(OpCode::CallNative, m_currentLine);
-		m_chunk.WriteUint32(native->id, m_currentLine);
-		m_chunk.WriteUint32(argCount, m_currentLine);
+		EmitNativeCall(m_chunk, native->id, argCount, m_currentLine);
 		return;
 	}
 
-	m_chunk.WriteOpCode(OpCode::Call, m_currentLine);
-	const uint32_t patchOffset = m_chunk.GetCodeSize();
-	m_chunk.WriteUint32(0, m_currentLine);
-	m_chunk.WriteUint32(argCount, m_currentLine);
-	m_unresolvedCalls.push_back({patchOffset, node.GetName()});
+	const uint32_t patchOffset = EmitCallWithPlaceholder(m_chunk, argCount, m_currentLine);
+	m_unresolvedCalls.push_back({ patchOffset, node.GetName() });
 }

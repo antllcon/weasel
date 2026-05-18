@@ -10,14 +10,6 @@ namespace
 {
 using SortedSymbols = std::vector<std::pair<std::string, SymbolInfo>>;
 
-void AssertIsNotEmpty(const std::unordered_map<std::string, SymbolInfo>& symbols)
-{
-	if (symbols.empty())
-	{
-		throw std::runtime_error("Таблица символов пуста");
-	}
-}
-
 SortedSymbols SortBySlot(const std::unordered_map<std::string, SymbolInfo>& symbols)
 {
 	SortedSymbols sorted(symbols.begin(), symbols.end());
@@ -70,7 +62,11 @@ std::string BuildTable(const SortedSymbols& symbols)
 
 void SymbolTableVisualizer::Visualize(const std::unordered_map<std::string, SymbolInfo>& symbols)
 {
-	AssertIsNotEmpty(symbols);
+	if (symbols.empty())
+	{
+		return;
+	}
+
 	auto sorted = SortBySlot(symbols);
 	Logger::Log(BuildTable(sorted));
 }

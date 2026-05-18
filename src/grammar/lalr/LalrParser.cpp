@@ -1,12 +1,9 @@
 #include "LalrParser.h"
-
 #include "LalrParseStepsPrinter.h"
 #include "src/compiler/lexer/Token.h"
+#include "src/diagnostics/CompilationException.h"
 #include "src/grammar/cst/CstNode.h"
-#include "src/grammar/cst/CstVisualizer.h"
-
 #include <sstream>
-#include <stdexcept>
 
 namespace
 {
@@ -14,16 +11,21 @@ void AssertIsTokensNotEmpty(bool isEmpty)
 {
 	if (isEmpty)
 	{
-		throw std::runtime_error("Входная строка пуста, разбор LALR(1) невозможен");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Parser,
+			.message = "Входная строка пуста, разбор LALR(1) невозможен"});
 	}
 }
 
-void AssertIsActionFound(bool isFound, const std::string& token, size_t pos)
+void AssertIsActionFound(bool isFound, const std::string& token, size_t line, size_t pos)
 {
 	if (!isFound)
 	{
-		throw std::runtime_error(
-			"Синтаксическая ошибка: непредвиденный токен '" + token + "' на позиции " + std::to_string(pos));
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Parser,
+			.message = "Непредвиденный токен '" + token + "'",
+			.line = line,
+			.pos = pos});
 	}
 }
 
@@ -31,11 +33,11 @@ void AssertIsGotoFound(bool isFound, const std::string& nonTerminal)
 {
 	if (!isFound)
 	{
-		throw std::runtime_error(
-			"Внутренняя ошибка таблиц: отсутствует переход (Goto) для '" + nonTerminal + "'");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Parser,
+			.message = "Внутренняя ошибка: отсутствует переход (Goto) для '" + nonTerminal + "'"});
 	}
 }
-
 bool IsDoWhileRun(const std::vector<Token>& tokens, size_t runIdx)
 {
 	for (size_t k = runIdx; k > 0; --k)
@@ -327,10 +329,16 @@ std::unique_ptr<CstNode> ParseToTree(
 	while (!isAccepted)
 	{
 		const std::string lookahead = ip < tokens.size() ? tokens[ip].symbol : END_SYMBOL;
-		const size_t currentState = stateStack.back();
 
+		const size_t currentLine = ip < tokens.size() ? tokens[ip].location.line : tokens.empty() ? 0
+																								  : tokens.back().location.line;
+		const size_t currentPos = ip < tokens.size() ? tokens[ip].location.pos : tokens.empty() ? 0
+																								: tokens.back().location.pos;
+
+		const size_t currentState = stateStack.back();
 		const auto& actions = table.actionTable[currentState];
-		AssertIsActionFound(actions.contains(lookahead), lookahead, ip);
+
+		AssertIsActionFound(actions.contains(lookahead), lookahead, currentLine, currentPos);
 
 		const auto& [type, ruleIndex, altIndex] = actions.at(lookahead);
 
@@ -402,7 +410,7 @@ std::vector<LalrParseStep> ParseToSteps(
 		{
 			step.action = "Error (Unexpected token)";
 			steps.push_back(std::move(step));
-			AssertIsActionFound(false, lookahead, ip);
+			break;
 		}
 
 		const auto& [type, ruleIndex, altIndex] = actions.at(lookahead);
@@ -477,6 +485,6 @@ std::unique_ptr<CstNode> ParseTokenStream(
 		inputTokens.push_back(MapTokenToCstInput(token));
 	}
 
-	return  ParseToTree(table, inputTokens);
+	return ParseToTree(table, inputTokens);
 }
 } // namespace LalrParser

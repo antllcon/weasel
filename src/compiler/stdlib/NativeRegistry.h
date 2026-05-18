@@ -20,6 +20,6 @@ struct NativeFunction
 
 namespace NativeRegistry
 {
-const std::vector<NativeFunction>& GetAll();
-const NativeFunction* FindByName(const std::string& name);
+const std::vector<NativeFunction>& GetAll() noexcept;
+const NativeFunction* FindByName(const std::string& name) noexcept;
 } // namespace NativeRegistry

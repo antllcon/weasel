@@ -24,7 +24,7 @@ std::string PhaseToString(CompilerPhase phase)
 	case CompilerPhase::Fatal:
 		return "Fatal";
 	default:
-			return "Fatal";
+		return "Fatal";
 	}
 }
 } // namespace
@@ -56,13 +56,13 @@ std::string DiagnosticEngine::FormatMessage(const DiagnosticData& data)
 
 	if (!data.expected.empty() || !data.actual.empty())
 	{
-		ss << "\n  -> Ожидалось: " << (data.expected.empty() ? "нет данных" : data.expected);
-		ss << "\n  -> Получено:  " << (data.actual.empty() ? "нет данных" : data.actual);
+		ss << "\n\t\t-> Ожидалось: " << (data.expected.empty() ? "нет данных" : data.expected);
+		ss << "\n\t\t-> Получено:  " << (data.actual.empty() ? "нет данных" : data.actual);
 	}
 
 	if (data.line != 0)
 	{
-		ss << "\n  -> Строка " << data.line << ", позиция " << data.pos;
+		ss << "\n\t\t-> Строка " << data.line << ", позиция " << data.pos;
 		if (!data.filePath.empty())
 		{
 			ss << " (" << data.filePath.string() << ")";

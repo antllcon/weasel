@@ -13,7 +13,8 @@ class CodeGenerator final : public IAstVisitor
 {
 public:
 	explicit CodeGenerator(
-		std::unordered_map<std::string, SymbolInfo>                     symbols,
+		std::unordered_map<const AstNode*, SymbolInfo>               symbols,
+		std::unordered_map<const AstNode*, std::vector<SymbolInfo>>  repIterators,
 		std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions);
 
 	[[nodiscard]] Chunk Generate(const AstNode& root);
@@ -55,10 +56,12 @@ private:
 	void EmitLogicalNot();
 	void EmitConstantU32(uint32_t value);
 
-	std::unordered_map<std::string, SymbolInfo>                     m_symbols;
+	std::unordered_map<const AstNode*, SymbolInfo>               m_symbols;
+	std::unordered_map<const AstNode*, std::vector<SymbolInfo>>  m_repIterators;
 	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> m_functions;
-	std::unordered_map<std::string, uint32_t>                       m_functionOffsets;
-	std::vector<UnresolvedCall>                                     m_unresolvedCalls;
+	std::unordered_map<std::string, uint32_t>                    m_functionOffsets;
+	std::vector<UnresolvedCall>                                  m_unresolvedCalls;
 	Chunk    m_chunk;
 	uint32_t m_currentLine = 0;
+	uint32_t m_localCount = 0;
 };

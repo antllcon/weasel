@@ -57,9 +57,11 @@ uint32_t EmitCallWithPlaceholder(Chunk& chunk, uint32_t argCount, uint32_t line)
 } // namespace
 
 CodeGenerator::CodeGenerator(
-	std::unordered_map<std::string, SymbolInfo> symbols,
+	std::unordered_map<const AstNode*, SymbolInfo> symbols,
+	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators,
 	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions)
 	: m_symbols(std::move(symbols))
+	, m_repIterators(std::move(repIterators))
 	, m_functions(std::move(functions))
 {
 }
@@ -172,10 +174,17 @@ void CodeGenerator::Visit(const FunctionDeclStmt& node)
 
 void CodeGenerator::Visit(const BlockStmt& node)
 {
+	const uint32_t savedCount = m_localCount;
 	for (const auto& stmt : node.GetStmts())
 	{
 		stmt->Accept(*this);
 	}
+	const uint32_t pops = m_localCount - savedCount;
+	for (uint32_t i = 0; i < pops; ++i)
+	{
+		m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+	}
+	m_localCount = savedCount;
 }
 
 void CodeGenerator::Visit(const VarDeclStmt& node)
@@ -188,6 +197,7 @@ void CodeGenerator::Visit(const VarDeclStmt& node)
 	{
 		EmitConstantU32(0);
 	}
+	++m_localCount;
 }
 
 void CodeGenerator::Visit(const ExprStmt& node)
@@ -203,7 +213,7 @@ void CodeGenerator::Visit(const AssignStmt& node)
 	const auto* id = dynamic_cast<const IdentifierExpr*>(&node.GetLhs());
 	AssertIsLhsIdentifier(id != nullptr);
 
-	const auto it = m_symbols.find(id->GetName());
+	const auto it = m_symbols.find(id);
 	AssertIsIdentifierResolved(it != m_symbols.end(), id->GetName());
 
 	m_chunk.WriteOpCode(OpCode::StoreLocal, m_currentLine);
@@ -236,10 +246,9 @@ void CodeGenerator::Visit(const IfStmt& node)
 
 void CodeGenerator::Visit(const RepStmt& node)
 {
-	const std::string& iterName = node.GetIterators()[0];
-	const auto it = m_symbols.find(iterName);
-	AssertIsIdentifierResolved(it != m_symbols.end(), iterName);
-	const uint32_t iterSlot = it->second.stackSlot;
+	const auto repIt = m_repIterators.find(&node);
+	AssertIsIdentifierResolved(repIt != m_repIterators.end(), node.GetIterators()[0]);
+	const uint32_t iterSlot = repIt->second[0].stackSlot;
 
 	node.GetRanges()[0]->Accept(*this);
 
@@ -269,6 +278,7 @@ void CodeGenerator::Visit(const RepStmt& node)
 	m_chunk.WriteUint32(checkIp, m_currentLine);
 
 	m_chunk.PatchUint32(patchEnd, m_chunk.GetCodeSize());
+	m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
 }
 
 void CodeGenerator::Visit(const ReturnStmt& node)
@@ -356,7 +366,7 @@ void CodeGenerator::Visit(const NumberExpr& node)
 
 void CodeGenerator::Visit(const IdentifierExpr& node)
 {
-	const auto it = m_symbols.find(node.GetName());
+	const auto it = m_symbols.find(&node);
 	AssertIsIdentifierResolved(it != m_symbols.end(), node.GetName());
 	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
 	m_chunk.WriteUint32(it->second.stackSlot, m_currentLine);

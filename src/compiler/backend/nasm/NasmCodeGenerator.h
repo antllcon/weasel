@@ -1,15 +1,22 @@
 #pragma once
 #include "src/compiler/ast/AstNode.h"
 #include "src/compiler/ast/IAstVisitor.h"
+#include "src/compiler/sema/SemanticAnalyzer.h"
+#include "src/compiler/sema/SymbolTable.h"
 #include <cstdint>
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 class NasmCodeGenerator final : public IAstVisitor
 {
 public:
-	NasmCodeGenerator();
+	explicit NasmCodeGenerator(
+		std::unordered_map<const AstNode*, SymbolInfo>               symbols,
+		std::unordered_map<const AstNode*, uint32_t>                 varDeclSlots,
+		std::unordered_map<const AstNode*, std::vector<SymbolInfo>>  repIterators,
+		std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions);
 
 	[[nodiscard]] std::string Generate(const AstNode& root);
 
@@ -42,7 +49,7 @@ public:
 
 private:
 	std::string MakeLabel(const std::string& prefix);
-	[[nodiscard]] int32_t GetVarOffset(const std::string& name) const;
+	int32_t SlotToOffset(uint32_t slot) const;
 
 	void EmitExprToRax(const class Expr& expr);
 	void EnterFunction(const class FunctionDeclStmt& node);
@@ -54,6 +61,8 @@ private:
 	std::ostringstream m_out;
 	uint32_t m_labelCounter = 0;
 
-	std::unordered_map<std::string, int32_t> m_varOffsets;
-	int32_t m_nextOffset = 0;
+	std::unordered_map<const AstNode*, SymbolInfo>               m_symbols;
+	std::unordered_map<const AstNode*, uint32_t>                 m_varDeclSlots;
+	std::unordered_map<const AstNode*, std::vector<SymbolInfo>>  m_repIterators;
+	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> m_functions;
 };

@@ -17,9 +17,11 @@ namespace FrontendPipline
 
 struct FrontendResult
 {
-	std::unique_ptr<AstNode>                                        ast;
-	std::unordered_map<std::string, SymbolInfo>                     symbols;
-	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions;
+	std::unique_ptr<AstNode>                                         ast;
+	std::unordered_map<const AstNode*, SymbolInfo>                   symbols;
+	std::unordered_map<const AstNode*, uint32_t>                     varDeclSlots;
+	std::unordered_map<const AstNode*, std::vector<SymbolInfo>>      repIterators;
+	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo>  functions;
 };
 
 [[nodiscard]] std::optional<FrontendResult> Run(

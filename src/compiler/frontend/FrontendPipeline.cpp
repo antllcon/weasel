@@ -111,6 +111,8 @@ std::optional<FrontendResult> Run(const std::filesystem::path& sourceFile, const
 	return FrontendResult{
 		std::move(astRoot),
 		std::move(semaResult.symbols),
+		std::move(semaResult.varDeclSlots),
+		std::move(semaResult.repIterators),
 		std::move(semaResult.functions)};
 }
 } // namespace FrontendPipline

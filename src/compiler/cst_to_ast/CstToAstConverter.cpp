@@ -423,6 +423,7 @@ std::unique_ptr<Stmt> ConvertIfStmt(const CstNode& node)
 std::unique_ptr<Stmt> ConvertStmt(const CstNode& node)
 {
 	const auto& firstChild = *node.children[0];
+	if (firstChild.label == "{") return ConvertStmtList(*node.children[1]);
 	if (firstChild.label == "VarDecl") return ConvertVarDecl(firstChild);
 	if (firstChild.label == "AssignStmt") return ConvertAssignStmt(firstChild);
 	if (firstChild.label == "IfStmt") return ConvertIfStmt(firstChild);

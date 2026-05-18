@@ -28,55 +28,11 @@
 #include "src/compiler/ast/VarDeclStmt.h"
 
 #include <stdexcept>
-#include <vector>
 
 namespace
 {
 const char* ArgRegisters[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
 constexpr int MaxRegArgs = 6;
-
-uint32_t CountVarDecls(const Stmt& stmt);
-
-uint32_t CountVarDeclsInBlock(const BlockStmt& block)
-{
-	uint32_t count = 0;
-	for (const auto& s : block.GetStmts())
-	{
-		count += CountVarDecls(*s);
-	}
-	return count;
-}
-
-uint32_t CountVarDecls(const Stmt& stmt)
-{
-	if (const auto* v = dynamic_cast<const VarDeclStmt*>(&stmt))
-	{
-		(void)v;
-		return 1;
-	}
-	if (const auto* b = dynamic_cast<const BlockStmt*>(&stmt))
-	{
-		return CountVarDeclsInBlock(*b);
-	}
-	if (const auto* i = dynamic_cast<const IfStmt*>(&stmt))
-	{
-		uint32_t count = CountVarDeclsInBlock(i->GetThenBlock());
-		if (const Stmt* el = i->GetElseNode())
-		{
-			count += CountVarDecls(*el);
-		}
-		return count;
-	}
-	if (const auto* r = dynamic_cast<const RunStmt*>(&stmt))
-	{
-		return CountVarDecls(r->GetBody());
-	}
-	if (const auto* r = dynamic_cast<const RepStmt*>(&stmt))
-	{
-		return 1 + CountVarDecls(r->GetOriginalBody());
-	}
-	return 0;
-}
 
 uint32_t AlignTo16(uint32_t size)
 {
@@ -84,7 +40,17 @@ uint32_t AlignTo16(uint32_t size)
 }
 }
 
-NasmCodeGenerator::NasmCodeGenerator() = default;
+NasmCodeGenerator::NasmCodeGenerator(
+	std::unordered_map<const AstNode*, SymbolInfo>               symbols,
+	std::unordered_map<const AstNode*, uint32_t>                 varDeclSlots,
+	std::unordered_map<const AstNode*, std::vector<SymbolInfo>>  repIterators,
+	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions)
+	: m_symbols(std::move(symbols))
+	, m_varDeclSlots(std::move(varDeclSlots))
+	, m_repIterators(std::move(repIterators))
+	, m_functions(std::move(functions))
+{
+}
 
 std::string NasmCodeGenerator::Generate(const AstNode& root)
 {
@@ -105,14 +71,9 @@ std::string NasmCodeGenerator::MakeLabel(const std::string& prefix)
 	return "." + prefix + "_" + std::to_string(m_labelCounter++);
 }
 
-int32_t NasmCodeGenerator::GetVarOffset(const std::string& name) const
+int32_t NasmCodeGenerator::SlotToOffset(uint32_t slot) const
 {
-	const auto it = m_varOffsets.find(name);
-	if (it == m_varOffsets.end())
-	{
-		throw std::runtime_error("Переменная не найдена при генерации NASM: " + name);
-	}
-	return it->second;
+	return -static_cast<int32_t>(slot + 1) * 8;
 }
 
 void NasmCodeGenerator::Emit(const std::string& line)
@@ -132,26 +93,20 @@ void NasmCodeGenerator::EmitExprToRax(const Expr& expr)
 
 void NasmCodeGenerator::EnterFunction(const FunctionDeclStmt& node)
 {
-	m_varOffsets.clear();
-	m_nextOffset = 0;
-
-	const uint32_t paramCount = static_cast<uint32_t>(node.GetParams().size());
-	const uint32_t localCount = CountVarDeclsInBlock(node.GetBody());
-	const uint32_t totalSlots = paramCount + localCount;
-	const uint32_t frameSize = AlignTo16(totalSlots * 8 + 8);
+	const uint32_t maxSlots = m_functions.at(node.GetName()).maxSlots;
+	const uint32_t frameSize = AlignTo16(maxSlots * 8 + 8);
 
 	Emit("push rbp");
 	Emit("mov rbp, rsp");
 	Emit("sub rsp, " + std::to_string(frameSize));
 
-	for (uint32_t i = 0; i < paramCount; ++i)
+	const auto& params = node.GetParams();
+	for (uint32_t i = 0; i < static_cast<uint32_t>(params.size()); ++i)
 	{
-		m_nextOffset -= 8;
-		m_varOffsets[node.GetParams()[i].name] = m_nextOffset;
-
+		const int32_t offset = SlotToOffset(i);
 		if (i < static_cast<uint32_t>(MaxRegArgs))
 		{
-			Emit("mov [rbp" + std::to_string(m_nextOffset) + "], " + ArgRegisters[i]);
+			Emit("mov [rbp" + std::to_string(offset) + "], " + ArgRegisters[i]);
 		}
 	}
 }
@@ -211,17 +166,21 @@ void NasmCodeGenerator::Visit(const BlockStmt& node)
 
 void NasmCodeGenerator::Visit(const VarDeclStmt& node)
 {
-	m_nextOffset -= 8;
-	m_varOffsets[node.GetName()] = m_nextOffset;
+	const auto slotIt = m_varDeclSlots.find(&node);
+	if (slotIt == m_varDeclSlots.end())
+	{
+		throw std::runtime_error("NASM: слот переменной не найден: " + node.GetName());
+	}
+	const int32_t offset = SlotToOffset(slotIt->second);
 
 	if (node.GetInit())
 	{
 		EmitExprToRax(*node.GetInit());
-		Emit("mov [rbp" + std::to_string(m_nextOffset) + "], rax");
+		Emit("mov [rbp" + std::to_string(offset) + "], rax");
 	}
 	else
 	{
-		Emit("mov qword [rbp" + std::to_string(m_nextOffset) + "], 0");
+		Emit("mov qword [rbp" + std::to_string(offset) + "], 0");
 	}
 }
 
@@ -233,7 +192,13 @@ void NasmCodeGenerator::Visit(const AssignStmt& node)
 		throw std::runtime_error("NASM: левая часть присваивания должна быть идентификатором");
 	}
 	EmitExprToRax(node.GetRhs());
-	const int32_t offset = GetVarOffset(lhs->GetName());
+
+	const auto it = m_symbols.find(lhs);
+	if (it == m_symbols.end())
+	{
+		throw std::runtime_error("NASM: переменная не найдена при присваивании: " + lhs->GetName());
+	}
+	const int32_t offset = SlotToOffset(it->second.stackSlot);
 	Emit("mov [rbp" + std::to_string(offset) + "], rax");
 }
 
@@ -299,28 +264,30 @@ void NasmCodeGenerator::Visit(const RunStmt& node)
 
 void NasmCodeGenerator::Visit(const RepStmt& node)
 {
-	const std::string& iterName = node.GetIterators()[0];
-
-	m_nextOffset -= 8;
-	m_varOffsets[iterName] = m_nextOffset;
+	const auto repIt = m_repIterators.find(&node);
+	if (repIt == m_repIterators.end())
+	{
+		throw std::runtime_error("NASM: итератор цикла не найден: " + node.GetIterators()[0]);
+	}
+	const int32_t iterOffset = SlotToOffset(repIt->second[0].stackSlot);
 
 	const std::string labelLoop = MakeLabel("rep");
 	const std::string labelEnd  = MakeLabel("end");
 
 	EmitExprToRax(*node.GetRanges()[0]);
-	Emit("mov [rbp" + std::to_string(m_nextOffset) + "], rax");
+	Emit("mov [rbp" + std::to_string(iterOffset) + "], rax");
 
 	EmitLabel(labelLoop);
 	EmitExprToRax(*node.GetRanges()[1]);
-	Emit("mov rbx, [rbp" + std::to_string(m_nextOffset) + "]");
+	Emit("mov rbx, [rbp" + std::to_string(iterOffset) + "]");
 	Emit("cmp rbx, rax");
 	Emit("jge " + labelEnd);
 
 	node.GetOriginalBody().Accept(*this);
 
-	Emit("mov rax, [rbp" + std::to_string(m_nextOffset) + "]");
+	Emit("mov rax, [rbp" + std::to_string(iterOffset) + "]");
 	Emit("inc rax");
-	Emit("mov [rbp" + std::to_string(m_nextOffset) + "], rax");
+	Emit("mov [rbp" + std::to_string(iterOffset) + "], rax");
 	Emit("jmp " + labelLoop);
 
 	EmitLabel(labelEnd);
@@ -443,7 +410,12 @@ void NasmCodeGenerator::Visit(const BoolExpr& node)
 
 void NasmCodeGenerator::Visit(const IdentifierExpr& node)
 {
-	const int32_t offset = GetVarOffset(node.GetName());
+	const auto it = m_symbols.find(&node);
+	if (it == m_symbols.end())
+	{
+		throw std::runtime_error("NASM: переменная не найдена: " + node.GetName());
+	}
+	const int32_t offset = SlotToOffset(it->second.stackSlot);
 	Emit("mov rax, [rbp" + std::to_string(offset) + "]");
 }
 

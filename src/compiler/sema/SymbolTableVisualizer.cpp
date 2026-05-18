@@ -3,14 +3,13 @@
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
-#include <stdexcept>
 #include <vector>
 
 namespace
 {
-using SortedSymbols = std::vector<std::pair<std::string, SymbolInfo>>;
+using SortedSymbols = std::vector<std::pair<const AstNode*, SymbolInfo>>;
 
-SortedSymbols SortBySlot(const std::unordered_map<std::string, SymbolInfo>& symbols)
+SortedSymbols SortBySlot(const std::unordered_map<const AstNode*, SymbolInfo>& symbols)
 {
 	SortedSymbols sorted(symbols.begin(), symbols.end());
 	std::ranges::sort(sorted, [](const auto& a, const auto& b) {
@@ -33,16 +32,16 @@ void AppendHeader(std::ostringstream& ss)
 {
 	ss << "[Sema]\t\tТаблица символов:" << std::endl;
 	ss << "\t\t| "
-	   << std::left << std::setw(20) << "Name" << " | "
+	   << std::left << std::setw(18) << "Node" << " | "
 	   << std::setw(12) << "Slot" << " | "
 	   << std::setw(12) << "Mutable" << " | "
 	   << std::setw(12) << "Type" << " |" << std::endl;
 }
 
-void AppendRow(std::ostringstream& ss, const std::string& name, const SymbolInfo& info)
+void AppendRow(std::ostringstream& ss, const AstNode* node, const SymbolInfo& info)
 {
 	ss << "\t\t| "
-	   << std::left << std::setw(20) << name << " | "
+	   << std::left << std::setw(18) << static_cast<const void*>(node) << " | "
 	   << std::setw(12) << info.stackSlot << " | "
 	   << std::setw(12) << GetMutability(info) << " | "
 	   << std::setw(12) << GetTypeName(info) << " |" << std::endl;
@@ -52,15 +51,15 @@ std::string BuildTable(const SortedSymbols& symbols)
 {
 	std::ostringstream ss;
 	AppendHeader(ss);
-	for (const auto& [name, info] : symbols)
+	for (const auto& [node, info] : symbols)
 	{
-		AppendRow(ss, name, info);
+		AppendRow(ss, node, info);
 	}
 	return ss.str();
 }
 } // namespace
 
-void SymbolTableVisualizer::Visualize(const std::unordered_map<std::string, SymbolInfo>& symbols)
+void SymbolTableVisualizer::Visualize(const std::unordered_map<const AstNode*, SymbolInfo>& symbols)
 {
 	if (symbols.empty())
 	{

@@ -33,7 +33,10 @@ void RegisterStdlibFunctions(VirtualMachine& vm)
 Chunk GenerateBytecode(FrontendPipline::FrontendResult& result)
 {
 	ScopedTimer t("Генерация кода (Backend)");
-	CodeGenerator backend(std::move(result.symbols), std::move(result.functions));
+	CodeGenerator backend(
+		std::move(result.symbols),
+		std::move(result.repIterators),
+		std::move(result.functions));
 	return backend.Generate(*result.ast);
 }
 
@@ -49,7 +52,11 @@ void RunNasmBackend(FrontendPipline::FrontendResult& result, const CompilerOptio
 {
 	ScopedTimer t("Генерация NASM x86-64 под Windows");
 	auto outputFile = std::filesystem::path(options.sourceFile).replace_extension(".asm");
-	NasmCodeGenerator backend;
+	NasmCodeGenerator backend(
+		std::move(result.symbols),
+		std::move(result.varDeclSlots),
+		std::move(result.repIterators),
+		std::move(result.functions));
 
 	auto asmText = backend.Generate(*result.ast);
 

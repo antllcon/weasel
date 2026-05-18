@@ -40,13 +40,12 @@ void AssertIsGotoFound(bool isFound, const std::string& nonTerminal)
 }
 bool IsDoWhileRun(const std::vector<Token>& tokens, size_t runIdx)
 {
-	for (size_t k = runIdx; k > 0; --k)
-	{
-		if (tokens[k - 1].type == TokenType::NewLine)
-			continue;
-		return tokens[k - 1].type == TokenType::BraceRight;
-	}
-	return false;
+	if (runIdx == 0)
+		return false;
+	const auto& prev = tokens[runIdx - 1];
+	if (prev.type == TokenType::NewLine)
+		return false;
+	return prev.type == TokenType::BraceRight;
 }
 
 std::vector<bool> FindDoWhileOpeners(const std::vector<Token>& tokens)
@@ -64,17 +63,139 @@ std::vector<bool> FindDoWhileOpeners(const std::vector<Token>& tokens)
 		{
 			const size_t openIdx = openBraces.back();
 			openBraces.pop_back();
-			for (size_t k = i + 1; k < tokens.size(); ++k)
+			if (i + 1 < tokens.size() && tokens[i + 1].type == TokenType::Keyword && tokens[i + 1].value == "run")
 			{
-				if (tokens[k].type == TokenType::NewLine)
-					continue;
-				if (tokens[k].type == TokenType::Keyword && tokens[k].value == "run")
-					result[openIdx] = true;
-				break;
+				result[openIdx] = true;
 			}
 		}
 	}
 	return result;
+}
+
+size_t FindPrevMeaningfulIndex(const std::vector<Token>& tokens, size_t pos)
+{
+	for (size_t k = pos; k > 0; --k)
+	{
+		if (tokens[k - 1].type != TokenType::NewLine)
+			return k - 1;
+	}
+	return tokens.size();
+}
+
+size_t FindMatchingParenLeft(const std::vector<Token>& tokens, size_t closeIdx)
+{
+	int depth = 1;
+	for (size_t i = closeIdx; i > 0; --i)
+	{
+		const size_t idx = i - 1;
+		if (tokens[idx].type == TokenType::ParenRight)
+			depth++;
+		else if (tokens[idx].type == TokenType::ParenLeft)
+		{
+			depth--;
+			if (depth == 0)
+				return idx;
+		}
+	}
+	return tokens.size();
+}
+
+bool IsControlStructureEnd(const std::vector<Token>& tokens, size_t prevIdx)
+{
+	const auto& prev = tokens[prevIdx];
+
+	if (prev.type == TokenType::Keyword)
+	{
+		if (prev.value == "else" || prev.value == "run")
+			return true;
+	}
+	else if (prev.type == TokenType::ParenRight)
+	{
+		const size_t openIdx = FindMatchingParenLeft(tokens, prevIdx);
+		if (openIdx < tokens.size())
+		{
+			const size_t beforeParen = FindPrevMeaningfulIndex(tokens, openIdx);
+			if (beforeParen < tokens.size())
+			{
+				const auto& tokenBefore = tokens[beforeParen];
+				if (tokenBefore.type == TokenType::Keyword && (tokenBefore.value == "when" || tokenBefore.value == "run"))
+				{
+					return true;
+				}
+				if (tokenBefore.type == TokenType::Identifier)
+				{
+					const size_t beforeId = FindPrevMeaningfulIndex(tokens, beforeParen);
+					if (beforeId < tokens.size() && tokens[beforeId].type == TokenType::OpMove)
+						return true;
+				}
+			}
+		}
+	}
+	else if (prev.type == TokenType::Identifier)
+	{
+		const size_t beforeId = FindPrevMeaningfulIndex(tokens, prevIdx);
+		if (beforeId < tokens.size() && tokens[beforeId].type == TokenType::Keyword)
+		{
+			const auto& val = tokens[beforeId].value;
+			if (val == "struct" || val == "unions" || val == "enumer")
+				return true;
+		}
+	}
+
+	size_t cur = prevIdx;
+	while (cur < tokens.size())
+	{
+		if (tokens[cur].type == TokenType::Keyword && tokens[cur].value == "rep")
+			return true;
+		const size_t prev2 = FindPrevMeaningfulIndex(tokens, cur);
+		if (prev2 >= tokens.size() || tokens[prev2].type == TokenType::BraceLeft || tokens[prev2].type == TokenType::BraceRight)
+		{
+			break;
+		}
+		cur = prev2;
+	}
+
+	return false;
+}
+
+struct BlockContext
+{
+	std::vector<bool> openers;
+	std::vector<bool> closers;
+};
+
+BlockContext FindBareBlocks(
+	const std::vector<Token>& tokens,
+	const std::vector<bool>& doWhileOpeners)
+{
+	BlockContext ctx;
+	ctx.openers.resize(tokens.size(), false);
+	ctx.closers.resize(tokens.size(), false);
+
+	std::vector<std::pair<size_t, bool>> openStack;
+
+	for (size_t i = 0; i < tokens.size(); ++i)
+	{
+		if (tokens[i].type == TokenType::BraceLeft)
+		{
+			const size_t prevIdx = FindPrevMeaningfulIndex(tokens, i);
+			bool isFreeBlock = true;
+			if (prevIdx < tokens.size())
+				isFreeBlock = !IsControlStructureEnd(tokens, prevIdx);
+
+			if (isFreeBlock)
+				ctx.openers[i] = true;
+			openStack.emplace_back(i, isFreeBlock);
+		}
+		else if (tokens[i].type == TokenType::BraceRight && !openStack.empty())
+		{
+			const auto [openIdx, isFreeBlock] = openStack.back();
+			openStack.pop_back();
+			if (isFreeBlock && !doWhileOpeners[openIdx])
+				ctx.closers[i] = true;
+		}
+	}
+	return ctx;
 }
 
 std::vector<bool> FindDoWhileConditionClosers(const std::vector<Token>& tokens)
@@ -123,15 +244,19 @@ bool IsNoiseNewLine(
 	TokenType nextType,
 	size_t nextIdx,
 	const std::vector<bool>& doWhileOpeners,
-	const std::vector<bool>& doWhileCondClosers)
+	const std::vector<bool>& doWhileCondClosers,
+	const std::vector<bool>& bareBlockClosers,
+	const std::vector<bool>& bareBlockOpeners)
 {
 	if (braceDepth == 0)
 		return true;
-	if (prevType == TokenType::BraceLeft || prevType == TokenType::BraceRight)
+	if (prevType == TokenType::BraceLeft)
+		return true;
+	if (prevType == TokenType::BraceRight && !bareBlockClosers[prevIdx])
 		return true;
 	if (prevType == TokenType::ParenRight && doWhileCondClosers[prevIdx])
 		return true;
-	if (nextType == TokenType::BraceLeft && !doWhileOpeners[nextIdx])
+	if (nextType == TokenType::BraceLeft && !doWhileOpeners[nextIdx] && !bareBlockOpeners[nextIdx])
 		return true;
 	return false;
 }
@@ -140,6 +265,7 @@ std::vector<Token> FilterNewLines(const std::vector<Token>& tokens)
 {
 	const auto doWhileOpeners = FindDoWhileOpeners(tokens);
 	const auto doWhileCondClosers = FindDoWhileConditionClosers(tokens);
+	const auto bareBlocks = FindBareBlocks(tokens, doWhileOpeners);
 
 	std::vector<Token> result;
 	result.reserve(tokens.size());
@@ -177,7 +303,9 @@ std::vector<Token> FilterNewLines(const std::vector<Token>& tokens)
 				tokens[nextIdx].type,
 				nextIdx,
 				doWhileOpeners,
-				doWhileCondClosers))
+				doWhileCondClosers,
+				bareBlocks.closers,
+				bareBlocks.openers))
 		{
 			result.push_back(tok);
 		}

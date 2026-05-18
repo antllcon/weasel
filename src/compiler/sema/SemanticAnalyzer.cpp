@@ -1,5 +1,4 @@
 #include "SemanticAnalyzer.h"
-
 #include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
@@ -150,7 +149,11 @@ SemanticAnalyzer::SemaResult SemanticAnalyzer::Analyze(AstNode& root, Diagnostic
 	m_engine = &engine;
 	CollectFunctions(root);
 	root.Accept(*this);
-	return SemaResult{std::move(m_resolvedSymbols), std::move(m_functions)};
+	return SemaResult{
+		std::move(m_resolvedSymbols),
+		std::move(m_varDeclSlots),
+		std::move(m_resolvedIterators),
+		std::move(m_functions)};
 }
 
 void SemanticAnalyzer::CollectFunctions(const AstNode& root)
@@ -198,28 +201,34 @@ void SemanticAnalyzer::Visit(const ProgramNode& node)
 void SemanticAnalyzer::Visit(const FunctionDeclStmt& node)
 {
 	m_nextSlot = 0;
+	m_maxSlot = 0;
 	m_currentReturnType = m_functions[node.GetName()].returnType;
 
 	m_table.EnterScope();
 	for (const auto& param : node.GetParams())
 	{
 		const uint32_t slot = m_nextSlot++;
+		m_maxSlot = std::max(m_maxSlot, m_nextSlot);
 		auto paramType = ScalarTypeInfo::FromStrings(param.typeSign, param.typeName);
 		m_table.Declare(param.name, paramType, false, slot);
-		m_resolvedSymbols[param.name] = SymbolInfo{std::move(paramType), slot, false};
 	}
 	node.GetBody().Accept(*this);
 	m_table.LeaveScope();
 
+	m_functions[node.GetName()].maxSlots = m_maxSlot;
 	m_currentReturnType = nullptr;
 }
 
 void SemanticAnalyzer::Visit(const BlockStmt& node)
 {
+	m_table.EnterScope();
+	const uint32_t savedSlot = m_nextSlot;
 	for (const auto& stmt : node.GetStmts())
 	{
 		stmt->Accept(*this);
 	}
+	m_nextSlot = savedSlot;
+	m_table.LeaveScope();
 }
 
 void SemanticAnalyzer::Visit(const VarDeclStmt& node)
@@ -230,12 +239,13 @@ void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 	}
 
 	const uint32_t slot = m_nextSlot++;
+	m_maxSlot = std::max(m_maxSlot, m_nextSlot);
 	const bool isMutable = node.GetModifier() == VarModifier::Var;
 	auto type = ScalarTypeInfo::FromStrings(node.GetTypeSign(), node.GetTypeName());
 
 	const bool isNew = m_table.Declare(node.GetName(), type, isMutable, slot);
 	AssertIsVariableNotRedeclared(isNew, node.GetName());
-	m_resolvedSymbols[node.GetName()] = SymbolInfo{type, slot, isMutable};
+	m_varDeclSlots[&node] = slot;
 }
 
 void SemanticAnalyzer::Visit(const AssignStmt& node)
@@ -265,9 +275,7 @@ void SemanticAnalyzer::Visit(const IfStmt& node)
 		node.GetCondition().GetRange().start.line,
 		node.GetCondition().GetRange().start.pos);
 
-	m_table.EnterScope();
 	node.GetThenBlock().Accept(*this);
-	m_table.LeaveScope();
 
 	const Stmt* elseNode = node.GetElseNode();
 	if (!elseNode)
@@ -281,25 +289,29 @@ void SemanticAnalyzer::Visit(const IfStmt& node)
 	}
 	else if (const auto* elseBlock = dynamic_cast<const BlockStmt*>(elseNode))
 	{
-		m_table.EnterScope();
 		elseBlock->Accept(*this);
-		m_table.LeaveScope();
 	}
 }
 
 void SemanticAnalyzer::Visit(const RepStmt& node)
 {
 	m_table.EnterScope();
+	const uint32_t savedSlot = m_nextSlot;
 
+	std::vector<SymbolInfo> iterInfos;
 	for (const auto& iterName : node.GetIterators())
 	{
 		const uint32_t slot = m_nextSlot++;
+		m_maxSlot = std::max(m_maxSlot, m_nextSlot);
 		const bool isNew = m_table.Declare(iterName, nullptr, true, slot);
 		AssertIsVariableNotRedeclared(isNew, iterName);
-		m_resolvedSymbols[iterName] = SymbolInfo{nullptr, slot, true};
+		iterInfos.push_back(SymbolInfo{nullptr, slot, true});
 	}
+	m_resolvedIterators[&node] = std::move(iterInfos);
 
 	node.GetOriginalBody().Accept(*this);
+
+	m_nextSlot = savedSlot;
 	m_table.LeaveScope();
 }
 
@@ -310,16 +322,12 @@ void SemanticAnalyzer::Visit(const RunStmt& node)
 		node.GetCondition().GetResolvedType(),
 		node.GetCondition().GetRange().start.line,
 		node.GetCondition().GetRange().start.pos);
-	m_table.EnterScope();
 	node.GetBody().Accept(*this);
-	m_table.LeaveScope();
 }
 
 void SemanticAnalyzer::Visit(const DoWhileStmt& node)
 {
-	m_table.EnterScope();
 	node.GetBody().Accept(*this);
-	m_table.LeaveScope();
 	node.GetCondition().Accept(*this);
 	AssertIsBoolen(
 		node.GetCondition().GetResolvedType(),
@@ -357,6 +365,7 @@ void SemanticAnalyzer::Visit(const IdentifierExpr& node)
 		return;
 	}
 	const_cast<IdentifierExpr&>(node).SetResolvedType(result->type);
+	m_resolvedSymbols[&node] = *result;
 }
 
 void SemanticAnalyzer::Visit(const BinaryExpr& node)

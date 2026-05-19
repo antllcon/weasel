@@ -17,7 +17,7 @@ void LogDiagnostics(const DiagnosticEngine& engine)
 
 bool ExecutePhases(const CompilerOptions& options, const LanguageContext& context, DiagnosticEngine& engine)
 {
-	auto frontendResult = FrontendPipline::Run(options.sourceFile, context, engine);
+	auto frontendResult = FrontendPipeline::Run(options.sourceFile, context, engine);
 	if (!frontendResult) return false;
 	return BackendPipeline::Run(*frontendResult, options);
 }

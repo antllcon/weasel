@@ -13,20 +13,20 @@ inline constexpr uint16_t MAX_FRAMES = 256u;
 
 struct ExecutionContext
 {
-	const Chunk& m_chunk;
-	std::vector<Value>& m_stack;
-	std::vector<VirtualMachine::CallFrame>& m_frames;
-	const std::vector<VirtualMachine::NativeCallback>& m_natives;
-	HeapTracker& m_tracker;
-	uint32_t& m_stackTop;
-	uint32_t m_ip;
-	uint32_t m_stackOffset;
+	const Chunk& chunk;
+	std::vector<Value>& stack;
+	std::vector<VirtualMachine::CallFrame>& frames;
+	const std::vector<VirtualMachine::NativeCallback>& natives;
+	HeapTracker& tracker;
+	uint32_t& stackTop;
+	uint32_t ip;
+	uint32_t stackOffset;
 };
 
 uint32_t ExtractCurrentLine(const ExecutionContext& context)
 {
-	const uint32_t errorIp = context.m_ip > 0 ? context.m_ip - 1 : 0;
-	return context.m_chunk.GetLine(errorIp);
+	const uint32_t errorIp = context.ip > 0 ? context.ip - 1 : 0;
+	return context.chunk.GetLine(errorIp);
 }
 
 void AssertIsNativeFunctionFound(bool isFound, const ExecutionContext& context)
@@ -36,43 +36,43 @@ void AssertIsNativeFunctionFound(bool isFound, const ExecutionContext& context)
 		throw VmException(
 			"E_VM_NATIVE_NOT_FOUND",
 			"Вызов незарегистрированной нативной функции",
-			context.m_ip,
+			context.ip,
 			ExtractCurrentLine(context));
 	}
 }
 
 void AssertIsStackNotEmpty(const ExecutionContext& context)
 {
-	if (context.m_stackTop == 0)
+	if (context.stackTop == 0)
 	{
 		throw VmException(
 			"E_VM_STACK_EMPTY",
 			"Стек пуст, невозможно извлечь значение",
-			context.m_ip,
+			context.ip,
 			ExtractCurrentLine(context));
 	}
 }
 
 void AssertIsStackNotFull(const ExecutionContext& context)
 {
-	if (context.m_stackTop >= context.m_stack.size())
+	if (context.stackTop >= context.stack.size())
 	{
 		throw VmException(
 			"E_VM_STACK_OVERFLOW",
 			"Переполнение стека виртуальной машины",
-			context.m_ip,
+			context.ip,
 			ExtractCurrentLine(context));
 	}
 }
 
 void AssertIsIpValid(uint32_t targetIp, const ExecutionContext& context)
 {
-	if (targetIp >= context.m_chunk.GetCode().size())
+	if (targetIp >= context.chunk.GetCode().size())
 	{
 		throw VmException(
 			"E_VM_IP_OUT_OF_BOUNDS",
 			"Указатель инструкций вышел за пределы памяти",
-			context.m_ip,
+			context.ip,
 			ExtractCurrentLine(context));
 	}
 }
@@ -84,7 +84,7 @@ void AssertIsUnknownOpCode(bool isUnknown, const ExecutionContext& context)
 		throw VmException(
 			"E_VM_UNKNOWN_OPCODE",
 			"Обнаружен неизвестный код операции",
-			context.m_ip,
+			context.ip,
 			ExtractCurrentLine(context));
 	}
 }
@@ -96,7 +96,7 @@ void AssertIsStackDistanceValid(bool isValid, const ExecutionContext& context)
 		throw VmException(
 			"E_VM_STACK_OOB",
 			"Попытка доступа к элементу за пределами стека",
-			context.m_ip,
+			context.ip,
 			ExtractCurrentLine(context));
 	}
 }
@@ -108,62 +108,62 @@ void AssertIsNotDivisionByZero(bool isZero, const ExecutionContext& context)
 		throw VmException(
 			"E_VM_DIV_BY_ZERO",
 			"Деление на ноль",
-			context.m_ip,
+			context.ip,
 			ExtractCurrentLine(context));
 	}
 }
 
 void AssertIsCallStackOverflow(const ExecutionContext& context)
 {
-	if (context.m_frames.size() >= MAX_FRAMES)
+	if (context.frames.size() >= MAX_FRAMES)
 	{
 		throw VmException(
 			"E_VM_CALL_STACK_OVERFLOW",
 			"Превышен лимит вложенности вызовов функций",
-			context.m_ip,
+			context.ip,
 			ExtractCurrentLine(context));
 	}
 }
 
 void AssertIsCallArgumentCountValid(uint32_t argCount, const ExecutionContext& context)
 {
-	if (context.m_stackTop < argCount)
+	if (context.stackTop < argCount)
 	{
 		throw VmException(
 			"E_VM_ARGS_COUNT",
 			"Недостаточно аргументов на стеке для вызова функции",
-			context.m_ip,
+			context.ip,
 			ExtractCurrentLine(context));
 	}
 }
 
 uint8_t ReadByte(ExecutionContext& context)
 {
-	AssertIsIpValid(context.m_ip, context);
-	return context.m_chunk.GetCode()[context.m_ip++];
+	AssertIsIpValid(context.ip, context);
+	return context.chunk.GetCode()[context.ip++];
 }
 
 uint32_t ReadUint32(ExecutionContext& context)
 {
-	AssertIsIpValid(context.m_ip + 3, context);
+	AssertIsIpValid(context.ip + 3, context);
 	uint32_t value = 0;
-	value |= static_cast<uint32_t>(context.m_chunk.GetCode()[context.m_ip++]);
-	value |= static_cast<uint32_t>(context.m_chunk.GetCode()[context.m_ip++]) << 8;
-	value |= static_cast<uint32_t>(context.m_chunk.GetCode()[context.m_ip++]) << 16;
-	value |= static_cast<uint32_t>(context.m_chunk.GetCode()[context.m_ip++]) << 24;
+	value |= static_cast<uint32_t>(context.chunk.GetCode()[context.ip++]);
+	value |= static_cast<uint32_t>(context.chunk.GetCode()[context.ip++]) << 8;
+	value |= static_cast<uint32_t>(context.chunk.GetCode()[context.ip++]) << 16;
+	value |= static_cast<uint32_t>(context.chunk.GetCode()[context.ip++]) << 24;
 	return value;
 }
 
 void Push(ExecutionContext& context, const Value& value)
 {
 	AssertIsStackNotFull(context);
-	context.m_stack[context.m_stackTop++] = value;
+	context.stack[context.stackTop++] = value;
 }
 
 Value Pop(ExecutionContext& context)
 {
 	AssertIsStackNotEmpty(context);
-	return context.m_stack[--context.m_stackTop];
+	return context.stack[--context.stackTop];
 }
 
 template <typename T>
@@ -198,10 +198,7 @@ void ExecuteDiv(ExecutionContext& context)
 
 	AssertIsNotDivisionByZero(rhs == 0, context);
 
-	if (rhs != 0)
-	{
-		Push(context, Value(static_cast<T>(lhs / rhs)));
-	}
+	Push(context, Value(static_cast<T>(lhs / rhs)));
 }
 
 template <typename T>
@@ -212,16 +209,13 @@ void ExecuteRem(ExecutionContext& context)
 
 	AssertIsNotDivisionByZero(rhs == 0, context);
 
-	if (rhs != 0)
+	if constexpr (std::is_floating_point_v<T>)
 	{
-		if constexpr (std::is_floating_point_v<T>)
-		{
-			Push(context, Value(static_cast<T>(std::fmod(lhs, rhs))));
-		}
-		else
-		{
-			Push(context, Value(static_cast<T>(lhs % rhs)));
-		}
+		Push(context, Value(static_cast<T>(std::fmod(lhs, rhs))));
+	}
+	else
+	{
+		Push(context, Value(static_cast<T>(lhs % rhs)));
 	}
 }
 
@@ -297,37 +291,37 @@ void ExecuteShr(ExecutionContext& context)
 void ExecuteConstantInstruction(ExecutionContext& context)
 {
 	const uint8_t index = ReadByte(context);
-	const Value constant = context.m_chunk.GetConstants()[index];
+	const Value constant = context.chunk.GetConstants()[index];
 	Push(context, constant);
 }
 
 void ExecuteDupInstruction(ExecutionContext& context)
 {
 	AssertIsStackNotEmpty(context);
-	Push(context, context.m_stack[context.m_stackTop - 1]);
+	Push(context, context.stack[context.stackTop - 1]);
 }
 
 void ExecuteLoadLocalInstruction(ExecutionContext& context)
 {
 	const uint32_t index = ReadUint32(context);
-	const uint32_t absoluteIndex = context.m_stackOffset + index;
-	AssertIsStackDistanceValid(absoluteIndex < context.m_stackTop, context);
-	Push(context, context.m_stack[absoluteIndex]);
+	const uint32_t absoluteIndex = context.stackOffset + index;
+	AssertIsStackDistanceValid(absoluteIndex < context.stackTop, context);
+	Push(context, context.stack[absoluteIndex]);
 }
 
 void ExecuteStoreLocalInstruction(ExecutionContext& context)
 {
 	const uint32_t index = ReadUint32(context);
-	const uint32_t absoluteIndex = context.m_stackOffset + index;
-	AssertIsStackDistanceValid(absoluteIndex < context.m_stackTop, context);
-	context.m_stack[absoluteIndex] = Pop(context);
+	const uint32_t absoluteIndex = context.stackOffset + index;
+	AssertIsStackDistanceValid(absoluteIndex < context.stackTop, context);
+	context.stack[absoluteIndex] = Pop(context);
 }
 
 void ExecuteJumpInstruction(ExecutionContext& context)
 {
 	const uint32_t targetIp = ReadUint32(context);
 	AssertIsIpValid(targetIp, context);
-	context.m_ip = targetIp;
+	context.ip = targetIp;
 }
 
 void ExecuteJumpIfFalseInstruction(ExecutionContext& context)
@@ -338,7 +332,7 @@ void ExecuteJumpIfFalseInstruction(ExecutionContext& context)
 
 	if (!condition)
 	{
-		context.m_ip = targetIp;
+		context.ip = targetIp;
 	}
 }
 
@@ -350,7 +344,7 @@ void ExecuteJumpIfTrueInstruction(ExecutionContext& context)
 
 	if (condition)
 	{
-		context.m_ip = targetIp;
+		context.ip = targetIp;
 	}
 }
 
@@ -362,30 +356,30 @@ void ExecuteCallInstruction(ExecutionContext& context)
 	AssertIsCallStackOverflow(context);
 	AssertIsCallArgumentCountValid(argCount, context);
 
-	context.m_frames.push_back({context.m_ip, context.m_stackOffset});
+	context.frames.push_back({context.ip, context.stackOffset});
 
-	context.m_ip = targetIp;
-	context.m_stackOffset = context.m_stackTop - argCount;
+	context.ip = targetIp;
+	context.stackOffset = context.stackTop - argCount;
 }
 
 bool ExecuteReturnInstruction(ExecutionContext& context)
 {
 	const Value result = Pop(context);
 
-	if (context.m_frames.empty())
+	if (context.frames.empty())
 	{
 		Push(context, result);
 		return true;
 	}
 
-	context.m_stackTop = context.m_stackOffset;
+	context.stackTop = context.stackOffset;
 	Push(context, result);
 
-	const auto [m_returnIp, m_stackOffset] = context.m_frames.back();
-	context.m_frames.pop_back();
+	const auto [returnIp, stackOffset] = context.frames.back();
+	context.frames.pop_back();
 
-	context.m_ip = m_returnIp;
-	context.m_stackOffset = m_stackOffset;
+	context.ip = returnIp;
+	context.stackOffset = stackOffset;
 
 	return false;
 }
@@ -394,7 +388,7 @@ void ExecuteAllocateStructInstruction(ExecutionContext& context)
 {
 	const uint32_t fieldCount = ReadUint32(context);
 	auto* object = new HeapObject(fieldCount);
-	context.m_tracker.Track(object);
+	context.tracker.Track(object);
 	Push(context, Value(reinterpret_cast<uint64_t>(object)));
 }
 
@@ -417,7 +411,7 @@ void ExecuteAllocateArrayInstruction(ExecutionContext& context)
 {
 	const uint32_t length = Pop(context).As<uint32_t>();
 	auto* object = new HeapObject(length);
-	context.m_tracker.Track(object);
+	context.tracker.Track(object);
 	Push(context, Value(reinterpret_cast<uint64_t>(object)));
 }
 
@@ -448,7 +442,7 @@ void ExecuteReleaseInstruction(ExecutionContext& context)
 	auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
 	if (object->Release())
 	{
-		context.m_tracker.Untrack(object);
+		context.tracker.Untrack(object);
 		delete object;
 	}
 }
@@ -459,7 +453,7 @@ void ExecuteAllocateClosureInstruction(ExecutionContext& context)
 	const uint32_t captureCount = ReadUint32(context);
 
 	auto* closure = new HeapObject(captureCount + 1);
-	context.m_tracker.Track(closure);
+	context.tracker.Track(closure);
 
 	closure->SetField(0, Value(static_cast<uint64_t>(targetIp)));
 
@@ -478,14 +472,14 @@ void ExecuteCallClosureInstruction(ExecutionContext& context)
 	AssertIsCallStackOverflow(context);
 	AssertIsCallArgumentCountValid(argCount + 1, context);
 
-	const uint32_t absoluteIndex = context.m_stackTop - argCount - 1;
-	auto* closure = reinterpret_cast<HeapObject*>(context.m_stack[absoluteIndex].AsRaw());
+	const uint32_t absoluteIndex = context.stackTop - argCount - 1;
+	auto* closure = reinterpret_cast<HeapObject*>(context.stack[absoluteIndex].AsRaw());
 	const uint32_t targetIp = static_cast<uint32_t>(closure->GetField(0).AsRaw());
 
-	context.m_frames.push_back({context.m_ip, context.m_stackOffset});
+	context.frames.push_back({context.ip, context.stackOffset});
 
-	context.m_ip = targetIp;
-	context.m_stackOffset = absoluteIndex;
+	context.ip = targetIp;
+	context.stackOffset = absoluteIndex;
 }
 
 void ExecuteCallNativeInstruction(ExecutionContext& context)
@@ -494,26 +488,24 @@ void ExecuteCallNativeInstruction(ExecutionContext& context)
 	const uint32_t argCount = ReadUint32(context);
 
 	AssertIsCallArgumentCountValid(argCount, context);
-	AssertIsNativeFunctionFound(nativeId < context.m_natives.size() && context.m_natives[nativeId], context);
+	AssertIsNativeFunctionFound(nativeId < context.natives.size() && context.natives[nativeId], context);
 
-	const uint32_t absoluteIndex = context.m_stackTop - argCount;
-	const std::span<const Value> args(&context.m_stack[absoluteIndex], argCount);
+	const uint32_t absoluteIndex = context.stackTop - argCount;
+	const std::span<const Value> args(&context.stack[absoluteIndex], argCount);
 
-	const Value result = context.m_natives[nativeId](args);
+	const Value result = context.natives[nativeId](args);
 
-	context.m_stackTop -= argCount;
+	context.stackTop -= argCount;
 	Push(context, result);
 }
 
 void ExecuteLoadStringInstruction(ExecutionContext& context)
 {
 	const uint32_t index = ReadUint32(context);
-	const std::string& text = context.m_chunk.GetStrings()[index];
+	const std::string& text = context.chunk.GetStrings()[index];
 
-	// TODO: Для простоты пока создаем структуру, где в первом поле лежит указатель на строку
-	// В будущем мы сделаем HeapObject более универсальным для строк и буферов
 	auto* stringObject = new HeapObject(1);
-	context.m_tracker.Track(stringObject);
+	context.tracker.Track(stringObject);
 
 	stringObject->SetField(0, Value(reinterpret_cast<uint64_t>(&text)));
 
@@ -527,7 +519,7 @@ void ExecutePanicInstruction(ExecutionContext& context)
 	throw VmException(
 		"E_VM_RUNTIME_PANIC",
 		"Критическая ошибка выполнения (Runtime Panic). Код: " + std::to_string(errorCode),
-		context.m_ip,
+		context.ip,
 		ExtractCurrentLine(context));
 }
 

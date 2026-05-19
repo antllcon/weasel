@@ -13,8 +13,8 @@ public:
 
 	struct CallFrame
 	{
-		uint32_t m_returnIp;
-		uint32_t m_stackOffset;
+		uint32_t returnIp;
+		uint32_t stackOffset;
 	};
 
 	VirtualMachine();

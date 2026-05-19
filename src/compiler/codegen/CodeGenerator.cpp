@@ -39,6 +39,14 @@ void AssertIsLhsIdentifier(bool isId)
 	}
 }
 
+void AssertIsFunctionOffsetResolved(bool found, const std::string& name)
+{
+	if (!found)
+	{
+		throw std::runtime_error("Бэкенд: не найдена реализация функции " + name);
+	}
+}
+
 void EmitNativeCall(Chunk& chunk, uint32_t nativeId, uint32_t argCount, uint32_t line)
 {
 	chunk.WriteOpCode(OpCode::CallNative, line);
@@ -80,11 +88,7 @@ Chunk CodeGenerator::Generate(const AstNode& root)
 
 	for (const auto& call : m_unresolvedCalls)
 	{
-		if (!m_functionOffsets.contains(call.funcName))
-		{
-			throw std::runtime_error(
-				"Бэкенд: не найдена реализация функции " + call.funcName);
-		}
+		AssertIsFunctionOffsetResolved(m_functionOffsets.contains(call.funcName), call.funcName);
 		m_chunk.PatchUint32(call.patchOffset, m_functionOffsets[call.funcName]);
 	}
 
@@ -296,10 +300,20 @@ void CodeGenerator::Visit(const ReturnStmt& node)
 
 void CodeGenerator::Visit(const BinaryExpr& node)
 {
-	node.GetLeft().Accept(*this);
-	node.GetRight().Accept(*this);
+	const auto op = node.GetOp();
 
-	switch (node.GetOp())
+	if (op == BinaryOpKind::Greater || op == BinaryOpKind::LessEq)
+	{
+		node.GetRight().Accept(*this);
+		node.GetLeft().Accept(*this);
+	}
+	else
+	{
+		node.GetLeft().Accept(*this);
+		node.GetRight().Accept(*this);
+	}
+
+	switch (op)
 	{
 	case BinaryOpKind::Add:
 		m_chunk.WriteOpCode(OpCode::AddU32, m_currentLine);
@@ -328,11 +342,9 @@ void CodeGenerator::Visit(const BinaryExpr& node)
 		break;
 	case BinaryOpKind::Greater:
 		m_chunk.WriteOpCode(OpCode::LtU32, m_currentLine);
-		EmitLogicalNot();
 		break;
 	case BinaryOpKind::LessEq:
 		m_chunk.WriteOpCode(OpCode::LtU32, m_currentLine);
-		EmitLogicalNot();
 		EmitLogicalNot();
 		break;
 	case BinaryOpKind::GreaterEq:
@@ -346,14 +358,19 @@ void CodeGenerator::Visit(const BinaryExpr& node)
 		m_chunk.WriteOpCode(OpCode::BitOr, m_currentLine);
 		break;
 	case BinaryOpKind::ShiftLeft:
+		m_chunk.WriteOpCode(OpCode::Shl, m_currentLine);
 		break;
 	case BinaryOpKind::ShiftRight:
+		m_chunk.WriteOpCode(OpCode::Shr, m_currentLine);
 		break;
 	case BinaryOpKind::BitwiseAnd:
+		m_chunk.WriteOpCode(OpCode::BitAnd, m_currentLine);
 		break;
 	case BinaryOpKind::BitwiseOr:
+		m_chunk.WriteOpCode(OpCode::BitOr, m_currentLine);
 		break;
 	case BinaryOpKind::BitwiseXor:
+		m_chunk.WriteOpCode(OpCode::BitXor, m_currentLine);
 		break;
 	}
 }

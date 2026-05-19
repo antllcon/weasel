@@ -11,7 +11,7 @@
 #include "src/grammar/lalr/LalrParser.h"
 #include "src/utils/logger/timer/ScopedTimer.h"
 
-namespace FrontendPipline
+namespace FrontendPipeline
 {
 using SourceCode = std::string;
 using TokenStream = std::vector<Token>;
@@ -115,4 +115,4 @@ std::optional<FrontendResult> Run(const std::filesystem::path& sourceFile, const
 		std::move(semaResult.repIterators),
 		std::move(semaResult.functions)};
 }
-} // namespace FrontendPipline
+} // namespace FrontendPipeline

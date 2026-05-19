@@ -4,5 +4,5 @@
 
 namespace BackendPipeline
 {
-bool Run(FrontendPipline::FrontendResult& result, const CompilerOptions& options);
+bool Run(FrontendPipeline::FrontendResult& result, const CompilerOptions& options);
 }

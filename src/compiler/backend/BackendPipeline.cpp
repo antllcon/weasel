@@ -30,7 +30,7 @@ void RegisterStdlibFunctions(VirtualMachine& vm)
 	}
 }
 
-Chunk GenerateBytecode(FrontendPipline::FrontendResult& result)
+Chunk GenerateBytecode(FrontendPipeline::FrontendResult& result)
 {
 	ScopedTimer t("Генерация кода (Backend)");
 	CodeGenerator backend(
@@ -48,7 +48,7 @@ void RunVirtualMachine(const Chunk& bytecode)
 	vm.Interpret(bytecode);
 }
 
-void RunNasmBackend(FrontendPipline::FrontendResult& result, const CompilerOptions& options)
+void RunNasmBackend(FrontendPipeline::FrontendResult& result, const CompilerOptions& options)
 {
 	ScopedTimer t("Генерация NASM x86-64 под Windows");
 	auto outputFile = std::filesystem::path(options.sourceFile).replace_extension(".asm");
@@ -67,7 +67,7 @@ void RunNasmBackend(FrontendPipline::FrontendResult& result, const CompilerOptio
 	Logger::Log("[Compiler]\tNASM-код записан в: " + outputFile.string());
 }
 
-void RunVmBackend(FrontendPipline::FrontendResult& result)
+void RunVmBackend(FrontendPipeline::FrontendResult& result)
 {
 	auto bytecode = GenerateBytecode(result);
 	RunVirtualMachine(bytecode);
@@ -76,7 +76,7 @@ void RunVmBackend(FrontendPipline::FrontendResult& result)
 
 namespace BackendPipeline
 {
-bool Run(FrontendPipline::FrontendResult& result, const CompilerOptions& options)
+bool Run(FrontendPipeline::FrontendResult& result, const CompilerOptions& options)
 {
 	if (options.emitNasm)
 	{

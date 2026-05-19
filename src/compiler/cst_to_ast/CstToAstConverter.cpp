@@ -131,7 +131,7 @@ std::pair<std::string, std::string> ParseType(const CstNode& typeNode)
 		}
 		return {"", child.value};
 	}
-	return {"", "voided"};
+	return {"", ""};
 }
 
 void CollectArgList(const CstNode& node, std::vector<std::unique_ptr<Expr>>& args);

@@ -105,6 +105,19 @@ void AssertIsArgCountMatch(size_t expected, size_t actual, const std::string& na
 	}
 }
 
+void AssertIsNotVoidedType(const std::shared_ptr<TypeInfo>& type, const std::string& name, size_t line, size_t pos)
+{
+	const auto* scalar = dynamic_cast<const ScalarTypeInfo*>(type.get());
+	if (scalar && scalar->IsVoided())
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Переменная не может иметь тип voided: " + name,
+			.line = line,
+			.pos = pos});
+	}
+}
+
 void AssertIsFunctionExists(bool exists, const std::string& name)
 {
 	if (!exists)
@@ -233,6 +246,16 @@ void SemanticAnalyzer::Visit(const BlockStmt& node)
 
 void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 {
+	if (node.GetTypeName().empty())
+	{
+		m_engine->Report(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Явное указание типа переменной обязательно: " + node.GetName(),
+			.line = node.GetRange().start.line,
+			.pos = node.GetRange().start.pos});
+		return;
+	}
+
 	if (node.GetInit())
 	{
 		node.GetInit()->Accept(*this);
@@ -242,6 +265,13 @@ void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 	m_maxSlot = std::max(m_maxSlot, m_nextSlot);
 	const bool isMutable = node.GetModifier() == VarModifier::Var;
 	auto type = ScalarTypeInfo::FromStrings(node.GetTypeSign(), node.GetTypeName());
+
+	AssertIsNotVoidedType(type, node.GetName(), node.GetRange().start.line, node.GetRange().start.pos);
+
+	if (node.GetInit())
+	{
+		AssertIsTypesMatch(type, node.GetInit()->GetResolvedType(), "инициализации переменной " + node.GetName());
+	}
 
 	const bool isNew = m_table.Declare(node.GetName(), type, isMutable, slot);
 	AssertIsVariableNotRedeclared(isNew, node.GetName());

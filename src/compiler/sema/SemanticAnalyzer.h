@@ -45,7 +45,7 @@ private:
 	void Visit(const BinaryExpr& node) override;
 	void Visit(const UnaryExpr& node) override;
 	void Visit(const FunctionCallExpr& node) override;
-	void Visit(const NumberExpr& node) override;
+	void Visit(const NumExpr& node) override;
 	void Visit(const StringExpr& node) override;
 	void Visit(const BoolExpr& node) override;
 	void Visit(const ArrayLiteralExpr& node) override;
@@ -66,4 +66,5 @@ private:
 	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> m_resolvedIterators;
 	std::unordered_map<std::string, FunctionInfo> m_functions;
 	std::shared_ptr<TypeInfo> m_currentReturnType;
+	std::shared_ptr<TypeInfo> m_expectedType;
 };

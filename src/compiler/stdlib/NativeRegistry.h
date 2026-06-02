@@ -22,4 +22,5 @@ namespace NativeRegistry
 {
 const std::vector<NativeFunction>& GetAll() noexcept;
 const NativeFunction* FindByName(const std::string& name) noexcept;
+std::string ResolvePrintNative(const TypeInfo* typeInfo) noexcept;
 } // namespace NativeRegistry

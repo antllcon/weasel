@@ -258,14 +258,14 @@ TEST(LexerTest, UnknownSymbolError)
 TEST(LexerTest, FullProgram)
 {
 	DiagnosticEngine engine;
-	std::string_view input = "voided <- main()\nval s number x := 10";
+	std::string_view input = "void <- main()\nval s num x := 10";
 
 	auto tokens = Lexer::Tokenize(input, engine);
 
 	ASSERT_FALSE(engine.HasErrors());
 	ASSERT_EQ(tokens.size(), 13);
 	EXPECT_EQ(tokens[0].type, TokenType::Keyword);
-	EXPECT_EQ(tokens[0].value, "voided");
+	EXPECT_EQ(tokens[0].value, "void");
 	EXPECT_EQ(tokens[1].type, TokenType::OpMove);
 	EXPECT_EQ(tokens[2].type, TokenType::Identifier);
 	EXPECT_EQ(tokens[2].value, "main");
@@ -277,7 +277,7 @@ TEST(LexerTest, FullProgram)
 	EXPECT_EQ(tokens[7].type, TokenType::Keyword);
 	EXPECT_EQ(tokens[7].value, "s");
 	EXPECT_EQ(tokens[8].type, TokenType::Keyword);
-	EXPECT_EQ(tokens[8].value, "number");
+	EXPECT_EQ(tokens[8].value, "num");
 	EXPECT_EQ(tokens[9].type, TokenType::Identifier);
 	EXPECT_EQ(tokens[9].value, "x");
 	EXPECT_EQ(tokens[10].type, TokenType::OpAssign);

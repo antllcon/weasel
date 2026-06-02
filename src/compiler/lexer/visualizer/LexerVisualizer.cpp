@@ -52,11 +52,7 @@ std::string TokenTypeToString(TokenType type)
 		return "OpDiv";
 	case TokenType::OpMod:
 		return "OpMod";
-	case TokenType::OpShiftLeft:
-		return "ShiftLeft";
-	case TokenType::OpShiftRight:
-		return "ShiftRight";
-	case TokenType::OpBitAnd:
+	case TokenType::Ampersand:
 		return "BitAnd";
 	case TokenType::OpRange:
 		return "Range";

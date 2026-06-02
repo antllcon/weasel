@@ -28,7 +28,7 @@ void PrintResult(const VirtualMachine& vm)
 		const Value topValue = vm.Peek(0);
 
 		std::cout << "[Result]\tRaw:\t" << topValue.AsRaw() << std::endl;
-		std::cout << "        \tDouble:\t" << topValue.As<double>() << std::endl;
+		std::cout << "        \tReal:\t" << topValue.As<double>() << std::endl;
 	}
 	catch (const std::exception&)
 	{

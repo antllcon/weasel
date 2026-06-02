@@ -16,7 +16,6 @@ class VarDeclStmt final : public Stmt
 public:
 	VarDeclStmt(
 		VarModifier modifier,
-		std::string typeSign,
 		std::string typeName,
 		std::string name,
 		bool isMoveInit,
@@ -27,7 +26,6 @@ public:
 	[[nodiscard]] SourceRange GetRange() const override;
 
 	[[nodiscard]] VarModifier GetModifier() const;
-	[[nodiscard]] const std::string& GetTypeSign() const;
 	[[nodiscard]] const std::string& GetTypeName() const;
 	[[nodiscard]] const std::string& GetName() const;
 	[[nodiscard]] bool IsMoveInit() const;
@@ -35,7 +33,6 @@ public:
 
 private:
 	VarModifier m_modifier;
-	std::string m_typeSign;
 	std::string m_typeName;
 	std::string m_name;
 	bool m_isMoveInit;

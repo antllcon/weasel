@@ -1,11 +1,11 @@
 #include "NasmCodeGenerator.h"
 
 #include "src/compiler/ast/ArrayLiteralExpr.h"
-#include "src/compiler/ast/DoWhileStmt.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
 #include "src/compiler/ast/BoolExpr.h"
+#include "src/compiler/ast/DoWhileStmt.h"
 #include "src/compiler/ast/EnumDeclStmt.h"
 #include "src/compiler/ast/ErrorExpr.h"
 #include "src/compiler/ast/ExprStmt.h"
@@ -16,7 +16,7 @@
 #include "src/compiler/ast/ImplicitCastExpr.h"
 #include "src/compiler/ast/IndexExpr.h"
 #include "src/compiler/ast/MemberAccessExpr.h"
-#include "src/compiler/ast/NumberExpr.h"
+#include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
@@ -31,19 +31,19 @@
 
 namespace
 {
-const char* ArgRegisters[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
+const char* ArgRegisters[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 constexpr int MaxRegArgs = 6;
 
 uint32_t AlignTo16(uint32_t size)
 {
 	return (size + 15) & ~15u;
 }
-}
+} // namespace
 
 NasmCodeGenerator::NasmCodeGenerator(
-	std::unordered_map<const AstNode*, SymbolInfo>               symbols,
-	std::unordered_map<const AstNode*, uint32_t>                 varDeclSlots,
-	std::unordered_map<const AstNode*, std::vector<SymbolInfo>>  repIterators,
+	std::unordered_map<const AstNode*, SymbolInfo> symbols,
+	std::unordered_map<const AstNode*, uint32_t> varDeclSlots,
+	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators,
 	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions)
 	: m_symbols(std::move(symbols))
 	, m_varDeclSlots(std::move(varDeclSlots))
@@ -147,7 +147,7 @@ void NasmCodeGenerator::Visit(const FunctionDeclStmt& node)
 	EnterFunction(node);
 	node.GetBody().Accept(*this);
 
-	if (node.GetReturnTypeName() == "voided")
+	if (node.GetReturnTypeName() == "void")
 	{
 		Emit("xor rax, rax");
 		LeaveFunction();
@@ -223,7 +223,7 @@ void NasmCodeGenerator::Visit(const ExprStmt& node)
 void NasmCodeGenerator::Visit(const IfStmt& node)
 {
 	const std::string labelElse = MakeLabel("else");
-	const std::string labelEnd  = MakeLabel("end");
+	const std::string labelEnd = MakeLabel("end");
 
 	EmitExprToRax(node.GetCondition());
 	Emit("cmp rax, 0");
@@ -249,7 +249,7 @@ void NasmCodeGenerator::Visit(const DoWhileStmt& /*node*/)
 void NasmCodeGenerator::Visit(const RunStmt& node)
 {
 	const std::string labelLoop = MakeLabel("loop");
-	const std::string labelEnd  = MakeLabel("end");
+	const std::string labelEnd = MakeLabel("end");
 
 	EmitLabel(labelLoop);
 	EmitExprToRax(node.GetCondition());
@@ -272,7 +272,7 @@ void NasmCodeGenerator::Visit(const RepStmt& node)
 	const int32_t iterOffset = SlotToOffset(repIt->second[0].stackSlot);
 
 	const std::string labelLoop = MakeLabel("rep");
-	const std::string labelEnd  = MakeLabel("end");
+	const std::string labelEnd = MakeLabel("end");
 
 	EmitExprToRax(*node.GetRanges()[0]);
 	Emit("mov [rbp" + std::to_string(iterOffset) + "], rax");
@@ -295,6 +295,29 @@ void NasmCodeGenerator::Visit(const RepStmt& node)
 
 void NasmCodeGenerator::Visit(const BinaryExpr& node)
 {
+	const auto op = node.GetOp();
+
+	if (op == BinaryOpKind::LogicalAnd)
+	{
+		const std::string labelEnd = MakeLabel("and_end");
+		EmitExprToRax(node.GetLeft());
+		Emit("cmp rax, 0");
+		Emit("je " + labelEnd);
+		EmitExprToRax(node.GetRight());
+		EmitLabel(labelEnd);
+		return;
+	}
+
+	if (op == BinaryOpKind::LogicalOr)
+	{
+		const std::string labelEnd = MakeLabel("or_end");
+		EmitExprToRax(node.GetLeft());
+		Emit("cmp rax, 0");
+		Emit("jne " + labelEnd);
+		EmitExprToRax(node.GetRight());
+		EmitLabel(labelEnd);
+		return;
+	}
 	EmitExprToRax(node.GetLeft());
 	Emit("push rax");
 	EmitExprToRax(node.GetRight());
@@ -351,31 +374,17 @@ void NasmCodeGenerator::Visit(const BinaryExpr& node)
 		Emit("setge al");
 		Emit("movzx rax, al");
 		break;
-	case BinaryOpKind::LogicalAnd:
-		Emit("and rax, rbx");
-		break;
-	case BinaryOpKind::LogicalOr:
-		Emit("or rax, rbx");
-		break;
-	case BinaryOpKind::ShiftLeft:
-		Emit("mov rcx, rbx");
-		Emit("shl rax, cl");
-		break;
-	case BinaryOpKind::ShiftRight:
-		Emit("mov rcx, rbx");
-		Emit("sar rax, cl");
-		break;
-	case BinaryOpKind::BitwiseAnd:
-		Emit("and rax, rbx");
-		break;
-	case BinaryOpKind::BitwiseOr:
-		Emit("or rax, rbx");
-		break;
-	case BinaryOpKind::BitwiseXor:
-		Emit("xor rax, rbx");
-		break;
 	}
 }
+
+// todo: тут что-то не хватает относительно
+// enum class UnaryOpKind
+// {
+// LogicalNot,
+// AddressOf,
+// Deref,
+// Minus
+// };
 
 void NasmCodeGenerator::Visit(const UnaryExpr& node)
 {
@@ -387,18 +396,16 @@ void NasmCodeGenerator::Visit(const UnaryExpr& node)
 		Emit("sete al");
 		Emit("movzx rax, al");
 		break;
-	case UnaryOpKind::BitwiseNot:
-		Emit("not rax");
-		break;
 	case UnaryOpKind::AddressOf:
 		throw std::runtime_error("NASM: взятие адреса не поддерживается без типовой информации");
 	case UnaryOpKind::Deref:
 		Emit("mov rax, [rax]");
 		break;
+	default:;
 	}
 }
 
-void NasmCodeGenerator::Visit(const NumberExpr& node)
+void NasmCodeGenerator::Visit(const NumExpr& node)
 {
 	Emit("mov rax, " + node.GetValue());
 }
@@ -444,7 +451,8 @@ void NasmCodeGenerator::Visit(const FunctionCallExpr& node)
 	}
 
 	for (int i = static_cast<int>(std::min(argCount, static_cast<size_t>(MaxRegArgs))) - 1;
-		 i >= 0; --i)
+		i >= 0;
+		--i)
 	{
 		Emit("pop " + std::string(ArgRegisters[i]));
 	}
@@ -473,8 +481,18 @@ void NasmCodeGenerator::Visit(const MemberAccessExpr& /*node*/)
 	throw std::runtime_error("NASM: доступ к полю не поддерживается");
 }
 
-void NasmCodeGenerator::Visit(const StructDeclStmt& /*node*/) {}
-void NasmCodeGenerator::Visit(const UnionDeclStmt& /*node*/) {}
-void NasmCodeGenerator::Visit(const EnumDeclStmt& /*node*/) {}
-void NasmCodeGenerator::Visit(const ErrorExpr& /*node*/) {}
-void NasmCodeGenerator::Visit(const ImplicitCastExpr& /*node*/) {}
+void NasmCodeGenerator::Visit(const StructDeclStmt& /*node*/)
+{
+}
+void NasmCodeGenerator::Visit(const UnionDeclStmt& /*node*/)
+{
+}
+void NasmCodeGenerator::Visit(const EnumDeclStmt& /*node*/)
+{
+}
+void NasmCodeGenerator::Visit(const ErrorExpr& /*node*/)
+{
+}
+void NasmCodeGenerator::Visit(const ImplicitCastExpr& /*node*/)
+{
+}

@@ -22,9 +22,7 @@ enum class TokenType
 	OpMul,
 	OpDiv,
 	OpMod,
-	OpShiftLeft,
-	OpShiftRight,
-	OpBitAnd,
+	Ampersand,
 	OpRange,
 
 	Comma,

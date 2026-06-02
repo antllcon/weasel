@@ -14,7 +14,7 @@
 #include "src/compiler/ast/IfStmt.h"
 #include "src/compiler/ast/IndexExpr.h"
 #include "src/compiler/ast/MemberAccessExpr.h"
-#include "src/compiler/ast/NumberExpr.h"
+#include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
@@ -81,12 +81,7 @@ BinaryOpKind ParseBinaryOp(const std::string& op)
 	if (op == "<=") return BinaryOpKind::LessEq;
 	if (op == ">=") return BinaryOpKind::GreaterEq;
 	if (op == "and") return BinaryOpKind::LogicalAnd;
-	if (op == "orr") return BinaryOpKind::LogicalOr;
-	if (op == "<<") return BinaryOpKind::ShiftLeft;
-	if (op == ">>") return BinaryOpKind::ShiftRight;
-	if (op == "bnd") return BinaryOpKind::BitwiseAnd;
-	if (op == "bor") return BinaryOpKind::BitwiseOr;
-	if (op == "bxr") return BinaryOpKind::BitwiseXor;
+	if (op == "or") return BinaryOpKind::LogicalOr;
 	throw CompilationException(DiagnosticData{
 		.phase = CompilerPhase::Parser,
 		.message = "Неизвестный бинарный оператор",
@@ -96,9 +91,10 @@ BinaryOpKind ParseBinaryOp(const std::string& op)
 UnaryOpKind ParseUnaryOp(const std::string& op)
 {
 	if (op == "not") return UnaryOpKind::LogicalNot;
-	if (op == "bnt") return UnaryOpKind::BitwiseNot;
 	if (op == "&") return UnaryOpKind::AddressOf;
 	if (op == "*") return UnaryOpKind::Deref;
+	if (op == "-") return UnaryOpKind::Minus;
+
 	throw CompilationException(DiagnosticData{
 		.phase = CompilerPhase::Parser,
 		.message = "Неизвестный унарный оператор",
@@ -114,24 +110,15 @@ VarModifier ParseModifier(const CstNode& modNode)
 	ThrowConversionError("Неизвестный модификатор переменной: " + val, modNode);
 }
 
-std::pair<std::string, std::string> ParseType(const CstNode& typeNode)
+std::string ParseType(const CstNode& typeNode)
 {
-	if (typeNode.children.size() == 2 && typeNode.children[0]->label == "Sign")
+	const auto& child = *typeNode.children[0];
+	if (child.label == "BaseType")
 	{
-		const std::string sign = typeNode.children[0]->children[0]->value;
-		const std::string base = typeNode.children[1]->children[0]->value;
-		return {sign, base};
+		return child.children[0]->value;
 	}
-	if (typeNode.children.size() == 1)
-	{
-		const auto& child = *typeNode.children[0];
-		if (child.label == "BaseType")
-		{
-			return {"", child.children[0]->value};
-		}
-		return {"", child.value};
-	}
-	return {"", ""};
+
+	return child.value;
 }
 
 void CollectArgList(const CstNode& node, std::vector<std::unique_ptr<Expr>>& args);
@@ -161,7 +148,7 @@ std::unique_ptr<Expr> ConvertPrimaryExpr(const CstNode& node)
 	if (child.label == "num")
 	{
 		const bool isFloat = child.value.find('.') != std::string::npos;
-		return std::make_unique<NumberExpr>(child.value, isFloat, range);
+		return std::make_unique<NumExpr>(child.value, isFloat, range);
 	}
 	if (child.label == "str")
 	{
@@ -218,27 +205,27 @@ std::unique_ptr<Expr> ConvertPostfixExpr(const CstNode& node)
 		return std::make_unique<IndexExpr>(std::move(receiver), std::move(index), range);
 	}
 
-	if (childCount == 3 && node.children[1]->value == ".")
+	if (childCount >= 3 && node.children[1]->value == ".")
 	{
-		const std::string field = node.children[2]->value;
-		return std::make_unique<MemberAccessExpr>(std::move(receiver), field, range);
-	}
+		const CstNode& methodNode = *node.children[2];
+		const std::string methodName = methodNode.children.empty()
+			? methodNode.value
+			: methodNode.children[0]->value;
 
-	if (childCount == 5 && node.children[1]->value == ".")
-	{
-		const std::string method = node.children[2]->value;
+		if (childCount == 3)
+		{
+			return std::make_unique<MemberAccessExpr>(std::move(receiver), methodName, range);
+		}
+
 		std::vector<std::unique_ptr<Expr>> args;
 		args.push_back(std::move(receiver));
-		return std::make_unique<FunctionCallExpr>(method, std::move(args), range);
-	}
 
-	if (childCount == 6 && node.children[1]->value == ".")
-	{
-		const std::string method = node.children[2]->value;
-		std::vector<std::unique_ptr<Expr>> args;
-		args.push_back(std::move(receiver));
-		CollectArgList(*node.children[4], args);
-		return std::make_unique<FunctionCallExpr>(method, std::move(args), range);
+		if (childCount == 6)
+		{
+			CollectArgList(*node.children[4], args);
+		}
+
+		return std::make_unique<FunctionCallExpr>(methodName, std::move(args), range);
 	}
 
 	ThrowConversionError(
@@ -290,9 +277,8 @@ std::unique_ptr<Expr> ConvertExpr(const CstNode& node)
 std::unique_ptr<Stmt> ConvertVarDecl(const CstNode& node)
 {
 	const VarModifier modifier = ParseModifier(*node.children[0]);
-	const auto [sign, typeName] = ParseType(*node.children[1]);
+	const std::string typeName = ParseType(*node.children[1]);
 	const std::string name = node.children[2]->value;
-
 	std::unique_ptr<Expr> init = nullptr;
 	bool isMoveInit = false;
 
@@ -304,7 +290,7 @@ std::unique_ptr<Stmt> ConvertVarDecl(const CstNode& node)
 	}
 
 	return std::make_unique<VarDeclStmt>(
-		modifier, sign, typeName, name, isMoveInit, std::move(init), ExtractRange(node));
+		modifier, typeName, name, isMoveInit, std::move(init), ExtractRange(node));
 }
 
 std::unique_ptr<Stmt> ConvertAssignStmt(const CstNode& node)
@@ -462,9 +448,9 @@ void CollectDecls(const CstNode& node, std::vector<const CstNode*>& decls)
 
 Param ConvertParam(const CstNode& node)
 {
-	const auto [sign, typeName] = ParseType(*node.children[0]);
+	const std::string typeName = ParseType(*node.children[0]);
 	const std::string name = node.children[1]->value;
-	return Param{sign, typeName, name};
+	return Param{typeName, name};
 }
 
 void CollectParams(const CstNode& node, std::vector<Param>& params)
@@ -482,10 +468,9 @@ void CollectParams(const CstNode& node, std::vector<Param>& params)
 
 std::unique_ptr<AstNode> ConvertFuncDecl(const CstNode& node)
 {
-	const auto [sign, typeName] = ParseType(*node.children[0]);
+	const std::string typeName = ParseType(*node.children[0]);
 	const std::string name = node.children[2]->value;
-
-	const bool hasParams = (node.children[4]->label != ")");
+	const bool hasParams = node.children[4]->label != ")";
 	const size_t stmtListIdx = hasParams ? 7 : 6;
 
 	std::vector<Param> params;
@@ -496,7 +481,7 @@ std::unique_ptr<AstNode> ConvertFuncDecl(const CstNode& node)
 
 	auto body = ConvertStmtList(*node.children[stmtListIdx]);
 	return std::make_unique<FunctionDeclStmt>(
-		sign, typeName, name, std::move(params), std::move(body), ExtractRange(node));
+		typeName, name, std::move(params), std::move(body), ExtractRange(node));
 }
 
 void CollectFieldList(const CstNode& node, std::vector<FieldDecl>& fields)
@@ -507,8 +492,8 @@ void CollectFieldList(const CstNode& node, std::vector<FieldDecl>& fields)
 	}
 	CollectFieldList(*node.children[0], fields);
 	const CstNode& fieldNode = *node.children[1];
-	const auto [sign, typeName] = ParseType(*fieldNode.children[0]);
-	fields.push_back(FieldDecl{sign, typeName, fieldNode.children[1]->value});
+	const std::string typeName = ParseType(*fieldNode.children[0]);
+	fields.push_back(FieldDecl{typeName, fieldNode.children[1]->value});
 }
 
 void CollectEnumIdList(const CstNode& node, std::vector<std::string>& values)

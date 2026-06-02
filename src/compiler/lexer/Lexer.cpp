@@ -1,4 +1,6 @@
 #include "Lexer.h"
+
+#include "src/compiler/ast/TypeInfo.h"
 #include "src/diagnostics/CompilationException.h"
 #include "visualizer/LexerVisualizer.h"
 
@@ -171,9 +173,32 @@ bool IsIdChar(char ch)
 
 bool IsKeyword(std::string_view text)
 {
-	constexpr std::array<std::string_view, 51> keywords = {
-		"acolor", "als", "and", "ass", "bitten", "bnd", "bnt", "boolen", "bor", "buffer", "bxr", "compti", "def", "double", "else", "enumer", "false", "fpoint", "import", "in", "linear", "little", "longer", "matrix", "not", "number", "orr", "planar", "quadra", "random", "rep", "return", "rpoint", "run", "s", "single", "slices", "spoint", "string", "struct", "thread", "true", "u", "unions", "upoint", "val", "var", "vector", "voided", "when", "wpoint"};
-
+	constexpr std::array<std::string_view, 25> keywords = {
+		"alias",
+		"and",
+		TypeKeyword::Bool,
+		"def",
+		"else",
+		"enum",
+		"false",
+		"import",
+		"in",
+		TypeKeyword::Int,
+		"not",
+		"or",
+		TypeKeyword::Real,
+		"rep",
+		"return",
+		"run",
+		TypeKeyword::String,
+		"struct",
+		"true",
+		TypeKeyword::Uint,
+		"union",
+		"val",
+		"var",
+		TypeKeyword::Void,
+		"when"};
 	return std::ranges::binary_search(keywords, text);
 }
 
@@ -193,7 +218,7 @@ Token ParseIdOrKeyword(LexerState& state)
 	return Token{type, value, startPos, startLine};
 }
 
-Token ParseNumber(LexerState& state)
+Token ParseNum(LexerState& state)
 {
 	const size_t startPos = state.pos;
 	const size_t startLine = state.line;
@@ -227,6 +252,7 @@ Token ParseString(LexerState& state)
 	const size_t startLine = state.line;
 
 	Advance(state);
+	const size_t contentStart = state.pos;
 
 	while (!IsAtEnd(state) && Peek(state) != '"')
 	{
@@ -237,6 +263,8 @@ Token ParseString(LexerState& state)
 		Advance(state);
 	}
 
+	const size_t contentEnd = state.pos;
+
 	if (IsAtEnd(state))
 	{
 		ReportUnterminatedString(state, startLine, startPos);
@@ -246,7 +274,7 @@ Token ParseString(LexerState& state)
 		Advance(state);
 	}
 
-	const std::string_view value = state.source.substr(startPos, state.pos - startPos);
+	const std::string_view value = state.source.substr(contentStart, contentEnd - contentStart);
 
 	return Token{TokenType::String, value, startPos, startLine};
 }
@@ -295,11 +323,6 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 			Advance(state);
 			return MakeToken(TokenType::OpLessEq, startPos, 2, state, startLine);
 		}
-		if (Peek(state) == '<')
-		{
-			Advance(state);
-			return MakeToken(TokenType::OpShiftLeft, startPos, 2, state, startLine);
-		}
 		return MakeToken(TokenType::OpLess, startPos, 1, state, startLine);
 	case '>':
 		if (Peek(state) == '<')
@@ -311,11 +334,6 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 		{
 			Advance(state);
 			return MakeToken(TokenType::OpGreaterEq, startPos, 2, state, startLine);
-		}
-		if (Peek(state) == '>')
-		{
-			Advance(state);
-			return MakeToken(TokenType::OpShiftRight, startPos, 2, state, startLine);
 		}
 		return MakeToken(TokenType::OpGreater, startPos, 1, state, startLine);
 	case '=':
@@ -344,7 +362,7 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 	case '%':
 		return MakeToken(TokenType::OpMod, startPos, 1, state, startLine);
 	case '&':
-		return MakeToken(TokenType::OpBitAnd, startPos, 1, state, startLine);
+		return MakeToken(TokenType::Ampersand, startPos, 1, state, startLine);
 	case ',':
 		return MakeToken(TokenType::Comma, startPos, 1, state, startLine);
 	case '(':
@@ -394,7 +412,7 @@ Token GetNextToken(LexerState& state)
 
 	if (std::isdigit(static_cast<unsigned char>(ch)))
 	{
-		return ParseNumber(state);
+		return ParseNum(state);
 	}
 
 	if (ch == '"')

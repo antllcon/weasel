@@ -15,7 +15,7 @@
 #include "src/compiler/ast/ImplicitCastExpr.h"
 #include "src/compiler/ast/IndexExpr.h"
 #include "src/compiler/ast/MemberAccessExpr.h"
-#include "src/compiler/ast/NumberExpr.h"
+#include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
@@ -59,17 +59,7 @@ std::string BinaryOpToString(BinaryOpKind op)
 	case BinaryOpKind::LogicalAnd:
 		return "and";
 	case BinaryOpKind::LogicalOr:
-		return "orr";
-	case BinaryOpKind::ShiftLeft:
-		return "<<";
-	case BinaryOpKind::ShiftRight:
-		return ">>";
-	case BinaryOpKind::BitwiseAnd:
-		return "bnd";
-	case BinaryOpKind::BitwiseOr:
-		return "bor";
-	case BinaryOpKind::BitwiseXor:
-		return "bxr";
+		return "or";
 	}
 	return "?";
 }
@@ -80,12 +70,12 @@ std::string UnaryOpToString(UnaryOpKind op)
 	{
 	case UnaryOpKind::LogicalNot:
 		return "not";
-	case UnaryOpKind::BitwiseNot:
-		return "bnt";
 	case UnaryOpKind::AddressOf:
 		return "&";
 	case UnaryOpKind::Deref:
 		return "*";
+	case UnaryOpKind::Minus:
+		return "-";
 	}
 	return "?";
 }
@@ -103,12 +93,6 @@ std::string ModifierToString(VarModifier mod)
 	}
 	return "?";
 }
-
-std::string FormatType(const std::string& sign, const std::string& name)
-{
-	return sign.empty() ? name : sign + " " + name;
-}
-
 } // namespace
 
 void AstVisualizer::Visualize(const AstNode& root)
@@ -141,7 +125,7 @@ void AstVisualizer::VisitChild(const AstNode& child, bool isLast)
 	const std::string savedPrefix = m_prefix;
 	const bool savedIsLast = m_isLast;
 
-	m_prefix += (savedIsLast ? "    " : "│   ");
+	m_prefix += savedIsLast ? "    " : "│   ";
 	m_isLast = isLast;
 	child.Accept(*this);
 
@@ -162,15 +146,13 @@ void AstVisualizer::Visit(const ProgramNode& node)
 
 void AstVisualizer::Visit(const FunctionDeclStmt& node)
 {
-	const std::string retType = FormatType(node.GetReturnTypeSign(), node.GetReturnTypeName());
-
-	std::string label = "FuncDecl (" + node.GetName() + ": " + retType;
+	std::string label = "FuncDecl (" + node.GetName() + ": " + node.GetReturnTypeName();
 	if (!node.GetParams().empty())
 	{
 		label += " |";
 		for (const auto& p : node.GetParams())
 		{
-			label += " " + FormatType(p.typeSign, p.typeName) + " " + p.name;
+			label += " " + p.typeName + " " + p.name;
 		}
 	}
 	label += ")";
@@ -191,7 +173,7 @@ void AstVisualizer::Visit(const BlockStmt& node)
 
 void AstVisualizer::Visit(const VarDeclStmt& node)
 {
-	const std::string type = FormatType(node.GetTypeSign(), node.GetTypeName());
+	const std::string type = node.GetTypeName();
 	const std::string op = node.IsMoveInit() ? " <-" : " :=";
 	std::string label = "VarDecl (" + ModifierToString(node.GetModifier()) + " " + type + " " + node.GetName();
 	label += node.GetInit() ? op + ")" : ")";
@@ -292,10 +274,10 @@ void AstVisualizer::Visit(const IdentifierExpr& node)
 	PrintNode("Identifier (" + node.GetName() + ")");
 }
 
-void AstVisualizer::Visit(const NumberExpr& node)
+void AstVisualizer::Visit(const NumExpr& node)
 {
 	const std::string suffix = node.IsFloat() ? "f" : "";
-	PrintNode("Number (" + node.GetValue() + suffix + ")");
+	PrintNode("Num (" + node.GetValue() + suffix + ")");
 }
 
 void AstVisualizer::Visit(const StringExpr& node)
@@ -347,7 +329,7 @@ void AstVisualizer::Visit(const StructDeclStmt& node)
 	const auto& fields = node.GetFields();
 	for (size_t i = 0; i < fields.size(); ++i)
 	{
-		PrintLeaf("Field (" + FormatType(fields[i].typeSign, fields[i].typeName) + " " + fields[i].name + ")",
+		PrintLeaf("Field (" + fields[i].typeName + " " + fields[i].name + ")",
 			i + 1 == fields.size());
 	}
 }
@@ -358,7 +340,7 @@ void AstVisualizer::Visit(const UnionDeclStmt& node)
 	const auto& fields = node.GetFields();
 	for (size_t i = 0; i < fields.size(); ++i)
 	{
-		PrintLeaf("Field (" + FormatType(fields[i].typeSign, fields[i].typeName) + " " + fields[i].name + ")",
+		PrintLeaf("Field (" + fields[i].typeName + " " + fields[i].name + ")",
 			i + 1 == fields.size());
 	}
 }

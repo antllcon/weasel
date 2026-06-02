@@ -137,7 +137,7 @@ bool IsControlStructureEnd(const std::vector<Token>& tokens, size_t prevIdx)
 		if (beforeId < tokens.size() && tokens[beforeId].type == TokenType::Keyword)
 		{
 			const auto& val = tokens[beforeId].value;
-			if (val == "struct" || val == "unions" || val == "enumer")
+			if (val == "struct" || val == "union" || val == "enum")
 				return true;
 		}
 	}
@@ -526,7 +526,7 @@ std::vector<LalrParseStep> ParseToSteps(
 		const size_t currentState = stateStack.back();
 
 		LalrParseStep step;
-		step.stepNumber = stepCounter++;
+		step.stepNum = stepCounter++;
 		step.stateStack = FormatStateStack(stateStack);
 		step.symbolStack = FormatSymbolStack(symbolStack);
 		step.input = FormatInput(tokens, ip);

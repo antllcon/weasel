@@ -17,7 +17,7 @@ public:
 	void Visit(const class BinaryExpr& node) override;
 	void Visit(const class UnaryExpr& node) override;
 	void Visit(const class IdentifierExpr& node) override;
-	void Visit(const class NumberExpr& node) override;
+	void Visit(const class NumExpr& node) override;
 	void Visit(const class StringExpr& node) override;
 	void Visit(const class BoolExpr& node) override;
 	void Visit(const class ArrayLiteralExpr& node) override;

@@ -10,7 +10,7 @@ class ImplicitCastExpr;
 class BinaryExpr;
 class UnaryExpr;
 class IdentifierExpr;
-class NumberExpr;
+class NumExpr;
 class StringExpr;
 class BoolExpr;
 class ArrayLiteralExpr;
@@ -41,7 +41,7 @@ public:
 	virtual void Visit(const BinaryExpr& node) = 0;
 	virtual void Visit(const UnaryExpr& node) = 0;
 	virtual void Visit(const IdentifierExpr& node) = 0;
-	virtual void Visit(const NumberExpr& node) = 0;
+	virtual void Visit(const NumExpr& node) = 0;
 	virtual void Visit(const StringExpr& node) = 0;
 	virtual void Visit(const BoolExpr& node) = 0;
 	virtual void Visit(const ArrayLiteralExpr& node) = 0;

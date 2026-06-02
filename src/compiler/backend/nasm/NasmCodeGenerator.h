@@ -29,7 +29,7 @@ public:
 	void Visit(const BinaryExpr& node) override;
 	void Visit(const UnaryExpr& node) override;
 	void Visit(const IdentifierExpr& node) override;
-	void Visit(const NumberExpr& node) override;
+	void Visit(const NumExpr& node) override;
 	void Visit(const StringExpr& node) override;
 	void Visit(const BoolExpr& node) override;
 	void Visit(const ArrayLiteralExpr& node) override;

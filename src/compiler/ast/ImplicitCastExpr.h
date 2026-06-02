@@ -5,7 +5,7 @@
 enum class CastKind
 {
 	IntegralPromotion,
-	FloatToDouble,
+	FloatToReal,
 	LValueToRValue
 };
 

@@ -75,7 +75,7 @@ namespace
     std::vector<CstInputToken> WrapInFunc(const std::vector<CstInputToken>& stmts)
     {
         std::vector<CstInputToken> res = {
-            Tok("voided", "voided"), Tok("<-", "<-"), Tok("id", "f"),
+            Tok("void", "void"), Tok("<-", "<-"), Tok("id", "f"),
             Tok("(", "("), Tok(")", ")"), Tok("{", "{")
         };
         res.insert(res.end(), stmts.begin(), stmts.end());
@@ -130,7 +130,7 @@ TEST_F(ParserTest, UnexpectedTokenThrows)
 TEST_F(ParserTest, IncompleteExprThrows)
 {
     EXPECT_THROW(Parse({
-        Tok("val", "val"), Tok("number", "number"), Tok("id", "x"),
+        Tok("val", "val"), Tok("num", "num"), Tok("id", "x"),
         Tok(":=", ":="), Tok("#", "")
     }), std::runtime_error);
 }
@@ -161,7 +161,7 @@ TEST_F(ParserTest, RootLabelIsAugmentedStart)
 TEST_F(ParserTest, FuncDeclNoParams)
 {
     auto root = Parse({
-        Tok("voided", "voided"), Tok("<-", "<-"), Tok("id", "main"),
+        Tok("void", "void"), Tok("<-", "<-"), Tok("id", "main"),
         Tok("(", "("), Tok(")", ")"), Tok("{", "{"), Tok("}", "}"), Tok("#", "")
     });
 
@@ -182,9 +182,9 @@ TEST_F(ParserTest, FuncDeclNoParams)
 TEST_F(ParserTest, FuncDeclWithParams)
 {
     auto root = Parse({
-        Tok("voided", "voided"), Tok("<-", "<-"), Tok("id", "add"), Tok("(", "("),
-        Tok("s", "s"), Tok("number", "number"), Tok("id", "a"), Tok(",", ","),
-        Tok("s", "s"), Tok("number", "number"), Tok("id", "b"),
+        Tok("void", "void"), Tok("<-", "<-"), Tok("id", "add"), Tok("(", "("),
+        Tok("s", "s"), Tok("num", "num"), Tok("id", "a"), Tok(",", ","),
+        Tok("s", "s"), Tok("num", "num"), Tok("id", "b"),
         Tok(")", ")"), Tok("{", "{"), Tok("return", "return"), Tok("nl", "\n"),
         Tok("}", "}"), Tok("#", "")
     });
@@ -216,7 +216,7 @@ TEST_F(ParserTest, FuncDeclReturnTypeId)
 TEST_F(ParserTest, FuncDeclSignedType)
 {
     auto root = Parse({
-        Tok("s", "s"), Tok("number", "number"), Tok("<-", "<-"), Tok("id", "foo"),
+        Tok("s", "s"), Tok("num", "num"), Tok("<-", "<-"), Tok("id", "foo"),
         Tok("(", "("), Tok(")", ")"), Tok("{", "{"), Tok("return", "return"),
         Tok("nl", "\n"), Tok("}", "}"), Tok("#", "")
     });
@@ -230,14 +230,14 @@ TEST_F(ParserTest, FuncDeclSignedType)
     auto baseType = Find(root.get(), "BaseType");
     ASSERT_NE(baseType, nullptr);
     ASSERT_FALSE(baseType->children.empty());
-    EXPECT_EQ(baseType->children[0]->value, "number");
+    EXPECT_EQ(baseType->children[0]->value, "num");
 }
 
 // Проверка объявления переменной с инициализацией
 TEST_F(ParserTest, VarDeclWithAssign)
 {
     auto root = Parse(WrapInFunc({
-        Tok("val", "val"), Tok("s", "s"), Tok("number", "number"),
+        Tok("val", "val"), Tok("s", "s"), Tok("num", "num"),
         Tok("id", "x"), Tok(":=", ":="), Tok("num", "10"), Tok("nl", "\n")
     }));
 
@@ -259,7 +259,7 @@ TEST_F(ParserTest, VarDeclWithAssign)
 TEST_F(ParserTest, VarDeclNoAssign)
 {
     auto root = Parse(WrapInFunc({
-        Tok("var", "var"), Tok("number", "number"), Tok("id", "y"), Tok("nl", "\n")
+        Tok("var", "var"), Tok("num", "num"), Tok("id", "y"), Tok("nl", "\n")
     }));
 
     ASSERT_NE(root, nullptr);
@@ -272,7 +272,7 @@ TEST_F(ParserTest, VarDeclNoAssign)
 TEST_F(ParserTest, VarDeclMoveAssign)
 {
     auto root = Parse(WrapInFunc({
-        Tok("val", "val"), Tok("number", "number"), Tok("id", "z"),
+        Tok("val", "val"), Tok("num", "num"), Tok("id", "z"),
         Tok("<-", "<-"), Tok("num", "0"), Tok("nl", "\n")
     }));
 
@@ -286,7 +286,7 @@ TEST_F(ParserTest, VarDeclMoveAssign)
 TEST_F(ParserTest, VarDeclDefModifier)
 {
     auto root = Parse(WrapInFunc({
-        Tok("def", "def"), Tok("number", "number"), Tok("id", "MAX_VALUE"),
+        Tok("def", "def"), Tok("num", "num"), Tok("id", "MAX_VALUE"),
         Tok(":=", ":="), Tok("num", "100"), Tok("nl", "\n")
     }));
 
@@ -311,7 +311,7 @@ TEST_F(ParserTest, SimpleAssign)
 }
 
 // Проверка парсинга одиночного числа
-TEST_F(ParserTest, SingleNumber)
+TEST_F(ParserTest, SingleNum)
 {
     auto root = Parse(WrapInFunc({Tok("num", "67"), Tok("nl", "\n")}));
 
@@ -410,7 +410,7 @@ TEST_F(ParserTest, UnaryPointerDeref)
 TEST_F(ParserTest, LogicalAndOrPrecedence)
 {
     auto root = Parse(WrapInFunc({
-        Tok("id", "a"), Tok("orr", "orr"), Tok("id", "b"),
+        Tok("id", "a"), Tok("or", "or"), Tok("id", "b"),
         Tok("and", "and"), Tok("id", "c"), Tok("nl", "\n")
     }));
 
@@ -780,8 +780,8 @@ TEST_F(ParserTest, StmtListLeftRecursion)
 TEST_F(ParserTest, DeclListLeftRecursion)
 {
     auto root = Parse({
-        Tok("voided", "voided"), Tok("<-", "<-"), Tok("id", "f"), Tok("(", "("), Tok(")", ")"), Tok("{", "{"), Tok("}", "}"),
-        Tok("voided", "voided"), Tok("<-", "<-"), Tok("id", "g"), Tok("(", "("), Tok(")", ")"), Tok("{", "{"), Tok("}", "}"),
+        Tok("void", "void"), Tok("<-", "<-"), Tok("id", "f"), Tok("(", "("), Tok(")", ")"), Tok("{", "{"), Tok("}", "}"),
+        Tok("void", "void"), Tok("<-", "<-"), Tok("id", "g"), Tok("(", "("), Tok(")", ")"), Tok("{", "{"), Tok("}", "}"),
         Tok("#", "")
     });
 
@@ -796,7 +796,7 @@ TEST_F(ParserTest, StructDecl)
 {
     auto root = Parse({
         Tok("struct", "struct"), Tok("id", "Point"), Tok("[", "["),
-        Tok("number", "number"), Tok("id", "x"), Tok("number", "number"), Tok("id", "y"),
+        Tok("num", "num"), Tok("id", "x"), Tok("num", "num"), Tok("id", "y"),
         Tok("]", "]"), Tok("#", "")
     });
 
@@ -811,8 +811,8 @@ TEST_F(ParserTest, StructDecl)
 TEST_F(ParserTest, UnionDecl)
 {
     auto root = Parse({
-        Tok("unions", "unions"), Tok("id", "Data"), Tok("[", "["),
-        Tok("number", "number"), Tok("id", "as_int"), Tok("single", "single"), Tok("id", "as_flt"),
+        Tok("union", "union"), Tok("id", "Data"), Tok("[", "["),
+        Tok("num", "num"), Tok("id", "as_int"), Tok("single", "single"), Tok("id", "as_flt"),
         Tok("]", "]"), Tok("#", "")
     });
 
@@ -825,7 +825,7 @@ TEST_F(ParserTest, UnionDecl)
 TEST_F(ParserTest, EnumDecl)
 {
     auto root = Parse({
-        Tok("enumer", "enumer"), Tok("id", "Color"), Tok("[", "["),
+        Tok("enum", "enum"), Tok("id", "Color"), Tok("[", "["),
         Tok("id", "RED"), Tok(",", ","), Tok("id", "GREEN"), Tok(",", ","), Tok("id", "BLUE"),
         Tok("]", "]"), Tok("#", "")
     });
@@ -841,7 +841,7 @@ TEST_F(ParserTest, EnumDecl)
 TEST_F(ParserTest, LeafValuesPreserved)
 {
     std::vector<CstInputToken> tokens = {
-        Tok("voided", "voided"), Tok("<-", "<-"), Tok("id", "f"), Tok("(", "("), Tok(")", ")"),
+        Tok("void", "void"), Tok("<-", "<-"), Tok("id", "f"), Tok("(", "("), Tok(")", ")"),
         Tok("{", "{"), Tok("}", "}"), Tok("#", "")
     };
     auto root = Parse(tokens);
@@ -858,7 +858,7 @@ TEST_F(ParserTest, LeafValuesPreserved)
         }
     }
 
-    const std::vector<std::string> expected = { "voided", "<-", "f", "(", ")", "{", "}" };
+    const std::vector<std::string> expected = { "void", "<-", "f", "(", ")", "{", "}" };
     ASSERT_EQ(real.size(), expected.size());
     for (size_t i = 0; i < expected.size(); ++i)
     {
@@ -878,7 +878,7 @@ TEST_F(ParserTest, IdentifierValuePreserved)
 }
 
 // Проверка сохранения значений чисел
-TEST_F(ParserTest, NumberValuePreserved)
+TEST_F(ParserTest, NumValuePreserved)
 {
     auto root = Parse(WrapInFunc({Tok("num", "3.14"), Tok("nl", "\n")}));
 
@@ -914,7 +914,7 @@ TEST_F(ParserTest, NewlineValuePreserved)
 TEST_F(ParserTest, MinimalFunction)
 {
     auto root = Parse({
-        Tok("voided", "voided"), Tok("<-", "<-"), Tok("id", "main"), Tok("(", "("), Tok(")", ")"),
+        Tok("void", "void"), Tok("<-", "<-"), Tok("id", "main"), Tok("(", "("), Tok(")", ")"),
         Tok("{", "{"), Tok("return", "return"), Tok("nl", "\n"), Tok("}", "}"), Tok("#", "")
     });
 
@@ -926,9 +926,9 @@ TEST_F(ParserTest, MinimalFunction)
 TEST_F(ParserTest, FunctionWithVarAndReturn)
 {
     auto root = Parse({
-        Tok("voided", "voided"), Tok("<-", "<-"), Tok("id", "main"), Tok("(", "("), Tok(")", ")"),
+        Tok("void", "void"), Tok("<-", "<-"), Tok("id", "main"), Tok("(", "("), Tok(")", ")"),
         Tok("{", "{"),
-        Tok("val", "val"), Tok("s", "s"), Tok("number", "number"), Tok("id", "x"), Tok(":=", ":="), Tok("num", "10"), Tok("nl", "\n"),
+        Tok("val", "val"), Tok("s", "s"), Tok("num", "num"), Tok("id", "x"), Tok(":=", ":="), Tok("num", "10"), Tok("nl", "\n"),
         Tok("return", "return"), Tok("nl", "\n"),
         Tok("}", "}"), Tok("#", "")
     });
@@ -942,9 +942,9 @@ TEST_F(ParserTest, FunctionWithVarAndReturn)
 TEST_F(ParserTest, FunctionWithConditional)
 {
     auto root = Parse({
-        Tok("voided", "voided"), Tok("<-", "<-"), Tok("id", "main"), Tok("(", "("), Tok(")", ")"),
+        Tok("void", "void"), Tok("<-", "<-"), Tok("id", "main"), Tok("(", "("), Tok(")", ")"),
         Tok("{", "{"),
-        Tok("val", "val"), Tok("number", "number"), Tok("id", "a"), Tok(":=", ":="), Tok("num", "5"), Tok("nl", "\n"),
+        Tok("val", "val"), Tok("num", "num"), Tok("id", "a"), Tok(":=", ":="), Tok("num", "5"), Tok("nl", "\n"),
         Tok("when", "when"), Tok("(", "("), Tok("id", "a"), Tok(")", ")"),
         Tok("{", "{"), Tok("return", "return"), Tok("nl", "\n"), Tok("}", "}"),
         Tok("}", "}"), Tok("#", "")

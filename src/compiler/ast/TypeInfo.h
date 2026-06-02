@@ -2,18 +2,25 @@
 #include <memory>
 #include <string>
 
+namespace TypeKeyword
+{
+inline constexpr std::string_view Int = "int";
+inline constexpr std::string_view Uint = "uint";
+inline constexpr std::string_view Real = "real";
+inline constexpr std::string_view Bool = "bool";
+inline constexpr std::string_view String = "string";
+inline constexpr std::string_view Void = "void";
+} // namespace TypeKeyword
+
 enum class BaseType
 {
-	Bitten, Little, Number, Longer,
-	Single, Double,
-	Boolen, String, Voided,
-	Planar, Vector, Quadra, Linear, Matrix,
+	Int,
+	Uint,
+	Real,
+	Bool,
+	String,
+	Void,
 	Custom
-};
-
-enum class Signedness
-{
-	Signed, Unsigned, None
 };
 
 class TypeInfo
@@ -27,20 +34,19 @@ public:
 class ScalarTypeInfo final : public TypeInfo
 {
 public:
-	ScalarTypeInfo(BaseType base, Signedness sign);
+	explicit ScalarTypeInfo(BaseType base);
 
 	[[nodiscard]] std::string GetName() const override;
 	[[nodiscard]] bool IsScalar() const override;
 	[[nodiscard]] BaseType GetBaseType() const;
-	[[nodiscard]] Signedness GetSignedness() const;
+
 	[[nodiscard]] bool IsInteger() const;
 	[[nodiscard]] bool IsFloat() const;
-	[[nodiscard]] bool IsVoided() const;
+	[[nodiscard]] bool IsVoid() const;
 
-	[[nodiscard]] static std::shared_ptr<ScalarTypeInfo> Make(BaseType base, Signedness sign = Signedness::None);
-	[[nodiscard]] static std::shared_ptr<ScalarTypeInfo> FromStrings(const std::string& sign, const std::string& typeName);
+	[[nodiscard]] static std::shared_ptr<ScalarTypeInfo> Make(BaseType base);
+	[[nodiscard]] static std::shared_ptr<ScalarTypeInfo> FromString(const std::string& typeName);
 
 private:
 	BaseType m_base;
-	Signedness m_sign;
 };

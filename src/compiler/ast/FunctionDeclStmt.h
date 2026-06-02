@@ -7,7 +7,6 @@
 
 struct Param
 {
-	std::string typeSign;
 	std::string typeName;
 	std::string name;
 };
@@ -16,7 +15,6 @@ class FunctionDeclStmt final : public Stmt
 {
 public:
 	FunctionDeclStmt(
-		std::string returnTypeSign,
 		std::string returnTypeName,
 		std::string name,
 		std::vector<Param> params,
@@ -26,13 +24,11 @@ public:
 	void Accept(IAstVisitor& visitor) const override;
 	[[nodiscard]] SourceRange GetRange() const override;
 	[[nodiscard]] const std::string& GetName() const;
-	[[nodiscard]] const std::string& GetReturnTypeSign() const;
 	[[nodiscard]] const std::string& GetReturnTypeName() const;
 	[[nodiscard]] const std::vector<Param>& GetParams() const;
 	[[nodiscard]] const BlockStmt& GetBody() const;
 
 private:
-	std::string m_returnTypeSign;
 	std::string m_returnTypeName;
 	std::string m_name;
 	std::vector<Param> m_params;

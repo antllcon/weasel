@@ -3,11 +3,19 @@
 
 enum class BinaryOpKind
 {
-	Add, Sub, Mul, Div, Mod,
-	Eq, NotEq, Less, Greater, LessEq, GreaterEq,
-	LogicalAnd, LogicalOr,
-	ShiftLeft, ShiftRight,
-	BitwiseAnd, BitwiseOr, BitwiseXor
+	Add,
+	Sub,
+	Mul,
+	Div,
+	Mod,
+	Eq,
+	NotEq,
+	Less,
+	Greater,
+	LessEq,
+	GreaterEq,
+	LogicalAnd,
+	LogicalOr
 };
 
 class BinaryExpr final : public Expr

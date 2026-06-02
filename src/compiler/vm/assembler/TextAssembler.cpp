@@ -25,87 +25,28 @@ struct ChunkByte
 const std::unordered_map<std::string, OpCode> MNEMONICS = {
 	{"const", OpCode::Constant},
 
-	{"add_i8", OpCode::AddI8},
-	{"add_u8", OpCode::AddU8},
-	{"add_i16", OpCode::AddI16},
-	{"add_u16", OpCode::AddU16},
-	{"add_i32", OpCode::AddI32},
-	{"add_u32", OpCode::AddU32},
-	{"add_i64", OpCode::AddI64},
-	{"add_u64", OpCode::AddU64},
-	{"add_f32", OpCode::AddF32},
-	{"add_f64", OpCode::AddF64},
+	{"add_int", OpCode::AddInt},
+	{"add_uint", OpCode::AddUint},
+	{"add_real", OpCode::AddReal},
+	{"sub_int", OpCode::SubInt},
+	{"sub_uint", OpCode::SubUint},
+	{"sub_real", OpCode::SubReal},
+	{"mul_int", OpCode::MulInt},
+	{"mul_uint", OpCode::MulUint},
+	{"mul_real", OpCode::MulReal},
+	{"div_int", OpCode::DivInt},
+	{"div_uint", OpCode::DivUint},
+	{"div_real", OpCode::DivReal},
+	{"rem_int", OpCode::RemInt},
+	{"rem_uint", OpCode::RemUint},
+	{"rem_real", OpCode::RemReal},
 
-	{"sub_i8", OpCode::SubI8},
-	{"sub_u8", OpCode::SubU8},
-	{"sub_i16", OpCode::SubI16},
-	{"sub_u16", OpCode::SubU16},
-	{"sub_i32", OpCode::SubI32},
-	{"sub_u32", OpCode::SubU32},
-	{"sub_i64", OpCode::SubI64},
-	{"sub_u64", OpCode::SubU64},
-	{"sub_f32", OpCode::SubF32},
-	{"sub_f64", OpCode::SubF64},
-
-	{"mul_i8", OpCode::MulI8},
-	{"mul_u8", OpCode::MulU8},
-	{"mul_i16", OpCode::MulI16},
-	{"mul_u16", OpCode::MulU16},
-	{"mul_i32", OpCode::MulI32},
-	{"mul_u32", OpCode::MulU32},
-	{"mul_i64", OpCode::MulI64},
-	{"mul_u64", OpCode::MulU64},
-	{"mul_f32", OpCode::MulF32},
-	{"mul_f64", OpCode::MulF64},
-
-	{"div_i8", OpCode::DivI8},
-	{"div_u8", OpCode::DivU8},
-	{"div_i16", OpCode::DivI16},
-	{"div_u16", OpCode::DivU16},
-	{"div_i32", OpCode::DivI32},
-	{"div_u32", OpCode::DivU32},
-	{"div_i64", OpCode::DivI64},
-	{"div_u64", OpCode::DivU64},
-	{"div_f32", OpCode::DivF32},
-	{"div_f64", OpCode::DivF64},
-
-	{"rem_i8", OpCode::RemI8},
-	{"rem_u8", OpCode::RemU8},
-	{"rem_i16", OpCode::RemI16},
-	{"rem_u16", OpCode::RemU16},
-	{"rem_i32", OpCode::RemI32},
-	{"rem_u32", OpCode::RemU32},
-	{"rem_i64", OpCode::RemI64},
-	{"rem_u64", OpCode::RemU64},
-
-	{"eq_i8", OpCode::EqI8},
-	{"eq_u8", OpCode::EqU8},
-	{"eq_i16", OpCode::EqI16},
-	{"eq_u16", OpCode::EqU16},
-	{"eq_i32", OpCode::EqI32},
-	{"eq_u32", OpCode::EqU32},
-	{"eq_i64", OpCode::EqI64},
-	{"eq_u64", OpCode::EqU64},
-	{"eq_f32", OpCode::EqF32},
-	{"eq_f64", OpCode::EqF64},
-
-	{"lt_i8", OpCode::LtI8},
-	{"lt_u8", OpCode::LtU8},
-	{"lt_i16", OpCode::LtI16},
-	{"lt_u16", OpCode::LtU16},
-	{"lt_i32", OpCode::LtI32},
-	{"lt_u32", OpCode::LtU32},
-	{"lt_i64", OpCode::LtI64},
-	{"lt_u64", OpCode::LtU64},
-	{"lt_f32", OpCode::LtF32},
-	{"lt_f64", OpCode::LtF64},
-
-	{"bit_and", OpCode::BitAnd},
-	{"bit_orr", OpCode::BitOr},
-	{"bit_xor", OpCode::BitXor},
-	{"bit_not", OpCode::BitNot},
-	{"shift-left", OpCode::Shl},
-	{"shift-right", OpCode::Shr},
+	{"eq_int", OpCode::EqInt},
+	{"eq_uint", OpCode::EqUint},
+	{"eq_real", OpCode::EqReal},
+	{"lt_int", OpCode::LtInt},
+	{"lt_uint", OpCode::LtUint},
+	{"lt_real", OpCode::LtReal},
 
 	{"load-local", OpCode::LoadLocal},
 	{"store-local", OpCode::StoreLocal},
@@ -146,7 +87,7 @@ void AssertIsFileOpened(bool isOpen)
 	}
 }
 
-void AssertIsInvalidNumberFormat(bool isInvalid)
+void AssertIsInvalidNumFormat(bool isInvalid)
 {
 	if (isInvalid)
 	{
@@ -231,7 +172,7 @@ uint64_t ParseConstantAsRaw(const std::string& text)
 	}
 	catch (const std::exception&)
 	{
-		AssertIsInvalidNumberFormat(true);
+		AssertIsInvalidNumFormat(true);
 		return 0;
 	}
 }
@@ -368,7 +309,7 @@ void TextAssembler::AssembleToBinary(const std::filesystem::path& inputPath, con
 					}
 					catch (const std::exception&)
 					{
-						AssertIsInvalidNumberFormat(true);
+						AssertIsInvalidNumFormat(true);
 					}
 				}
 				else if (Takes32BitArg(opCode) && tokens.size() >= 2)
@@ -404,7 +345,7 @@ void TextAssembler::AssembleToBinary(const std::filesystem::path& inputPath, con
 						}
 						catch (const std::exception&)
 						{
-							AssertIsInvalidNumberFormat(true);
+							AssertIsInvalidNumFormat(true);
 						}
 					}
 				}
@@ -436,7 +377,7 @@ void TextAssembler::AssembleToBinary(const std::filesystem::path& inputPath, con
 					}
 					catch (const std::exception&)
 					{
-						AssertIsInvalidNumberFormat(true);
+						AssertIsInvalidNumFormat(true);
 					}
 				}
 			}

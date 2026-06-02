@@ -49,7 +49,7 @@ std::string FormatStepRow(const LalrParseStep& step)
 {
 	std::ostringstream ss;
 	ss << std::left
-	   << std::setw(StepWidth) << step.stepNumber
+	   << std::setw(StepWidth) << step.stepNum
 	   << std::setw(StackWidth) << Truncate(step.stateStack, StackWidth - 2)
 	   << std::setw(StackWidth) << Truncate(step.symbolStack, StackWidth - 2)
 	   << std::setw(InputWidth) << Truncate(step.input, InputWidth - 2)

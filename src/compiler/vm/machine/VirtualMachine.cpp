@@ -219,75 +219,6 @@ void ExecuteRem(ExecutionContext& context)
 	}
 }
 
-template <typename T>
-void ExecuteEq(ExecutionContext& context)
-{
-	const T rhs = Pop(context).As<T>();
-	const T lhs = Pop(context).As<T>();
-	Push(context, Value(lhs == rhs));
-}
-
-template <typename T>
-void ExecuteLt(ExecutionContext& context)
-{
-	const T rhs = Pop(context).As<T>();
-	const T lhs = Pop(context).As<T>();
-	Push(context, Value(lhs < rhs));
-}
-
-template <typename T>
-void ExecuteBitAnd(ExecutionContext& context)
-{
-	static_assert(std::is_integral_v<T>);
-	const T rhs = Pop(context).As<T>();
-	const T lhs = Pop(context).As<T>();
-	Push(context, Value(static_cast<T>(lhs & rhs)));
-}
-
-template <typename T>
-void ExecuteBitOr(ExecutionContext& context)
-{
-	static_assert(std::is_integral_v<T>);
-	const T rhs = Pop(context).As<T>();
-	const T lhs = Pop(context).As<T>();
-	Push(context, Value(static_cast<T>(lhs | rhs)));
-}
-
-template <typename T>
-void ExecuteBitXor(ExecutionContext& context)
-{
-	static_assert(std::is_integral_v<T>);
-	const T rhs = Pop(context).As<T>();
-	const T lhs = Pop(context).As<T>();
-	Push(context, Value(static_cast<T>(lhs ^ rhs)));
-}
-
-template <typename T>
-void ExecuteBitNot(ExecutionContext& context)
-{
-	static_assert(std::is_integral_v<T>);
-	const T operand = Pop(context).As<T>();
-	Push(context, Value(static_cast<T>(~operand)));
-}
-
-template <typename T>
-void ExecuteShl(ExecutionContext& context)
-{
-	static_assert(std::is_integral_v<T>);
-	const T rhs = Pop(context).As<T>();
-	const T lhs = Pop(context).As<T>();
-	Push(context, Value(static_cast<T>(lhs << rhs)));
-}
-
-template <typename T>
-void ExecuteShr(ExecutionContext& context)
-{
-	static_assert(std::is_integral_v<T>);
-	const T rhs = Pop(context).As<T>();
-	const T lhs = Pop(context).As<T>();
-	Push(context, Value(static_cast<T>(lhs >> rhs)));
-}
-
 void ExecuteConstantInstruction(ExecutionContext& context)
 {
 	const uint8_t index = ReadByte(context);
@@ -535,234 +466,54 @@ void Run(ExecutionContext& context)
 			ExecuteConstantInstruction(context);
 			break;
 
-		case OpCode::AddI8:
-			ExecuteAdd<int8_t>(context);
-			break;
-		case OpCode::AddU8:
-			ExecuteAdd<uint8_t>(context);
-			break;
-		case OpCode::AddI16:
-			ExecuteAdd<int16_t>(context);
-			break;
-		case OpCode::AddU16:
-			ExecuteAdd<uint16_t>(context);
-			break;
-		case OpCode::AddI32:
-			ExecuteAdd<int32_t>(context);
-			break;
-		case OpCode::AddU32:
-			ExecuteAdd<uint32_t>(context);
-			break;
-		case OpCode::AddI64:
+		case OpCode::AddInt:
 			ExecuteAdd<int64_t>(context);
 			break;
-		case OpCode::AddU64:
+		case OpCode::AddUint:
 			ExecuteAdd<uint64_t>(context);
 			break;
-		case OpCode::AddF32:
-			ExecuteAdd<float>(context);
-			break;
-		case OpCode::AddF64:
+		case OpCode::AddReal:
 			ExecuteAdd<double>(context);
 			break;
 
-		case OpCode::SubI8:
-			ExecuteSub<int8_t>(context);
-			break;
-		case OpCode::SubU8:
-			ExecuteSub<uint8_t>(context);
-			break;
-		case OpCode::SubI16:
-			ExecuteSub<int16_t>(context);
-			break;
-		case OpCode::SubU16:
-			ExecuteSub<uint16_t>(context);
-			break;
-		case OpCode::SubI32:
-			ExecuteSub<int32_t>(context);
-			break;
-		case OpCode::SubU32:
-			ExecuteSub<uint32_t>(context);
-			break;
-		case OpCode::SubI64:
+		case OpCode::SubInt:
 			ExecuteSub<int64_t>(context);
 			break;
-		case OpCode::SubU64:
+		case OpCode::SubUint:
 			ExecuteSub<uint64_t>(context);
 			break;
-		case OpCode::SubF32:
-			ExecuteSub<float>(context);
-			break;
-		case OpCode::SubF64:
+		case OpCode::SubReal:
 			ExecuteSub<double>(context);
 			break;
 
-		case OpCode::MulI8:
-			ExecuteMul<int8_t>(context);
-			break;
-		case OpCode::MulU8:
-			ExecuteMul<uint8_t>(context);
-			break;
-		case OpCode::MulI16:
-			ExecuteMul<int16_t>(context);
-			break;
-		case OpCode::MulU16:
-			ExecuteMul<uint16_t>(context);
-			break;
-		case OpCode::MulI32:
-			ExecuteMul<int32_t>(context);
-			break;
-		case OpCode::MulU32:
-			ExecuteMul<uint32_t>(context);
-			break;
-		case OpCode::MulI64:
+		case OpCode::MulInt:
 			ExecuteMul<int64_t>(context);
 			break;
-		case OpCode::MulU64:
+		case OpCode::MulUint:
 			ExecuteMul<uint64_t>(context);
 			break;
-		case OpCode::MulF32:
-			ExecuteMul<float>(context);
-			break;
-		case OpCode::MulF64:
+		case OpCode::MulReal:
 			ExecuteMul<double>(context);
 			break;
 
-		case OpCode::DivI8:
-			ExecuteDiv<int8_t>(context);
-			break;
-		case OpCode::DivU8:
-			ExecuteDiv<uint8_t>(context);
-			break;
-		case OpCode::DivI16:
-			ExecuteDiv<int16_t>(context);
-			break;
-		case OpCode::DivU16:
-			ExecuteDiv<uint16_t>(context);
-			break;
-		case OpCode::DivI32:
-			ExecuteDiv<int32_t>(context);
-			break;
-		case OpCode::DivU32:
-			ExecuteDiv<uint32_t>(context);
-			break;
-		case OpCode::DivI64:
+		case OpCode::DivInt:
 			ExecuteDiv<int64_t>(context);
 			break;
-		case OpCode::DivU64:
+		case OpCode::DivUint:
 			ExecuteDiv<uint64_t>(context);
 			break;
-		case OpCode::DivF32:
-			ExecuteDiv<float>(context);
-			break;
-		case OpCode::DivF64:
+		case OpCode::DivReal:
 			ExecuteDiv<double>(context);
 			break;
 
-		case OpCode::RemI8:
-			ExecuteRem<int8_t>(context);
-			break;
-		case OpCode::RemU8:
-			ExecuteRem<uint8_t>(context);
-			break;
-		case OpCode::RemI16:
-			ExecuteRem<int16_t>(context);
-			break;
-		case OpCode::RemU16:
-			ExecuteRem<uint16_t>(context);
-			break;
-		case OpCode::RemI32:
-			ExecuteRem<int32_t>(context);
-			break;
-		case OpCode::RemU32:
-			ExecuteRem<uint32_t>(context);
-			break;
-		case OpCode::RemI64:
+		case OpCode::RemInt:
 			ExecuteRem<int64_t>(context);
 			break;
-		case OpCode::RemU64:
+		case OpCode::RemUint:
 			ExecuteRem<uint64_t>(context);
 			break;
-
-		case OpCode::EqI8:
-			ExecuteEq<int8_t>(context);
-			break;
-		case OpCode::EqU8:
-			ExecuteEq<uint8_t>(context);
-			break;
-		case OpCode::EqI16:
-			ExecuteEq<int16_t>(context);
-			break;
-		case OpCode::EqU16:
-			ExecuteEq<uint16_t>(context);
-			break;
-		case OpCode::EqI32:
-			ExecuteEq<int32_t>(context);
-			break;
-		case OpCode::EqU32:
-			ExecuteEq<uint32_t>(context);
-			break;
-		case OpCode::EqI64:
-			ExecuteEq<int64_t>(context);
-			break;
-		case OpCode::EqU64:
-			ExecuteEq<uint64_t>(context);
-			break;
-		case OpCode::EqF32:
-			ExecuteEq<float>(context);
-			break;
-		case OpCode::EqF64:
-			ExecuteEq<double>(context);
-			break;
-
-		case OpCode::LtI8:
-			ExecuteLt<int8_t>(context);
-			break;
-		case OpCode::LtU8:
-			ExecuteLt<uint8_t>(context);
-			break;
-		case OpCode::LtI16:
-			ExecuteLt<int16_t>(context);
-			break;
-		case OpCode::LtU16:
-			ExecuteLt<uint16_t>(context);
-			break;
-		case OpCode::LtI32:
-			ExecuteLt<int32_t>(context);
-			break;
-		case OpCode::LtU32:
-			ExecuteLt<uint32_t>(context);
-			break;
-		case OpCode::LtI64:
-			ExecuteLt<int64_t>(context);
-			break;
-		case OpCode::LtU64:
-			ExecuteLt<uint64_t>(context);
-			break;
-		case OpCode::LtF32:
-			ExecuteLt<float>(context);
-			break;
-		case OpCode::LtF64:
-			ExecuteLt<double>(context);
-			break;
-
-		case OpCode::BitAnd:
-			ExecuteBitAnd<uint64_t>(context);
-			break;
-		case OpCode::BitOr:
-			ExecuteBitOr<uint64_t>(context);
-			break;
-		case OpCode::BitXor:
-			ExecuteBitXor<uint64_t>(context);
-			break;
-		case OpCode::BitNot:
-			ExecuteBitNot<uint64_t>(context);
-			break;
-		case OpCode::Shl:
-			ExecuteShl<uint64_t>(context);
-			break;
-		case OpCode::Shr:
-			ExecuteShr<uint64_t>(context);
+		case OpCode::RemReal:
+			ExecuteRem<double>(context);
 			break;
 
 		case OpCode::Pop:

@@ -64,7 +64,7 @@ struct LalrTable
 
 struct LalrParseStep
 {
-	size_t stepNumber;
+	size_t stepNum;
 	std::string stateStack;
 	std::string symbolStack;
 	std::string input;

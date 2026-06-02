@@ -2,14 +2,12 @@
 
 VarDeclStmt::VarDeclStmt(
 	VarModifier modifier,
-	std::string typeSign,
 	std::string typeName,
 	std::string name,
 	bool isMoveInit,
 	std::unique_ptr<Expr> init,
 	const SourceRange& range)
 	: m_modifier(modifier)
-	, m_typeSign(std::move(typeSign))
 	, m_typeName(std::move(typeName))
 	, m_name(std::move(name))
 	, m_isMoveInit(isMoveInit)
@@ -31,11 +29,6 @@ SourceRange VarDeclStmt::GetRange() const
 VarModifier VarDeclStmt::GetModifier() const
 {
 	return m_modifier;
-}
-
-const std::string& VarDeclStmt::GetTypeSign() const
-{
-	return m_typeSign;
 }
 
 const std::string& VarDeclStmt::GetTypeName() const

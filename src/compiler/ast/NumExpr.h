@@ -2,10 +2,10 @@
 #include "Expr.h"
 #include <string>
 
-class NumberExpr final : public Expr
+class NumExpr final : public Expr
 {
 public:
-	NumberExpr(std::string value, bool isFloat, const SourceRange& range);
+	NumExpr(std::string value, bool isFloat, const SourceRange& range);
 
 	void Accept(IAstVisitor& visitor) const override;
 	[[nodiscard]] SourceRange GetRange() const override;

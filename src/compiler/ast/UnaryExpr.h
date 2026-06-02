@@ -5,9 +5,9 @@
 enum class UnaryOpKind
 {
 	LogicalNot,
-	BitwiseNot,
 	AddressOf,
-	Deref
+	Deref,
+	Minus
 };
 
 class UnaryExpr final : public Expr

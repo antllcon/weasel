@@ -32,7 +32,7 @@ void RegisterStdlibFunctions(VirtualMachine& vm)
 
 Chunk GenerateBytecode(FrontendPipeline::FrontendResult& result)
 {
-	ScopedTimer t("Генерация кода (Backend)");
+	// ScopedTimer t("Генерация кода (Backend)");
 	CodeGenerator backend(
 		std::move(result.symbols),
 		std::move(result.repIterators),
@@ -42,7 +42,7 @@ Chunk GenerateBytecode(FrontendPipeline::FrontendResult& result)
 
 void RunVirtualMachine(const Chunk& bytecode)
 {
-	ScopedTimer t("Выполнение в VM");
+	// ScopedTimer t("Выполнение в VM");
 	VirtualMachine vm;
 	RegisterStdlibFunctions(vm);
 	vm.Interpret(bytecode);
@@ -50,7 +50,7 @@ void RunVirtualMachine(const Chunk& bytecode)
 
 void RunNasmBackend(FrontendPipeline::FrontendResult& result, const CompilerOptions& options)
 {
-	ScopedTimer t("Генерация NASM x86-64 под Windows");
+	// ScopedTimer t("Генерация NASM x86-64 под Windows");
 	auto outputFile = std::filesystem::path(options.sourceFile).replace_extension(".asm");
 	NasmCodeGenerator backend(
 		std::move(result.symbols),
@@ -64,7 +64,7 @@ void RunNasmBackend(FrontendPipeline::FrontendResult& result, const CompilerOpti
 	AssertIsFileOpenedForWrite(out, outputFile);
 
 	out << asmText;
-	Logger::Log("[Compiler]\tNASM-код записан в: " + outputFile.string());
+	// Logger::Log("[Compiler]\tNASM-код записан в: " + outputFile.string());
 }
 
 void RunVmBackend(FrontendPipeline::FrontendResult& result)

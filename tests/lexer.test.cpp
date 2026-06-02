@@ -137,7 +137,7 @@ TEST(LexerTest, UnclosedStringError)
 TEST(LexerTest, OperatorPriority)
 {
 	DiagnosticEngine engine;
-	std::string_view input = ": := < <- . .. < << >> > >= > >< ==";
+	std::string_view input = ": = < <- . .. < << >> > >= > >< ==";
 
 	auto tokens = Lexer::Tokenize(input, engine);
 
@@ -258,7 +258,7 @@ TEST(LexerTest, UnknownSymbolError)
 TEST(LexerTest, FullProgram)
 {
 	DiagnosticEngine engine;
-	std::string_view input = "void <- main()\nval s num x := 10";
+	std::string_view input = "void <- main()\nval s num x = 10";
 
 	auto tokens = Lexer::Tokenize(input, engine);
 

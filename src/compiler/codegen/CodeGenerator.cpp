@@ -106,12 +106,12 @@ OpCode GetBinaryOpCode(BinaryOpKind op, const TypeInfo* typeInfo)
 	if (!scalar) return OpCode::AddInt;
 
 	const auto base = scalar->GetBaseType();
-
 	switch (op)
 	{
 	case BinaryOpKind::Add:
 		if (base == BaseType::Uint) return OpCode::AddUint;
 		if (base == BaseType::Real) return OpCode::AddReal;
+		if (base == BaseType::String) return OpCode::AddString;
 		return OpCode::AddInt;
 	case BinaryOpKind::Sub:
 		if (base == BaseType::Uint) return OpCode::SubUint;
@@ -133,6 +133,7 @@ OpCode GetBinaryOpCode(BinaryOpKind op, const TypeInfo* typeInfo)
 	case BinaryOpKind::NotEq:
 		if (base == BaseType::Uint) return OpCode::EqUint;
 		if (base == BaseType::Real) return OpCode::EqReal;
+		if (base == BaseType::String) return OpCode::EqString;
 		return OpCode::EqInt;
 	case BinaryOpKind::Less:
 	case BinaryOpKind::Greater:
@@ -266,6 +267,13 @@ void CodeGenerator::Visit(const BinaryExpr& node)
 
 void CodeGenerator::Visit(const UnaryExpr& node)
 {
+	if (node.GetOp() == UnaryOpKind::LogicalNot)
+	{
+		node.GetOperand().Accept(*this);
+		m_chunk.WriteOpCode(OpCode::LogicalNot, m_currentLine);
+		return;
+	}
+
 	if (node.GetOp() == UnaryOpKind::Minus)
 	{
 		const auto type = node.GetOperand().GetResolvedType();

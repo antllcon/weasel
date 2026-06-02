@@ -131,7 +131,7 @@ TEST_F(ParserTest, IncompleteExprThrows)
 {
     EXPECT_THROW(Parse({
         Tok("val", "val"), Tok("num", "num"), Tok("id", "x"),
-        Tok(":=", ":="), Tok("#", "")
+        Tok("=", "="), Tok("#", "")
     }), std::runtime_error);
 }
 
@@ -238,7 +238,7 @@ TEST_F(ParserTest, VarDeclWithAssign)
 {
     auto root = Parse(WrapInFunc({
         Tok("val", "val"), Tok("s", "s"), Tok("num", "num"),
-        Tok("id", "x"), Tok(":=", ":="), Tok("num", "10"), Tok("nl", "\n")
+        Tok("id", "x"), Tok("=", "="), Tok("num", "10"), Tok("nl", "\n")
     }));
 
     ASSERT_NE(root, nullptr);
@@ -248,7 +248,7 @@ TEST_F(ParserTest, VarDeclWithAssign)
 
     EXPECT_EQ(varDecl->children[0]->children[0]->value, "val");
     EXPECT_EQ(varDecl->children[2]->value, "x");
-    EXPECT_EQ(varDecl->children[3]->children[0]->value, ":=");
+    EXPECT_EQ(varDecl->children[3]->children[0]->value, "=");
 
     auto expr = Find(root.get(), "PrimaryExpr");
     ASSERT_NE(expr, nullptr);
@@ -287,7 +287,7 @@ TEST_F(ParserTest, VarDeclDefModifier)
 {
     auto root = Parse(WrapInFunc({
         Tok("let", "let"), Tok("num", "num"), Tok("id", "MAX_VALUE"),
-        Tok(":=", ":="), Tok("num", "100"), Tok("nl", "\n")
+        Tok("=", "="), Tok("num", "100"), Tok("nl", "\n")
     }));
 
     ASSERT_NE(root, nullptr);
@@ -300,14 +300,14 @@ TEST_F(ParserTest, VarDeclDefModifier)
 TEST_F(ParserTest, SimpleAssign)
 {
     auto root = Parse(WrapInFunc({
-        Tok("id", "x"), Tok(":=", ":="), Tok("num", "5"), Tok("nl", "\n")
+        Tok("id", "x"), Tok("=", "="), Tok("num", "5"), Tok("nl", "\n")
     }));
 
     ASSERT_NE(root, nullptr);
     auto assignStmt = Find(root.get(), "AssignStmt");
     ASSERT_NE(assignStmt, nullptr);
     ASSERT_EQ(assignStmt->children.size(), 3);
-    EXPECT_EQ(assignStmt->children[1]->children[0]->value, ":=");
+    EXPECT_EQ(assignStmt->children[1]->children[0]->value, "=");
 }
 
 // Проверка парсинга одиночного числа
@@ -765,9 +765,9 @@ TEST_F(ParserTest, ReturnVoid)
 TEST_F(ParserTest, StmtListLeftRecursion)
 {
     auto root = Parse(WrapInFunc({
-        Tok("id", "a"), Tok(":=", ":="), Tok("num", "1"), Tok("nl", "\n"),
-        Tok("id", "b"), Tok(":=", ":="), Tok("num", "2"), Tok("nl", "\n"),
-        Tok("id", "c"), Tok(":=", ":="), Tok("num", "3"), Tok("nl", "\n")
+        Tok("id", "a"), Tok("=", "="), Tok("num", "1"), Tok("nl", "\n"),
+        Tok("id", "b"), Tok("=", "="), Tok("num", "2"), Tok("nl", "\n"),
+        Tok("id", "c"), Tok("=", "="), Tok("num", "3"), Tok("nl", "\n")
     }));
 
     ASSERT_NE(root, nullptr);
@@ -928,7 +928,7 @@ TEST_F(ParserTest, FunctionWithVarAndReturn)
     auto root = Parse({
         Tok("void", "void"), Tok("<-", "<-"), Tok("id", "main"), Tok("(", "("), Tok(")", ")"),
         Tok("{", "{"),
-        Tok("val", "val"), Tok("s", "s"), Tok("num", "num"), Tok("id", "x"), Tok(":=", ":="), Tok("num", "10"), Tok("nl", "\n"),
+        Tok("val", "val"), Tok("s", "s"), Tok("num", "num"), Tok("id", "x"), Tok("=", "="), Tok("num", "10"), Tok("nl", "\n"),
         Tok("return", "return"), Tok("nl", "\n"),
         Tok("}", "}"), Tok("#", "")
     });
@@ -944,7 +944,7 @@ TEST_F(ParserTest, FunctionWithConditional)
     auto root = Parse({
         Tok("void", "void"), Tok("<-", "<-"), Tok("id", "main"), Tok("(", "("), Tok(")", ")"),
         Tok("{", "{"),
-        Tok("val", "val"), Tok("num", "num"), Tok("id", "a"), Tok(":=", ":="), Tok("num", "5"), Tok("nl", "\n"),
+        Tok("val", "val"), Tok("num", "num"), Tok("id", "a"), Tok("=", "="), Tok("num", "5"), Tok("nl", "\n"),
         Tok("when", "when"), Tok("(", "("), Tok("id", "a"), Tok(")", ")"),
         Tok("{", "{"), Tok("return", "return"), Tok("nl", "\n"), Tok("}", "}"),
         Tok("}", "}"), Tok("#", "")

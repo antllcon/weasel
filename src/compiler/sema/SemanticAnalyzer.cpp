@@ -517,14 +517,36 @@ void SemanticAnalyzer::Visit(const RepStmt& node)
 	const uint32_t savedSlot = m_nextSlot;
 
 	std::vector<SymbolInfo> iterInfos;
-	for (const auto& iterName : node.GetIterators())
+	const auto& iters = node.GetIterators();
+	const auto& ranges = node.GetRanges();
+
+	for (size_t i = 0; i < iters.size(); ++i)
 	{
+		const size_t startIdx = i * 2;
+		const size_t endIdx = i * 2 + 1;
+
+		const auto savedExpected = m_expectedType;
+		m_expectedType = nullptr;
+		ranges[endIdx]->Accept(*this);
+
+		auto iterType = ranges[endIdx]->GetResolvedType();
+		AssertIsIntegerType(iterType, "Граница цикла должна быть целочисленного типа", ranges[endIdx]->GetRange());
+
+		m_expectedType = iterType;
+		ranges[startIdx]->Accept(*this);
+		m_expectedType = savedExpected;
+
+		AssertIsExactTypeMatch(iterType, ranges[startIdx]->GetResolvedType(), ranges[startIdx]->GetRange());
+
 		const uint32_t slot = m_nextSlot++;
 		m_maxSlot = std::max(m_maxSlot, m_nextSlot);
-		const bool isNew = m_table.Declare(iterName, nullptr, true, slot);
-		AssertIsVariableNotRedeclared(isNew, iterName);
-		iterInfos.push_back(SymbolInfo{nullptr, slot, true});
+
+		const bool isNew = m_table.Declare(iters[i], iterType, false, slot, false, nullptr);
+		AssertIsVariableNotRedeclared(isNew, iters[i]);
+
+		iterInfos.push_back(SymbolInfo{iterType, slot, false, false, nullptr});
 	}
+
 	m_resolvedIterators[&node] = std::move(iterInfos);
 
 	node.GetOriginalBody().Accept(*this);
@@ -591,19 +613,57 @@ void SemanticAnalyzer::Visit(const IdentifierExpr& node)
 
 void SemanticAnalyzer::Visit(const BinaryExpr& node)
 {
-	node.GetLeft().Accept(*this);
-	node.GetRight().Accept(*this);
+	const auto savedExpected = m_expectedType;
 
-	const auto leftType = node.GetLeft().GetResolvedType();
-	const auto rightType = node.GetRight().GetResolvedType();
+	m_expectedType = nullptr;
+	node.GetLeft().Accept(*this);
+	auto leftType = node.GetLeft().GetResolvedType();
+
+	node.GetRight().Accept(*this);
+	auto rightType = node.GetRight().GetResolvedType();
+
+	std::shared_ptr<TypeInfo> anchorType = nullptr;
+
+	if (savedExpected != nullptr && savedExpected->GetName() != std::string(LanguageTokens::TypeBool))
+	{
+		anchorType = savedExpected;
+	}
+	else if (leftType != rightType)
+	{
+		const bool isLeftStrict = dynamic_cast<const IdentifierExpr*>(&node.GetLeft()) != nullptr ||
+								  dynamic_cast<const MemberAccessExpr*>(&node.GetLeft()) != nullptr ||
+								  dynamic_cast<const IndexExpr*>(&node.GetLeft()) != nullptr;
+
+		const bool isRightStrict = dynamic_cast<const IdentifierExpr*>(&node.GetRight()) != nullptr ||
+								   dynamic_cast<const MemberAccessExpr*>(&node.GetRight()) != nullptr ||
+								   dynamic_cast<const IndexExpr*>(&node.GetRight()) != nullptr;
+
+		if (isLeftStrict && !isRightStrict) anchorType = leftType;
+		else if (isRightStrict && !isLeftStrict) anchorType = rightType;
+	}
+
+	if (anchorType != nullptr)
+	{
+		m_expectedType = anchorType;
+		node.GetLeft().Accept(*this);
+		leftType = node.GetLeft().GetResolvedType();
+
+		node.GetRight().Accept(*this);
+		rightType = node.GetRight().GetResolvedType();
+	}
+
+	m_expectedType = savedExpected;
 
 	AssertIsExactTypeMatch(leftType, rightType, node.GetRange());
 
-	const auto resultType = IsComparisonOp(node.GetOp()) || IsLogicalOp(node.GetOp())
-		? ScalarTypeInfo::Make(BaseType::Bool)
-		: leftType;
-
-	const_cast<BinaryExpr&>(node).SetResolvedType(resultType);
+	if (IsComparisonOp(node.GetOp()) || IsLogicalOp(node.GetOp()))
+	{
+		const_cast<BinaryExpr&>(node).SetResolvedType(ScalarTypeInfo::Make(BaseType::Bool));
+	}
+	else
+	{
+		const_cast<BinaryExpr&>(node).SetResolvedType(leftType);
+	}
 }
 
 void SemanticAnalyzer::Visit(const UnaryExpr& node)

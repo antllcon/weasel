@@ -21,12 +21,37 @@ struct ExecutionContext
 	uint32_t& stackTop;
 	uint32_t ip;
 	uint32_t stackOffset;
+	std::vector<std::unique_ptr<std::string>>& dynamicStrings;
 };
 
 uint32_t ExtractCurrentLine(const ExecutionContext& context)
 {
 	const uint32_t errorIp = context.ip > 0 ? context.ip - 1 : 0;
 	return context.chunk.GetLine(errorIp);
+}
+
+void AssertIsStringNotNull(const HeapObject* object, const ExecutionContext& context)
+{
+	if (!object)
+	{
+		throw VmException(
+			"E_VM_NULL_STRING",
+			"Попытка операции над неинициализированной строкой",
+			context.ip,
+			ExtractCurrentLine(context));
+	}
+}
+
+void AssertIsNotDivisionOverflow(bool isOverflow, const ExecutionContext& context)
+{
+	if (isOverflow)
+	{
+		throw VmException(
+			"E_VM_DIV_OVERFLOW",
+			"Арифметическое переполнение при делении (INT_MIN / -1)",
+			context.ip,
+			ExtractCurrentLine(context));
+	}
 }
 
 void AssertIsIndexInBounds(bool inBounds, const ExecutionContext& context)
@@ -210,6 +235,11 @@ void ExecuteDiv(ExecutionContext& context)
 
 	AssertIsNotDivisionByZero(rhs == 0, context);
 
+	if constexpr (std::is_integral_v<T> && std::is_signed_v<T>)
+	{
+		AssertIsNotDivisionOverflow(lhs == std::numeric_limits<T>::min() && rhs == -1, context);
+	}
+
 	Push(context, Value(static_cast<T>(lhs / rhs)));
 }
 
@@ -221,6 +251,11 @@ void ExecuteRem(ExecutionContext& context)
 
 	AssertIsNotDivisionByZero(rhs == 0, context);
 
+	if constexpr (std::is_integral_v<T> && std::is_signed_v<T>)
+	{
+		AssertIsNotDivisionOverflow(lhs == std::numeric_limits<T>::min() && rhs == -1, context);
+	}
+
 	if constexpr (std::is_floating_point_v<T>)
 	{
 		Push(context, Value(static_cast<T>(std::fmod(lhs, rhs))));
@@ -229,6 +264,22 @@ void ExecuteRem(ExecutionContext& context)
 	{
 		Push(context, Value(static_cast<T>(lhs % rhs)));
 	}
+}
+
+template <typename T>
+void ExecuteEq(ExecutionContext& context)
+{
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	Push(context, Value(static_cast<uint64_t>(lhs == rhs ? 1 : 0)));
+}
+
+template <typename T>
+void ExecuteLt(ExecutionContext& context)
+{
+	const T rhs = Pop(context).As<T>();
+	const T lhs = Pop(context).As<T>();
+	Push(context, Value(static_cast<uint64_t>(lhs < rhs ? 1 : 0)));
 }
 
 void ExecuteConstantInstruction(ExecutionContext& context)
@@ -473,6 +524,43 @@ void ExecutePanicInstruction(ExecutionContext& context)
 		ExtractCurrentLine(context));
 }
 
+void ExecuteAddStringInstruction(ExecutionContext& context)
+{
+	auto* rhsObj = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+	auto* lhsObj = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+
+	AssertIsStringNotNull(rhsObj, context);
+	AssertIsStringNotNull(lhsObj, context);
+
+	const auto* rhsStr = reinterpret_cast<const std::string*>(rhsObj->GetField(0).AsRaw());
+	const auto* lhsStr = reinterpret_cast<const std::string*>(lhsObj->GetField(0).AsRaw());
+
+	auto newStr = std::make_unique<std::string>(*lhsStr + *rhsStr);
+	const auto* rawPtr = newStr.get();
+	context.dynamicStrings.push_back(std::move(newStr));
+
+	auto* newObj = new HeapObject(1);
+	context.tracker.Track(newObj);
+	newObj->SetField(0, Value(reinterpret_cast<uint64_t>(rawPtr)));
+
+	Push(context, Value(reinterpret_cast<uint64_t>(newObj)));
+}
+
+void ExecuteEqStringInstruction(ExecutionContext& context)
+{
+	auto* rhsObj = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+	auto* lhsObj = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+
+	AssertIsStringNotNull(rhsObj, context);
+	AssertIsStringNotNull(lhsObj, context);
+
+	const auto* rhsStr = reinterpret_cast<const std::string*>(rhsObj->GetField(0).AsRaw());
+	const auto* lhsStr = reinterpret_cast<const std::string*>(lhsObj->GetField(0).AsRaw());
+
+	const bool isEqual = (*lhsStr == *rhsStr);
+	Push(context, Value(static_cast<uint64_t>(isEqual ? 1 : 0)));
+}
+
 void Run(ExecutionContext& context)
 {
 	for (;;)
@@ -493,6 +581,9 @@ void Run(ExecutionContext& context)
 			break;
 		case OpCode::AddReal:
 			ExecuteAdd<double>(context);
+			break;
+		case OpCode::AddString:
+			ExecuteAddStringInstruction(context);
 			break;
 
 		case OpCode::SubInt:
@@ -534,6 +625,35 @@ void Run(ExecutionContext& context)
 		case OpCode::RemReal:
 			ExecuteRem<double>(context);
 			break;
+
+		case OpCode::EqInt:
+			ExecuteEq<int64_t>(context);
+			break;
+		case OpCode::EqUint:
+			ExecuteEq<uint64_t>(context);
+			break;
+		case OpCode::EqReal:
+			ExecuteEq<double>(context);
+			break;
+		case OpCode::EqString:
+			ExecuteEqStringInstruction(context);
+			break;
+
+		case OpCode::LtInt:
+			ExecuteLt<int64_t>(context);
+			break;
+		case OpCode::LtUint:
+			ExecuteLt<uint64_t>(context);
+			break;
+		case OpCode::LtReal:
+			ExecuteLt<double>(context);
+			break;
+
+		case OpCode::LogicalNot: {
+			const bool value = Pop(context).As<bool>();
+			Push(context, Value(!value));
+			break;
+		}
 
 		case OpCode::Pop:
 			Pop(context);
@@ -645,8 +765,7 @@ void VirtualMachine::Interpret(const Chunk& chunk)
 	m_frames.clear();
 	m_tracker.Clear();
 
-	ExecutionContext context{chunk, m_stack, m_frames, m_natives, m_tracker, m_stackTop, 0, 0};
-
+	ExecutionContext context{chunk, m_stack, m_frames, m_natives, m_tracker, m_stackTop, 0, 0, m_dynamicStrings};
 	Run(context);
 }
 

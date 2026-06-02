@@ -4,45 +4,51 @@
 enum class OpCode : uint8_t
 {
 	Constant = 0,
-
-	AddInt, AddUint, AddReal,
-	SubInt, SubUint, SubReal,
-	MulInt, MulUint, MulReal,
-	DivInt, DivUint, DivReal,
-	RemInt, RemUint, RemReal,
-
-	EqInt, EqUint, EqReal,
-	LtInt, LtUint, LtReal,
-
+	AddInt,
+	AddUint,
+	AddReal,
+	AddString,
+	SubInt,
+	SubUint,
+	SubReal,
+	MulInt,
+	MulUint,
+	MulReal,
+	DivInt,
+	DivUint,
+	DivReal,
+	RemInt,
+	RemUint,
+	RemReal,
+	EqInt,
+	EqUint,
+	EqReal,
+	EqString,
+	LtInt,
+	LtUint,
+	LtReal,
+	LogicalNot,
 	LoadLocal,
 	StoreLocal,
 	Pop,
 	Dup,
-
 	Jump,
 	JumpIfFalse,
 	JumpIfTrue,
-
 	AllocateStruct,
 	GetField,
 	StoreField,
-
 	AllocateArray,
 	LoadElement,
 	StoreElement,
 	ArrayLength,
-
 	Retain,
 	Release,
-
 	Call,
 	Return,
-
 	AllocateClosure,
 	CallClosure,
-
 	CallNative,
-
 	LoadString,
 	Panic
 };

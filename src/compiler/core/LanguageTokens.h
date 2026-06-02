@@ -32,9 +32,9 @@ inline constexpr std::string_view KwVal = "val";
 inline constexpr std::string_view KwVar = "var";
 inline constexpr std::string_view KwWhen = "when";
 
-inline constexpr std::string_view OpAssign = ":=";
 inline constexpr std::string_view OpMove = "<-";
 inline constexpr std::string_view OpNotEq = "><";
+inline constexpr std::string_view OpAssign = "=";
 inline constexpr std::string_view OpEq = "==";
 inline constexpr std::string_view OpLessEq = "<=";
 inline constexpr std::string_view OpGreaterEq = ">=";

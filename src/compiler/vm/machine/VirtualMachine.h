@@ -1,7 +1,10 @@
 #pragma once
+
 #include "src/compiler/vm/value/Value.h"
 #include "src/compiler/vm/memory/HeapTracker.h"
 #include <functional>
+#include <memory>
+#include <string>
 #include <span>
 #include <vector>
 
@@ -10,7 +13,6 @@ class VirtualMachine
 {
 public:
 	using NativeCallback = std::function<Value(std::span<const Value>)>;
-
 	struct CallFrame
 	{
 		uint32_t returnIp;
@@ -29,4 +31,5 @@ private:
 	std::vector<NativeCallback> m_natives;
 	HeapTracker m_tracker;
 	uint32_t m_stackTop;
+	std::vector<std::unique_ptr<std::string>> m_dynamicStrings;
 };

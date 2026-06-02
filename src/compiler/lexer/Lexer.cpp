@@ -278,11 +278,6 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 	switch (ch)
 	{
 	case LanguageTokens::SymColon[0]:
-		if (Peek(state) == LanguageTokens::OpAssign[1])
-		{
-			Advance(state);
-			return MakeToken(TokenType::OpAssign, startPos, 2, state, startLine);
-		}
 		return MakeToken(TokenType::Colon, startPos, 1, state, startLine);
 	case LanguageTokens::OpLess[0]:
 		if (Peek(state) == LanguageTokens::OpMove[1])
@@ -314,7 +309,6 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 			Advance(state);
 			return MakeToken(TokenType::OpEq, startPos, 2, state, startLine);
 		}
-		ReportUnknownSymbol(ch, startLine, startPos);
 	case LanguageTokens::SymDot[0]:
 		if (Peek(state) == LanguageTokens::OpRange[1])
 		{

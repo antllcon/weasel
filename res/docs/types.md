@@ -19,9 +19,9 @@
 - `real`. Число с плавающей точкой двойной точности по стандарту (IEEE 754). Используется там где требуется высокая точность дробных значений.
 
 ``` wes
-val int temperature := -15
-val uint score := 1050
-val real pi := 3.14159265
+val int temperature = -15
+val uint score = 1050
+val real pi = 3.14159265
 ```
 
 ### Логический тип
@@ -30,8 +30,8 @@ val real pi := 3.14159265
 У типа bool есть только два встроенных значения: `true` и `false`.
 
 ``` wes
-val bool isCompilationSuccessful := true
-val bool hasErrors := false
+val bool isCompilationSuccessful = true
+val bool hasErrors = false
 ```
 
 ### Строки
@@ -39,7 +39,7 @@ val bool hasErrors := false
 Для работы с текстовыми данными используется тип `string`. Строковые литералы всегда заключаются в двойные кавычки (" "). Управление строками выполняется через динамическую память.
 
 ``` wes
-val string greeting := "Welcome to Weasel Language!"
+val string greeting = "Welcome to Weasel Language!"
 ```
 
 ### Пустой тип
@@ -60,18 +60,18 @@ void <- printGreeting()
 Для приведения одного скалярного типа к другому язык использует универсальный синтаксис вызова методов. Это делает код читаемым слева направо.
 
 ``` wes
-val int negativeScore := -120
-val uint itemsCount := 250
-val real preciseMath := 2.71828
+val int negativeScore = -120
+val uint itemsCount = 250
+val real preciseMath = 2.71828
 
 # 1. Извлечение целой части из дроби
-val int truncated := preciseMath.int()   # Результат: 2
+val int truncated = preciseMath.int()   # Результат: 2
 
 # 2. Превращение целого в дробное
-val real asFloat  := itemsCount.real()   # Результат: 250.0
+val real asFloat  = itemsCount.real()   # Результат: 250.0
 
 # 3. Приведение между знаковыми и беззнаковыми
-val uint safeCast := negativeScore.uint()
+val uint safeCast = negativeScore.uint()
 ```
 
 ### Расширяемость

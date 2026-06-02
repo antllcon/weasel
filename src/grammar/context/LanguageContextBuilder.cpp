@@ -55,7 +55,7 @@ std::optional<LalrTable> TryLoadFromCache(const std::filesystem::path& cachePath
 	try
 	{
 		const auto payload = FileCache::ReadPayload(cachePath);
-		Logger::Log("[Cache] \tLALR таблица загружена из кэша");
+		// Logger::Log("[Cache] \tLALR таблица загружена из кэша");
 		return LalrTableSerializer::Deserialize(payload);
 	}
 	catch (...)

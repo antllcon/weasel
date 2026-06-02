@@ -55,13 +55,13 @@ void AssertIsAstValid(const AstNode* astRoot, const std::filesystem::path& sourc
 
 SourceCode ReadSourceFile(const std::filesystem::path& filePath)
 {
-	ScopedTimer t("Чтение исходного файла");
+	// ScopedTimer t("Чтение исходного файла");
 	return SourceLoader::Read(filePath);
 }
 
 TokenStream RunLexerPhase(const SourceCode& sourceCode, DiagnosticEngine& engine)
 {
-	ScopedTimer t("Лексический анализ");
+	// ScopedTimer t("Лексический анализ");
 	auto tokens = Lexer::Tokenize(sourceCode, engine);
 	LexerVisualizer::Visualize(tokens, engine, false);
 	return tokens;
@@ -69,7 +69,7 @@ TokenStream RunLexerPhase(const SourceCode& sourceCode, DiagnosticEngine& engine
 
 CstTree RunParserPhase(const TokenStream& tokens, const LanguageContext& context, const std::filesystem::path& sourceFile)
 {
-	ScopedTimer t("Синтаксический анализ");
+	// ScopedTimer t("Синтаксический анализ");
 	auto cstRoot = LalrParser::ParseTokenStream(*context.lalrTable, tokens, true);
 	AssertIsCstValid(cstRoot.get(), sourceFile);
 	CstVisualizer::Visualize(*cstRoot);
@@ -78,7 +78,7 @@ CstTree RunParserPhase(const TokenStream& tokens, const LanguageContext& context
 
 AstTree RunAstConversionPhase(const CstTree& cstRoot, const std::filesystem::path& sourceFile)
 {
-	ScopedTimer t("Конвертация CST в AST");
+	// ScopedTimer t("Конвертация CST в AST");
 	auto astRoot = CstToAstConverter::Convert(*cstRoot);
 	AssertIsAstValid(astRoot.get(), sourceFile);
 	AstVisualizer::Visualize(*astRoot);
@@ -87,7 +87,7 @@ AstTree RunAstConversionPhase(const CstTree& cstRoot, const std::filesystem::pat
 
 SemaResult RunSemanticPhase(AstNode& astRoot, DiagnosticEngine& engine)
 {
-	ScopedTimer t("Семантический анализ");
+	// ScopedTimer t("Семантический анализ");
 	SemanticAnalyzer sema;
 	auto result = sema.Analyze(astRoot, engine);
 	SymbolTableVisualizer::Visualize(result.symbols);

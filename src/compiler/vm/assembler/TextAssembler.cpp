@@ -28,15 +28,20 @@ const std::unordered_map<std::string, OpCode> MNEMONICS = {
 	{"add_int", OpCode::AddInt},
 	{"add_uint", OpCode::AddUint},
 	{"add_real", OpCode::AddReal},
+	{"add_string", OpCode::AddString},
+
 	{"sub_int", OpCode::SubInt},
 	{"sub_uint", OpCode::SubUint},
 	{"sub_real", OpCode::SubReal},
+
 	{"mul_int", OpCode::MulInt},
 	{"mul_uint", OpCode::MulUint},
 	{"mul_real", OpCode::MulReal},
+
 	{"div_int", OpCode::DivInt},
 	{"div_uint", OpCode::DivUint},
 	{"div_real", OpCode::DivReal},
+
 	{"rem_int", OpCode::RemInt},
 	{"rem_uint", OpCode::RemUint},
 	{"rem_real", OpCode::RemReal},
@@ -44,10 +49,13 @@ const std::unordered_map<std::string, OpCode> MNEMONICS = {
 	{"eq_int", OpCode::EqInt},
 	{"eq_uint", OpCode::EqUint},
 	{"eq_real", OpCode::EqReal},
+	{"eq_string", OpCode::EqString},
+
 	{"lt_int", OpCode::LtInt},
 	{"lt_uint", OpCode::LtUint},
 	{"lt_real", OpCode::LtReal},
 
+	{"not", OpCode::LogicalNot},
 	{"load-local", OpCode::LoadLocal},
 	{"store-local", OpCode::StoreLocal},
 	{"pop", OpCode::Pop},

@@ -12,8 +12,6 @@ public:
 	void Visit(const class StructDeclStmt& node) override;
 	void Visit(const class UnionDeclStmt& node) override;
 	void Visit(const class EnumDeclStmt& node) override;
-	void Visit(const class ErrorExpr& node) override;
-	void Visit(const class ImplicitCastExpr& node) override;
 	void Visit(const class BinaryExpr& node) override;
 	void Visit(const class UnaryExpr& node) override;
 	void Visit(const class IdentifierExpr& node) override;

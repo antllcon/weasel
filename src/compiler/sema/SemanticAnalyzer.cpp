@@ -6,13 +6,11 @@
 #include "src/compiler/ast/BoolExpr.h"
 #include "src/compiler/ast/DoWhileStmt.h"
 #include "src/compiler/ast/EnumDeclStmt.h"
-#include "src/compiler/ast/ErrorExpr.h"
 #include "src/compiler/ast/ExprStmt.h"
 #include "src/compiler/ast/FunctionCallExpr.h"
 #include "src/compiler/ast/FunctionDeclStmt.h"
 #include "src/compiler/ast/IdentifierExpr.h"
 #include "src/compiler/ast/IfStmt.h"
-#include "src/compiler/ast/ImplicitCastExpr.h"
 #include "src/compiler/ast/IndexExpr.h"
 #include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
@@ -609,14 +607,6 @@ void SemanticAnalyzer::Visit(const IndexExpr& /*node*/)
 }
 
 void SemanticAnalyzer::Visit(const MemberAccessExpr& /*node*/)
-{
-}
-
-void SemanticAnalyzer::Visit(const ImplicitCastExpr& /*node*/)
-{
-}
-
-void SemanticAnalyzer::Visit(const ErrorExpr& /*node*/)
 {
 }
 

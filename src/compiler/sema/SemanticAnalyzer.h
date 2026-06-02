@@ -51,8 +51,6 @@ private:
 	void Visit(const ArrayLiteralExpr& node) override;
 	void Visit(const IndexExpr& node) override;
 	void Visit(const MemberAccessExpr& node) override;
-	void Visit(const ImplicitCastExpr& node) override;
-	void Visit(const ErrorExpr& node) override;
 	void Visit(const StructDeclStmt& node) override;
 	void Visit(const UnionDeclStmt& node) override;
 	void Visit(const EnumDeclStmt& node) override;

@@ -206,16 +206,6 @@ void CodeGenerator::Visit(const EnumDeclStmt& /*node*/)
 	throw std::runtime_error("Генерация кода для EnumDeclStmt не реализована");
 }
 
-void CodeGenerator::Visit(const ErrorExpr& /*node*/)
-{
-	throw std::runtime_error("Попытка генерации кода для узла ошибки");
-}
-
-void CodeGenerator::Visit(const ImplicitCastExpr& /*node*/)
-{
-	throw std::runtime_error("Неявное приведение типов не поддерживается в кодогенераторе");
-}
-
 void CodeGenerator::Visit(const BinaryExpr& node)
 {
 	const auto op = node.GetOp();

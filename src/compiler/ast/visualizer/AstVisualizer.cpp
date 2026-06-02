@@ -24,41 +24,41 @@
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
+#include "src/compiler/core/LanguageTokens.h"
 #include "src/utils/logger/Logger.h"
 
 namespace
 {
-
 std::string BinaryOpToString(BinaryOpKind op)
 {
 	switch (op)
 	{
 	case BinaryOpKind::Add:
-		return "+";
+		return std::string(LanguageTokens::OpPlus);
 	case BinaryOpKind::Sub:
-		return "-";
+		return std::string(LanguageTokens::OpMinus);
 	case BinaryOpKind::Mul:
-		return "*";
+		return std::string(LanguageTokens::OpMul);
 	case BinaryOpKind::Div:
-		return "/";
+		return std::string(LanguageTokens::OpDiv);
 	case BinaryOpKind::Mod:
-		return "%";
+		return std::string(LanguageTokens::OpMod);
 	case BinaryOpKind::Eq:
-		return "==";
+		return std::string(LanguageTokens::OpEq);
 	case BinaryOpKind::NotEq:
-		return "><";
+		return std::string(LanguageTokens::OpNotEq);
 	case BinaryOpKind::Less:
-		return "<";
+		return std::string(LanguageTokens::OpLess);
 	case BinaryOpKind::Greater:
-		return ">";
+		return std::string(LanguageTokens::OpGreater);
 	case BinaryOpKind::LessEq:
-		return "<=";
+		return std::string(LanguageTokens::OpLessEq);
 	case BinaryOpKind::GreaterEq:
-		return ">=";
+		return std::string(LanguageTokens::OpGreaterEq);
 	case BinaryOpKind::LogicalAnd:
-		return "and";
+		return std::string(LanguageTokens::KwAnd);
 	case BinaryOpKind::LogicalOr:
-		return "or";
+		return std::string(LanguageTokens::KwOr);
 	}
 	return "?";
 }
@@ -68,13 +68,13 @@ std::string UnaryOpToString(UnaryOpKind op)
 	switch (op)
 	{
 	case UnaryOpKind::LogicalNot:
-		return "not";
+		return std::string(LanguageTokens::KwNot);
 	case UnaryOpKind::AddressOf:
-		return "&";
+		return std::string(LanguageTokens::OpAddressOf);
 	case UnaryOpKind::Deref:
-		return "*";
+		return std::string(LanguageTokens::OpMul);
 	case UnaryOpKind::Minus:
-		return "-";
+		return std::string(LanguageTokens::OpMinus);
 	}
 	return "?";
 }
@@ -84,11 +84,11 @@ std::string ModifierToString(VarModifier mod)
 	switch (mod)
 	{
 	case VarModifier::Val:
-		return "val";
+		return std::string(LanguageTokens::KwVal);
 	case VarModifier::Var:
-		return "var";
+		return std::string(LanguageTokens::KwVar);
 	case VarModifier::Def:
-		return "def";
+		return std::string(LanguageTokens::KwDef);
 	}
 	return "?";
 }
@@ -155,7 +155,6 @@ void AstVisualizer::Visit(const FunctionDeclStmt& node)
 		}
 	}
 	label += ")";
-
 	PrintNode(label);
 	VisitChild(node.GetBody(), true);
 }
@@ -173,10 +172,9 @@ void AstVisualizer::Visit(const BlockStmt& node)
 void AstVisualizer::Visit(const VarDeclStmt& node)
 {
 	const std::string type = node.GetTypeName();
-	const std::string op = node.IsMoveInit() ? " <-" : " :=";
+	const std::string op = node.IsMoveInit() ? " " + std::string(LanguageTokens::OpMove) : " " + std::string(LanguageTokens::OpAssign);
 	std::string label = "VarDecl (" + ModifierToString(node.GetModifier()) + " " + type + " " + node.GetName();
 	label += node.GetInit() ? op + ")" : ")";
-
 	PrintNode(label);
 	if (node.GetInit())
 	{
@@ -186,7 +184,7 @@ void AstVisualizer::Visit(const VarDeclStmt& node)
 
 void AstVisualizer::Visit(const AssignStmt& node)
 {
-	PrintNode(std::string("Assign (") + (node.IsMove() ? "<-" : ":=") + ")");
+	PrintNode(std::string("Assign (") + (node.IsMove() ? std::string(LanguageTokens::OpMove) : std::string(LanguageTokens::OpAssign)) + ")");
 	VisitChild(node.GetLhs(), false);
 	VisitChild(node.GetRhs(), true);
 }
@@ -328,8 +326,7 @@ void AstVisualizer::Visit(const StructDeclStmt& node)
 	const auto& fields = node.GetFields();
 	for (size_t i = 0; i < fields.size(); ++i)
 	{
-		PrintLeaf("Field (" + fields[i].typeName + " " + fields[i].name + ")",
-			i + 1 == fields.size());
+		PrintLeaf("Field (" + fields[i].typeName + " " + fields[i].name + ")", i + 1 == fields.size());
 	}
 }
 
@@ -339,8 +336,7 @@ void AstVisualizer::Visit(const UnionDeclStmt& node)
 	const auto& fields = node.GetFields();
 	for (size_t i = 0; i < fields.size(); ++i)
 	{
-		PrintLeaf("Field (" + fields[i].typeName + " " + fields[i].name + ")",
-			i + 1 == fields.size());
+		PrintLeaf("Field (" + fields[i].typeName + " " + fields[i].name + ")", i + 1 == fields.size());
 	}
 }
 

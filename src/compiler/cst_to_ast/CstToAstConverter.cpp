@@ -24,6 +24,8 @@
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
+#include "src/compiler/core/LanguageTokens.h"
+#include "src/compiler/lexer/Token.h"
 #include "src/diagnostics/CompilationException.h"
 
 namespace
@@ -67,49 +69,49 @@ std::unique_ptr<Expr> ConvertExprByLabel(const CstNode& node);
 std::unique_ptr<BlockStmt> ConvertStmtList(const CstNode& node);
 std::unique_ptr<Stmt> ConvertElseOpt(const CstNode& node);
 
-BinaryOpKind ParseBinaryOp(const std::string& op)
+BinaryOpKind ParseBinaryOp(const CstNode& opNode)
 {
-	if (op == "+") return BinaryOpKind::Add;
-	if (op == "-") return BinaryOpKind::Sub;
-	if (op == "*") return BinaryOpKind::Mul;
-	if (op == "/") return BinaryOpKind::Div;
-	if (op == "%") return BinaryOpKind::Mod;
-	if (op == "==") return BinaryOpKind::Eq;
-	if (op == "><") return BinaryOpKind::NotEq;
-	if (op == "<") return BinaryOpKind::Less;
-	if (op == ">") return BinaryOpKind::Greater;
-	if (op == "<=") return BinaryOpKind::LessEq;
-	if (op == ">=") return BinaryOpKind::GreaterEq;
-	if (op == "and") return BinaryOpKind::LogicalAnd;
-	if (op == "or") return BinaryOpKind::LogicalOr;
-	throw CompilationException(DiagnosticData{
-		.phase = CompilerPhase::Parser,
-		.message = "Неизвестный бинарный оператор",
-		.actual = op});
+	const std::string& op = opNode.value;
+
+	if (op == LanguageTokens::OpPlus) return BinaryOpKind::Add;
+	if (op == LanguageTokens::OpMinus) return BinaryOpKind::Sub;
+	if (op == LanguageTokens::OpMul) return BinaryOpKind::Mul;
+	if (op == LanguageTokens::OpDiv) return BinaryOpKind::Div;
+	if (op == LanguageTokens::OpMod) return BinaryOpKind::Mod;
+	if (op == LanguageTokens::OpEq) return BinaryOpKind::Eq;
+	if (op == LanguageTokens::OpNotEq) return BinaryOpKind::NotEq;
+	if (op == LanguageTokens::OpLess) return BinaryOpKind::Less;
+	if (op == LanguageTokens::OpGreater) return BinaryOpKind::Greater;
+	if (op == LanguageTokens::OpLessEq) return BinaryOpKind::LessEq;
+	if (op == LanguageTokens::OpGreaterEq) return BinaryOpKind::GreaterEq;
+	if (op == LanguageTokens::KwAnd) return BinaryOpKind::LogicalAnd;
+	if (op == LanguageTokens::KwOr) return BinaryOpKind::LogicalOr;
+
+	ThrowConversionError("Неизвестный бинарный оператор: " + op, opNode);
 }
 
-UnaryOpKind ParseUnaryOp(const std::string& op)
+UnaryOpKind ParseUnaryOp(const CstNode& opNode)
 {
-	if (op == "not") return UnaryOpKind::LogicalNot;
-	if (op == "&") return UnaryOpKind::AddressOf;
-	if (op == "*") return UnaryOpKind::Deref;
-	if (op == "-") return UnaryOpKind::Minus;
+	const std::string& op = opNode.value;
 
-	throw CompilationException(DiagnosticData{
-		.phase = CompilerPhase::Parser,
-		.message = "Неизвестный унарный оператор",
-		.actual = op});
+	if (op == LanguageTokens::KwNot) return UnaryOpKind::LogicalNot;
+	if (op == LanguageTokens::OpAddressOf) return UnaryOpKind::AddressOf;
+	if (op == LanguageTokens::OpMul) return UnaryOpKind::Deref;
+	if (op == LanguageTokens::OpMinus) return UnaryOpKind::Minus;
+
+	ThrowConversionError("Неизвестный унарный оператор: " + op, opNode);
 }
 
 VarModifier ParseModifier(const CstNode& modNode)
 {
 	const std::string& val = modNode.children[0]->value;
-	if (val == "val") return VarModifier::Val;
-	if (val == "var") return VarModifier::Var;
-	if (val == "def") return VarModifier::Def;
+
+	if (val == LanguageTokens::KwVal) return VarModifier::Val;
+	if (val == LanguageTokens::KwVar) return VarModifier::Var;
+	if (val == LanguageTokens::KwDef) return VarModifier::Def;
+
 	ThrowConversionError("Неизвестный модификатор переменной: " + val, modNode);
 }
-
 std::string ParseType(const CstNode& typeNode)
 {
 	const auto& child = *typeNode.children[0];
@@ -240,7 +242,7 @@ std::unique_ptr<Expr> ConvertUnaryExpr(const CstNode& node)
 		return ConvertExprByLabel(*node.children[0]);
 	}
 
-	const UnaryOpKind op = ParseUnaryOp(node.children[0]->value);
+	const UnaryOpKind op = ParseUnaryOp(*node.children[0]);
 	auto operand = ConvertUnaryExpr(*node.children[1]);
 	return std::make_unique<UnaryExpr>(op, std::move(operand), ExtractRange(node));
 }
@@ -260,7 +262,7 @@ std::unique_ptr<Expr> ConvertExprByLabel(const CstNode& node)
 	{
 		auto left = ConvertExprByLabel(*node.children[0]);
 		auto right = ConvertExprByLabel(*node.children[2]);
-		const BinaryOpKind op = ParseBinaryOp(node.children[1]->value);
+		const BinaryOpKind op = ParseBinaryOp(*node.children[1]);
 		return std::make_unique<BinaryExpr>(op, std::move(left), std::move(right));
 	}
 
@@ -285,7 +287,7 @@ std::unique_ptr<Stmt> ConvertVarDecl(const CstNode& node)
 	if (node.children.size() == 5)
 	{
 		const std::string& opVal = node.children[3]->children[0]->value;
-		isMoveInit = (opVal == "<-");
+		isMoveInit = opVal == LanguageTokens::OpMove;
 		init = ConvertExpr(*node.children[4]);
 	}
 
@@ -297,7 +299,7 @@ std::unique_ptr<Stmt> ConvertAssignStmt(const CstNode& node)
 {
 	auto lhs = ConvertExpr(*node.children[0]);
 	const std::string& opVal = node.children[1]->children[0]->value;
-	const bool isMove = (opVal == "<-");
+	const bool isMove = opVal == LanguageTokens::OpMove;
 	auto rhs = ConvertExpr(*node.children[2]);
 	return std::make_unique<AssignStmt>(std::move(lhs), isMove, std::move(rhs), ExtractRange(node));
 }
@@ -359,9 +361,8 @@ std::unique_ptr<Stmt> ConvertForStmt(const CstNode& node)
 	{
 		return ConvertForStmt2D(node);
 	}
-	ThrowConversionError(
-		"Неподдерживаемая форма rep с " + std::to_string(node.children.size()) + " дочерними узлами",
-		node);
+
+	ThrowConversionError("Неподдерживаемая форма rep с " + std::to_string(node.children.size()) + " дочерними узлами", node);
 }
 
 std::unique_ptr<Stmt> ConvertWhileStmt(const CstNode& node)
@@ -385,7 +386,7 @@ std::unique_ptr<Stmt> ConvertElseOpt(const CstNode& node)
 		return nullptr;
 	}
 
-	if (node.children[1]->value == "(")
+	if (node.children[1]->value == LanguageTokens::SymParenLeft)
 	{
 		auto condition = ConvertExpr(*node.children[2]);
 		auto thenBlock = ConvertStmtList(*node.children[5]);
@@ -470,7 +471,7 @@ std::unique_ptr<AstNode> ConvertFuncDecl(const CstNode& node)
 {
 	const std::string typeName = ParseType(*node.children[0]);
 	const std::string name = node.children[2]->value;
-	const bool hasParams = node.children[4]->label != ")";
+	const bool hasParams = node.children[4]->label != LanguageTokens::SymParenRight;
 	const size_t stmtListIdx = hasParams ? 7 : 6;
 
 	std::vector<Param> params;

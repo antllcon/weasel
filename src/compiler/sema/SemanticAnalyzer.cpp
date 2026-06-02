@@ -1,29 +1,24 @@
 #include "SemanticAnalyzer.h"
-#include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
 #include "src/compiler/ast/BoolExpr.h"
 #include "src/compiler/ast/DoWhileStmt.h"
-#include "src/compiler/ast/EnumDeclStmt.h"
 #include "src/compiler/ast/ExprStmt.h"
 #include "src/compiler/ast/FunctionCallExpr.h"
 #include "src/compiler/ast/FunctionDeclStmt.h"
 #include "src/compiler/ast/IdentifierExpr.h"
 #include "src/compiler/ast/IfStmt.h"
-#include "src/compiler/ast/IndexExpr.h"
-#include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
 #include "src/compiler/ast/StringExpr.h"
-#include "src/compiler/ast/StructDeclStmt.h"
 #include "src/compiler/ast/TypeInfo.h"
 #include "src/compiler/ast/UnaryExpr.h"
-#include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
+#include "src/compiler/core/LanguageTokens.h"
 #include "src/compiler/stdlib/NativeRegistry.h"
 #include "src/diagnostics/CompilationException.h"
 
@@ -56,23 +51,6 @@ void AssertIsMutable(const SymbolInfo& info, const std::string& name)
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Semantic,
 			.message = "Нельзя присвоить значение неизменяемой переменной: " + name});
-	}
-}
-
-void AssertIsTypesMatch(
-	const std::shared_ptr<TypeInfo>& expected,
-	const std::shared_ptr<TypeInfo>& actual,
-	const std::string& context)
-{
-	if (!expected || !actual)
-		return;
-	if (expected->GetName() != actual->GetName())
-	{
-		throw CompilationException(DiagnosticData{
-			.phase = CompilerPhase::Semantic,
-			.message = "Несовместимые типы в " + context
-				+ ": ожидался " + expected->GetName()
-				+ ", получен " + actual->GetName()});
 	}
 }
 
@@ -208,29 +186,13 @@ bool IsLogicalOp(BinaryOpKind op)
 	return op == BinaryOpKind::LogicalAnd || op == BinaryOpKind::LogicalOr;
 }
 
-void ReportIfTypesMismatch(
-	DiagnosticEngine& engine,
-	const std::shared_ptr<TypeInfo>& left,
-	const std::shared_ptr<TypeInfo>& right,
-	const SourceRange& range)
-{
-	if (!left || !right || left->GetName() == right->GetName())
-		return;
-
-	engine.Report(DiagnosticData{
-		.phase = CompilerPhase::Semantic,
-		.message = "Несовместимые типы операндов: " + left->GetName() + " и " + right->GetName(),
-		.line = range.start.line,
-		.pos = range.start.pos});
-}
-
 bool IsPrimitiveType(const std::string& name)
 {
-	return name == "int" || name == "uint" || name == "real" || name == "bool" || name == "string" || name == "void";
+	return name == LanguageTokens::TypeInt || name == LanguageTokens::TypeUint || name == LanguageTokens::TypeReal || name == LanguageTokens::TypeBool || name == LanguageTokens::TypeString || name == LanguageTokens::TypeVoid;
 }
 } // namespace
 
-SemanticAnalyzer::SemaResult SemanticAnalyzer::Analyze(AstNode& root, DiagnosticEngine& engine)
+SemanticAnalyzer::SemaResult SemanticAnalyzer::Analyze(const AstNode& root, DiagnosticEngine& engine)
 {
 	m_engine = &engine;
 	CollectFunctions(root);
@@ -490,7 +452,7 @@ void SemanticAnalyzer::Visit(const BinaryExpr& node)
 
 	AssertIsExactTypeMatch(leftType, rightType, node.GetRange());
 
-	const auto resultType = (IsComparisonOp(node.GetOp()) || IsLogicalOp(node.GetOp()))
+	const auto resultType = IsComparisonOp(node.GetOp()) || IsLogicalOp(node.GetOp())
 		? ScalarTypeInfo::Make(BaseType::Bool)
 		: leftType;
 

@@ -1,4 +1,6 @@
 #include "TypeInfo.h"
+#include "src/compiler/core/LanguageTokens.h"
+
 #include <stdexcept>
 
 namespace
@@ -8,17 +10,17 @@ std::string FormatName(BaseType base)
 	switch (base)
 	{
 	case BaseType::Int:
-		return std::string(TypeKeyword::Int);
+		return std::string(LanguageTokens::TypeInt);
 	case BaseType::Uint:
-		return std::string(TypeKeyword::Uint);
+		return std::string(LanguageTokens::TypeUint);
 	case BaseType::Real:
-		return std::string(TypeKeyword::Real);
+		return std::string(LanguageTokens::TypeReal);
 	case BaseType::Bool:
-		return std::string(TypeKeyword::Bool);
+		return std::string(LanguageTokens::TypeBool);
 	case BaseType::String:
-		return std::string(TypeKeyword::String);
+		return std::string(LanguageTokens::TypeString);
 	case BaseType::Void:
-		return std::string(TypeKeyword::Void);
+		return std::string(LanguageTokens::TypeVoid);
 	default:
 		return "custom";
 	}
@@ -26,12 +28,12 @@ std::string FormatName(BaseType base)
 
 BaseType ParseBaseType(const std::string& name)
 {
-	if (name == TypeKeyword::Int) return BaseType::Int;
-	if (name == TypeKeyword::Uint) return BaseType::Uint;
-	if (name == TypeKeyword::Real) return BaseType::Real;
-	if (name == TypeKeyword::Bool) return BaseType::Bool;
-	if (name == TypeKeyword::String) return BaseType::String;
-	if (name == TypeKeyword::Void) return BaseType::Void;
+	if (name == LanguageTokens::TypeInt) return BaseType::Int;
+	if (name == LanguageTokens::TypeUint) return BaseType::Uint;
+	if (name == LanguageTokens::TypeReal) return BaseType::Real;
+	if (name == LanguageTokens::TypeBool) return BaseType::Bool;
+	if (name == LanguageTokens::TypeString) return BaseType::String;
+	if (name == LanguageTokens::TypeVoid) return BaseType::Void;
 	throw std::runtime_error("Неизвестное имя типа: " + name);
 }
 } // namespace

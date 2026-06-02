@@ -1,6 +1,6 @@
 #include "Lexer.h"
 
-#include "src/compiler/ast/TypeInfo.h"
+#include "src/compiler/core/LanguageTokens.h"
 #include "src/diagnostics/CompilationException.h"
 #include "visualizer/LexerVisualizer.h"
 
@@ -173,33 +173,7 @@ bool IsIdChar(char ch)
 
 bool IsKeyword(std::string_view text)
 {
-	constexpr std::array<std::string_view, 25> keywords = {
-		"alias",
-		"and",
-		TypeKeyword::Bool,
-		"def",
-		"else",
-		"enum",
-		"false",
-		"import",
-		"in",
-		TypeKeyword::Int,
-		"not",
-		"or",
-		TypeKeyword::Real,
-		"rep",
-		"return",
-		"run",
-		TypeKeyword::String,
-		"struct",
-		"true",
-		TypeKeyword::Uint,
-		"union",
-		"val",
-		"var",
-		TypeKeyword::Void,
-		"when"};
-	return std::ranges::binary_search(keywords, text);
+	return std::ranges::binary_search(LanguageTokens::AllKeywords, text);
 }
 
 Token ParseIdOrKeyword(LexerState& state)
@@ -305,81 +279,81 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 
 	switch (ch)
 	{
-	case ':':
-		if (Peek(state) == '=')
+	case LanguageTokens::SymColon[0]:
+		if (Peek(state) == LanguageTokens::OpAssign[1])
 		{
 			Advance(state);
 			return MakeToken(TokenType::OpAssign, startPos, 2, state, startLine);
 		}
 		return MakeToken(TokenType::Colon, startPos, 1, state, startLine);
-	case '<':
-		if (Peek(state) == '-')
+	case LanguageTokens::OpLess[0]:
+		if (Peek(state) == LanguageTokens::OpMove[1])
 		{
 			Advance(state);
 			return MakeToken(TokenType::OpMove, startPos, 2, state, startLine);
 		}
-		if (Peek(state) == '=')
+		if (Peek(state) == LanguageTokens::OpLessEq[1])
 		{
 			Advance(state);
 			return MakeToken(TokenType::OpLessEq, startPos, 2, state, startLine);
 		}
 		return MakeToken(TokenType::OpLess, startPos, 1, state, startLine);
-	case '>':
-		if (Peek(state) == '<')
+	case LanguageTokens::OpGreater[0]:
+		if (Peek(state) == LanguageTokens::OpNotEq[1])
 		{
 			Advance(state);
 			return MakeToken(TokenType::OpNotEq, startPos, 2, state, startLine);
 		}
-		if (Peek(state) == '=')
+		if (Peek(state) == LanguageTokens::OpGreaterEq[1])
 		{
 			Advance(state);
 			return MakeToken(TokenType::OpGreaterEq, startPos, 2, state, startLine);
 		}
 		return MakeToken(TokenType::OpGreater, startPos, 1, state, startLine);
-	case '=':
-		if (Peek(state) == '=')
+	case LanguageTokens::OpEq[0]:
+		if (Peek(state) == LanguageTokens::OpEq[1])
 		{
 			Advance(state);
 			return MakeToken(TokenType::OpEq, startPos, 2, state, startLine);
 		}
 		ReportUnknownSymbol(state, ch, startLine, startPos);
 		break;
-	case '.':
-		if (Peek(state) == '.')
+	case LanguageTokens::SymDot[0]:
+		if (Peek(state) == LanguageTokens::OpRange[1])
 		{
 			Advance(state);
 			return MakeToken(TokenType::OpRange, startPos, 2, state, startLine);
 		}
 		return MakeToken(TokenType::Dot, startPos, 1, state, startLine);
-	case '+':
+	case LanguageTokens::OpPlus[0]:
 		return MakeToken(TokenType::OpPlus, startPos, 1, state, startLine);
-	case '-':
+	case LanguageTokens::OpMinus[0]:
 		return MakeToken(TokenType::OpMinus, startPos, 1, state, startLine);
-	case '*':
+	case LanguageTokens::OpMul[0]:
 		return MakeToken(TokenType::OpMul, startPos, 1, state, startLine);
-	case '/':
+	case LanguageTokens::OpDiv[0]:
 		return MakeToken(TokenType::OpDiv, startPos, 1, state, startLine);
-	case '%':
+	case LanguageTokens::OpMod[0]:
 		return MakeToken(TokenType::OpMod, startPos, 1, state, startLine);
-	case '&':
+	case LanguageTokens::OpAddressOf[0]:
 		return MakeToken(TokenType::Ampersand, startPos, 1, state, startLine);
-	case ',':
+	case LanguageTokens::SymComma[0]:
 		return MakeToken(TokenType::Comma, startPos, 1, state, startLine);
-	case '(':
+	case LanguageTokens::SymParenLeft[0]:
 		HandleBracketOpen(state);
 		return MakeToken(TokenType::ParenLeft, startPos, 1, state, startLine);
-	case ')':
+	case LanguageTokens::SymParenRight[0]:
 		HandleBracketClose(state);
 		return MakeToken(TokenType::ParenRight, startPos, 1, state, startLine);
-	case '[':
+	case LanguageTokens::SymBracketLeft[0]:
 		HandleBracketOpen(state);
 		return MakeToken(TokenType::BracketLeft, startPos, 1, state, startLine);
-	case ']':
+	case LanguageTokens::SymBracketRight[0]:
 		HandleBracketClose(state);
 		return MakeToken(TokenType::BracketRight, startPos, 1, state, startLine);
-	case '{':
+	case LanguageTokens::SymBraceLeft[0]:
 		return MakeToken(TokenType::BraceLeft, startPos, 1, state, startLine);
-	case '}':
+	case LanguageTokens::SymBraceRight[0]:
 		return MakeToken(TokenType::BraceRight, startPos, 1, state, startLine);
 	default:
 		ReportUnknownSymbol(state, ch, startLine, startPos);

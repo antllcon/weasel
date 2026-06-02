@@ -1,4 +1,5 @@
 #pragma once
+
 #include "SymbolTable.h"
 #include "src/compiler/ast/AstNode.h"
 #include "src/compiler/ast/IAstVisitor.h"
@@ -26,7 +27,7 @@ public:
 		std::unordered_map<std::string, FunctionInfo> functions;
 	};
 
-	[[nodiscard]] SemaResult Analyze(AstNode& root, DiagnosticEngine& engine);
+	[[nodiscard]] SemaResult Analyze(const AstNode& root, DiagnosticEngine& engine);
 
 private:
 	void CollectFunctions(const AstNode& root);

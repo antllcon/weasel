@@ -13,7 +13,6 @@
 #include "src/compiler/ast/IdentifierExpr.h"
 #include "src/compiler/ast/IfStmt.h"
 #include "src/compiler/ast/IndexExpr.h"
-#include "src/compiler/ast/ListTypeInfo.h"
 #include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
@@ -31,6 +30,34 @@
 
 namespace
 {
+void AssertIsInitializedIfImmutable(bool hasInit, VarModifier modifier, const std::string& name, const SourceRange& range)
+{
+	if (!hasInit && modifier != VarModifier::Var)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Неизменяемая переменная или константа должна быть инициализирована: " + name,
+			.line = range.start.line,
+			.pos = range.start.pos});
+	}
+}
+
+void AssertIsCompileTimeConstant(const Expr* expr, const SourceRange& range)
+{
+	const bool isNum = dynamic_cast<const NumExpr*>(expr) != nullptr;
+	const bool isBool = dynamic_cast<const BoolExpr*>(expr) != nullptr;
+	const bool isString = dynamic_cast<const StringExpr*>(expr) != nullptr;
+
+	if (!isNum && !isBool && !isString)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Значение строгой константы должно быть известно на этапе компиляции",
+			.line = range.start.line,
+			.pos = range.start.pos});
+	}
+}
+
 void AssertIsLhsValidForAssignment(bool isValid, const SourceRange& range)
 {
 	if (!isValid)
@@ -53,23 +80,15 @@ void AssertIsVariableNotRedeclared(bool isNew, const std::string& name)
 	}
 }
 
-void AssertIsLhsIdentifier(const Expr& lhs)
-{
-	if (!dynamic_cast<const IdentifierExpr*>(&lhs))
-	{
-		throw CompilationException(DiagnosticData{
-			.phase = CompilerPhase::Semantic,
-			.message = "Левая часть присваивания должна быть идентификатором"});
-	}
-}
-
-void AssertIsMutable(const SymbolInfo& info, const std::string& name)
+void AssertIsMutable(const SymbolInfo& info, const std::string& name, const SourceRange& range)
 {
 	if (!info.isMutable)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Semantic,
-			.message = "Нельзя присвоить значение неизменяемой переменной: " + name});
+			.message = "Нельзя присвоить значение неизменяемой переменной: " + name,
+			.line = range.start.line,
+			.pos = range.start.pos});
 	}
 }
 
@@ -171,14 +190,6 @@ std::shared_ptr<TypeInfo> ParseTypeString(const std::string& typeName)
 		return std::make_shared<ArrayTypeInfo>(ParseTypeString(inner));
 	}
 
-	if (typeName.starts_with(LanguageTokens::KwList) && typeName.find('[') != std::string::npos)
-	{
-		const size_t start = typeName.find('[') + 1;
-		const size_t end = typeName.find_last_of(']');
-		const std::string inner = typeName.substr(start, end - start);
-		return std::make_shared<ListTypeInfo>(ParseTypeString(inner));
-	}
-
 	return ScalarTypeInfo::FromString(typeName);
 }
 
@@ -198,9 +209,8 @@ void AssertIsIntegerType(const std::shared_ptr<TypeInfo>& type, const std::strin
 void AssertIsIndexableType(const std::shared_ptr<TypeInfo>& type, const SourceRange& range)
 {
 	const bool isArray = dynamic_cast<const ArrayTypeInfo*>(type.get()) != nullptr;
-	const bool isList = dynamic_cast<const ListTypeInfo*>(type.get()) != nullptr;
 
-	if (!isArray && !isList)
+	if (!isArray)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Semantic,
@@ -342,10 +352,6 @@ void SemanticAnalyzer::Visit(const IndexExpr& node)
 	{
 		const_cast<IndexExpr&>(node).SetResolvedType(arrayType->GetElementType());
 	}
-	else if (const auto* listType = dynamic_cast<const ListTypeInfo*>(receiverType.get()))
-	{
-		const_cast<IndexExpr&>(node).SetResolvedType(listType->GetElementType());
-	}
 }
 
 void SemanticAnalyzer::Visit(const MemberAccessExpr& node)
@@ -354,9 +360,7 @@ void SemanticAnalyzer::Visit(const MemberAccessExpr& node)
 	auto receiverType = node.GetReceiver().GetResolvedType();
 
 	const bool isArray = dynamic_cast<const ArrayTypeInfo*>(receiverType.get()) != nullptr;
-	const bool isList = dynamic_cast<const ListTypeInfo*>(receiverType.get()) != nullptr;
-
-	if ((isArray || isList) && node.GetField() == "size")
+	if (isArray && node.GetField() == "size")
 	{
 		const_cast<MemberAccessExpr&>(node).SetResolvedType(ScalarTypeInfo::Make(BaseType::Uint));
 		return;
@@ -420,7 +424,10 @@ void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 	auto type = ParseTypeString(node.GetTypeName());
 	AssertIsNotVoidType(type, node.GetName(), node.GetRange().start.line, node.GetRange().start.pos);
 
-	if (node.GetInit())
+	const bool hasInit = node.GetInit() != nullptr;
+	AssertIsInitializedIfImmutable(hasInit, node.GetModifier(), node.GetName(), node.GetRange());
+
+	if (hasInit)
 	{
 		const auto savedExpected = m_expectedType;
 		m_expectedType = type;
@@ -430,13 +437,23 @@ void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 		AssertIsExactTypeMatch(type, node.GetInit()->GetResolvedType(), node.GetRange());
 	}
 
-	const uint32_t slot = m_nextSlot++;
-	m_maxSlot = std::max(m_maxSlot, m_nextSlot);
+	const bool isConst = node.GetModifier() == VarModifier::Def;
 	const bool isMutable = node.GetModifier() == VarModifier::Var;
+	uint32_t slot = 0;
 
-	const bool isNew = m_table.Declare(node.GetName(), type, isMutable, slot);
+	if (isConst)
+	{
+		AssertIsCompileTimeConstant(node.GetInit(), node.GetInit()->GetRange());
+	}
+	else
+	{
+		slot = m_nextSlot++;
+		m_maxSlot = std::max(m_maxSlot, m_nextSlot);
+		m_varDeclSlots[&node] = slot;
+	}
+
+	const bool isNew = m_table.Declare(node.GetName(), type, isMutable, slot, isConst, node.GetInit());
 	AssertIsVariableNotRedeclared(isNew, node.GetName());
-	m_varDeclSlots[&node] = slot;
 }
 
 void SemanticAnalyzer::Visit(const AssignStmt& node)
@@ -458,7 +475,7 @@ void SemanticAnalyzer::Visit(const AssignStmt& node)
 		auto info = m_table.Resolve(ident.GetName());
 		if (info)
 		{
-			AssertIsMutable(*info, ident.GetName());
+			AssertIsMutable(*info, ident.GetName(), ident.GetRange());
 		}
 	}
 

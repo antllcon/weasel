@@ -1,4 +1,6 @@
 #include "SymbolTableVisualizer.h"
+
+#include "src/compiler/core/LanguageTokens.h"
 #include "src/utils/logger/Logger.h"
 #include <algorithm>
 #include <iomanip>
@@ -25,7 +27,17 @@ std::string GetTypeName(const SymbolInfo& info)
 
 std::string GetMutability(const SymbolInfo& info)
 {
-	return info.isMutable ? "var" : "val/def";
+	if (info.isCompileTimeConst)
+	{
+		return std::string(LanguageTokens::KwLet);
+	}
+
+	if (info.isMutable)
+	{
+		return std::string(LanguageTokens::KwVar);
+	}
+
+	return std::string(LanguageTokens::KwVal);
 }
 
 void AppendHeader(std::ostringstream& ss)

@@ -1,4 +1,5 @@
 #pragma once
+#include "src/compiler/ast/Expr.h"
 #include "src/compiler/ast/TypeInfo.h"
 #include <memory>
 #include <optional>
@@ -11,6 +12,8 @@ struct SymbolInfo
 	std::shared_ptr<TypeInfo> type;
 	uint32_t stackSlot;
 	bool isMutable;
+	bool isCompileTimeConst;
+	const Expr* constExpr;
 };
 
 class SymbolTable
@@ -19,7 +22,7 @@ public:
 	void EnterScope();
 	void LeaveScope();
 
-	bool Declare(const std::string& name, std::shared_ptr<TypeInfo> type, bool isMutable, uint32_t slot);
+	bool Declare(const std::string& name, std::shared_ptr<TypeInfo> type, bool isMutable, uint32_t slot, bool isConst = false, const Expr* constExpr = nullptr);
 	[[nodiscard]] std::optional<SymbolInfo> Resolve(const std::string& name) const;
 
 private:

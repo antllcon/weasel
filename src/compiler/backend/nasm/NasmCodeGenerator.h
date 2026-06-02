@@ -13,9 +13,9 @@ class NasmCodeGenerator final : public IAstVisitor
 {
 public:
 	explicit NasmCodeGenerator(
-		std::unordered_map<const AstNode*, SymbolInfo>               symbols,
-		std::unordered_map<const AstNode*, uint32_t>                 varDeclSlots,
-		std::unordered_map<const AstNode*, std::vector<SymbolInfo>>  repIterators,
+		std::unordered_map<const AstNode*, SymbolInfo> symbols,
+		std::unordered_map<const AstNode*, uint32_t> varDeclSlots,
+		std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators,
 		std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions);
 
 	[[nodiscard]] std::string Generate(const AstNode& root);
@@ -44,23 +44,25 @@ public:
 	void Visit(const FunctionDeclStmt& node) override;
 	void Visit(const ReturnStmt& node) override;
 	void Visit(const IfStmt& node) override;
+	void Visit(const ArrayAllocExpr& node) override;
 
 private:
 	std::string MakeLabel(const std::string& prefix);
 	int32_t SlotToOffset(uint32_t slot) const;
 
-	void EmitExprToRax(const class Expr& expr);
-	void EnterFunction(const class FunctionDeclStmt& node);
+	void EmitExprToRax(const Expr& expr);
+	void EnterFunction(const FunctionDeclStmt& node);
 	void LeaveFunction();
 
 	void Emit(const std::string& line);
 	void EmitLabel(const std::string& label);
 
+private:
 	std::ostringstream m_out;
 	uint32_t m_labelCounter = 0;
 
-	std::unordered_map<const AstNode*, SymbolInfo>               m_symbols;
-	std::unordered_map<const AstNode*, uint32_t>                 m_varDeclSlots;
-	std::unordered_map<const AstNode*, std::vector<SymbolInfo>>  m_repIterators;
+	std::unordered_map<const AstNode*, SymbolInfo> m_symbols;
+	std::unordered_map<const AstNode*, uint32_t> m_varDeclSlots;
+	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> m_repIterators;
 	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> m_functions;
 };

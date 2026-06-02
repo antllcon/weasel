@@ -90,7 +90,7 @@ std::string ModifierToString(VarModifier mod)
 	case VarModifier::Var:
 		return std::string(LanguageTokens::KwVar);
 	case VarModifier::Def:
-		return std::string(LanguageTokens::KwDef);
+		return std::string(LanguageTokens::KwLet);
 	}
 	return "?";
 }
@@ -197,6 +197,7 @@ void AstVisualizer::Visit(const IfStmt& node)
 	const bool hasElse = node.GetElseNode() != nullptr;
 	VisitChild(node.GetCondition(), false);
 	VisitChild(node.GetThenBlock(), !hasElse);
+
 	if (hasElse)
 	{
 		VisitChild(*node.GetElseNode(), true);

@@ -109,7 +109,7 @@ VarModifier ParseModifier(const CstNode& modNode)
 
 	if (val == LanguageTokens::KwVal) return VarModifier::Val;
 	if (val == LanguageTokens::KwVar) return VarModifier::Var;
-	if (val == LanguageTokens::KwDef) return VarModifier::Def;
+	if (val == LanguageTokens::KwLet) return VarModifier::Def;
 
 	ThrowConversionError("Неизвестный модификатор переменной: " + val, modNode);
 }
@@ -126,11 +126,6 @@ std::string ParseType(const CstNode& typeNode)
 	if (child.label == LanguageTokens::KwArray)
 	{
 		return std::string(LanguageTokens::KwArray) + std::string(LanguageTokens::SymBracketLeft) + ParseType(*typeNode.children[2]) + std::string(LanguageTokens::SymBracketRight);
-	}
-
-	if (child.label == LanguageTokens::KwList)
-	{
-		return std::string(LanguageTokens::KwList) + std::string(LanguageTokens::SymBracketLeft) + ParseType(*typeNode.children[2]) + std::string(LanguageTokens::SymBracketRight);
 	}
 
 	return child.value;

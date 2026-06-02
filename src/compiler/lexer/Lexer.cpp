@@ -18,7 +18,7 @@ constexpr size_t AverageTokenLength = 5;
 struct LexerState
 {
 	std::string_view source;
-	DiagnosticEngine& engine;
+	[[maybe_unused]] DiagnosticEngine& engine;
 	size_t pos = InitialPosition;
 	size_t line = InitialLine;
 	size_t openedBrackets = 0;
@@ -139,9 +139,9 @@ Token ParseNewLine(LexerState& state)
 	return Token{TokenType::NewLine, "\n", startPos, startLine};
 }
 
-void ReportUnknownSymbol(const LexerState& state, char symbol, size_t line, size_t pos)
+[[noreturn]] void ReportUnknownSymbol(char symbol, size_t line, size_t pos)
 {
-	state.engine.Report(DiagnosticData{
+	throw CompilationException(DiagnosticData{
 		.phase = CompilerPhase::Lexer,
 		.message = "Встречен неизвестный или недопустимый символ",
 		.expected = "Валидный токен алфавита Weasel",
@@ -150,9 +150,9 @@ void ReportUnknownSymbol(const LexerState& state, char symbol, size_t line, size
 		.pos = pos});
 }
 
-void ReportUnterminatedString(const LexerState& state, size_t line, size_t pos)
+[[noreturn]] void ReportUnterminatedString(size_t line, size_t pos)
 {
-	state.engine.Report(DiagnosticData{
+	throw CompilationException(DiagnosticData{
 		.phase = CompilerPhase::Lexer,
 		.message = "Незакрытая строковая константа",
 		.expected = "\"",
@@ -241,12 +241,10 @@ Token ParseString(LexerState& state)
 
 	if (IsAtEnd(state))
 	{
-		ReportUnterminatedString(state, startLine, startPos);
+		ReportUnterminatedString(startLine, startPos);
 	}
-	else
-	{
-		Advance(state);
-	}
+
+	Advance(state);
 
 	const std::string_view value = state.source.substr(contentStart, contentEnd - contentStart);
 
@@ -316,8 +314,7 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 			Advance(state);
 			return MakeToken(TokenType::OpEq, startPos, 2, state, startLine);
 		}
-		ReportUnknownSymbol(state, ch, startLine, startPos);
-		break;
+		ReportUnknownSymbol(ch, startLine, startPos);
 	case LanguageTokens::SymDot[0]:
 		if (Peek(state) == LanguageTokens::OpRange[1])
 		{
@@ -356,11 +353,8 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 	case LanguageTokens::SymBraceRight[0]:
 		return MakeToken(TokenType::BraceRight, startPos, 1, state, startLine);
 	default:
-		ReportUnknownSymbol(state, ch, startLine, startPos);
-		break;
+		ReportUnknownSymbol(ch, startLine, startPos);
 	}
-
-	return MakeToken(TokenType::Error, startPos, 1, state, startLine);
 }
 
 Token GetNextToken(LexerState& state)

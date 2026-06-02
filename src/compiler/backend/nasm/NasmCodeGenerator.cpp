@@ -239,6 +239,10 @@ void NasmCodeGenerator::Visit(const IfStmt& node)
 	EmitLabel(labelEnd);
 }
 
+void NasmCodeGenerator::Visit(const ArrayAllocExpr& /*node*/)
+{
+}
+
 void NasmCodeGenerator::Visit(const DoWhileStmt& /*node*/)
 {
 	throw std::runtime_error("Генерация NASM-кода для DoWhileStmt не реализована");
@@ -371,6 +375,10 @@ void NasmCodeGenerator::Visit(const BinaryExpr& node)
 		Emit("cmp rax, rbx");
 		Emit("setge al");
 		Emit("movzx rax, al");
+		break;
+	case BinaryOpKind::LogicalAnd:
+		break;
+	case BinaryOpKind::LogicalOr:
 		break;
 	}
 }

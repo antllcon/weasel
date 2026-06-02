@@ -282,18 +282,18 @@ TEST_F(ParserTest, VarDeclMoveAssign)
     EXPECT_EQ(assignOp->children[0]->value, "<-");
 }
 
-// Проверка объявления переменной с модификатором def
+// Проверка объявления переменной с модификатором let
 TEST_F(ParserTest, VarDeclDefModifier)
 {
     auto root = Parse(WrapInFunc({
-        Tok("def", "def"), Tok("num", "num"), Tok("id", "MAX_VALUE"),
+        Tok("let", "let"), Tok("num", "num"), Tok("id", "MAX_VALUE"),
         Tok(":=", ":="), Tok("num", "100"), Tok("nl", "\n")
     }));
 
     ASSERT_NE(root, nullptr);
     auto modifier = Find(root.get(), "Modifier");
     ASSERT_NE(modifier, nullptr);
-    EXPECT_EQ(modifier->children[0]->value, "def");
+    EXPECT_EQ(modifier->children[0]->value, "let");
 }
 
 // Проверка простого оператора присваивания

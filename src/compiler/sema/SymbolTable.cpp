@@ -23,7 +23,7 @@ void SymbolTable::LeaveScope()
 	m_scopes.pop_back();
 }
 
-bool SymbolTable::Declare(const std::string& name, std::shared_ptr<TypeInfo> type, bool isMutable, uint32_t slot)
+bool SymbolTable::Declare(const std::string& name, std::shared_ptr<TypeInfo> type, bool isMutable, uint32_t slot, bool isConst, const Expr* constExpr)
 {
 	if (m_scopes.empty())
 	{
@@ -34,7 +34,7 @@ bool SymbolTable::Declare(const std::string& name, std::shared_ptr<TypeInfo> typ
 	{
 		return false;
 	}
-	current[name] = SymbolInfo{std::move(type), slot, isMutable};
+	current[name] = SymbolInfo{std::move(type), slot, isMutable, isConst, constExpr};
 	return true;
 }
 

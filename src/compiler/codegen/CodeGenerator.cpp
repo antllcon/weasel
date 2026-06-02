@@ -1,7 +1,6 @@
 #include "CodeGenerator.h"
 
 #include "src/compiler/ast/ArrayAllocExpr.h"
-#include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
@@ -295,10 +294,16 @@ void CodeGenerator::Visit(const IdentifierExpr& node)
 {
 	const auto it = m_symbols.find(&node);
 	AssertIsIdentifierResolved(it != m_symbols.end(), node.GetName(), node.GetRange());
+
+	if (it->second.isCompileTimeConst)
+	{
+		it->second.constExpr->Accept(*this);
+		return;
+	}
+
 	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
 	m_chunk.WriteUint32(it->second.stackSlot, m_currentLine);
 }
-
 void CodeGenerator::Visit(const NumExpr& node)
 {
 	const Value val = ParseNumLiteral(node.GetValue(), node.GetResolvedType().get(), node.IsFloat());
@@ -498,6 +503,11 @@ void CodeGenerator::Visit(const RepStmt& node)
 
 void CodeGenerator::Visit(const VarDeclStmt& node)
 {
+	if (node.GetModifier() == VarModifier::Def)
+	{
+		return;
+	}
+
 	if (node.GetInit())
 	{
 		node.GetInit()->Accept(*this);

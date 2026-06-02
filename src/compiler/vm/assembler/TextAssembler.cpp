@@ -64,6 +64,7 @@ const std::unordered_map<std::string, OpCode> MNEMONICS = {
 	{"allocate_array", OpCode::AllocateArray},
 	{"ld_elem", OpCode::LoadElement},
 	{"st_elem", OpCode::StoreElement},
+	{"array_len", OpCode::ArrayLength},
 
 	{"retain", OpCode::Retain},
 	{"release", OpCode::Release},

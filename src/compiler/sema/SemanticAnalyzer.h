@@ -1,5 +1,4 @@
 #pragma once
-
 #include "SymbolTable.h"
 #include "src/compiler/ast/AstNode.h"
 #include "src/compiler/ast/IAstVisitor.h"
@@ -50,6 +49,7 @@ private:
 	void Visit(const StringExpr& node) override;
 	void Visit(const BoolExpr& node) override;
 	void Visit(const ArrayLiteralExpr& node) override;
+	void Visit(const ArrayAllocExpr& node) override;
 	void Visit(const IndexExpr& node) override;
 	void Visit(const MemberAccessExpr& node) override;
 	void Visit(const StructDeclStmt& node) override;

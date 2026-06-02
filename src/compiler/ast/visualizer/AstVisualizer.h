@@ -8,36 +8,38 @@ class AstVisualizer final : public IAstVisitor
 public:
 	static void Visualize(const class AstNode& root);
 
-	void Visit(const class ProgramNode& node) override;
-	void Visit(const class StructDeclStmt& node) override;
-	void Visit(const class UnionDeclStmt& node) override;
-	void Visit(const class EnumDeclStmt& node) override;
-	void Visit(const class BinaryExpr& node) override;
-	void Visit(const class UnaryExpr& node) override;
-	void Visit(const class IdentifierExpr& node) override;
-	void Visit(const class NumExpr& node) override;
-	void Visit(const class StringExpr& node) override;
-	void Visit(const class BoolExpr& node) override;
-	void Visit(const class ArrayLiteralExpr& node) override;
-	void Visit(const class FunctionCallExpr& node) override;
-	void Visit(const class IndexExpr& node) override;
-	void Visit(const class MemberAccessExpr& node) override;
-	void Visit(const class BlockStmt& node) override;
-	void Visit(const class DoWhileStmt& node) override;
-	void Visit(const class RunStmt& node) override;
-	void Visit(const class RepStmt& node) override;
-	void Visit(const class VarDeclStmt& node) override;
-	void Visit(const class AssignStmt& node) override;
-	void Visit(const class ExprStmt& node) override;
-	void Visit(const class FunctionDeclStmt& node) override;
-	void Visit(const class ReturnStmt& node) override;
-	void Visit(const class IfStmt& node) override;
+	void Visit(const ProgramNode& node) override;
+	void Visit(const StructDeclStmt& node) override;
+	void Visit(const UnionDeclStmt& node) override;
+	void Visit(const EnumDeclStmt& node) override;
+	void Visit(const BinaryExpr& node) override;
+	void Visit(const UnaryExpr& node) override;
+	void Visit(const IdentifierExpr& node) override;
+	void Visit(const NumExpr& node) override;
+	void Visit(const StringExpr& node) override;
+	void Visit(const BoolExpr& node) override;
+	void Visit(const ArrayLiteralExpr& node) override;
+	void Visit(const FunctionCallExpr& node) override;
+	void Visit(const IndexExpr& node) override;
+	void Visit(const MemberAccessExpr& node) override;
+	void Visit(const BlockStmt& node) override;
+	void Visit(const DoWhileStmt& node) override;
+	void Visit(const RunStmt& node) override;
+	void Visit(const RepStmt& node) override;
+	void Visit(const VarDeclStmt& node) override;
+	void Visit(const AssignStmt& node) override;
+	void Visit(const ExprStmt& node) override;
+	void Visit(const FunctionDeclStmt& node) override;
+	void Visit(const ReturnStmt& node) override;
+	void Visit(const IfStmt& node) override;
+	void Visit(const ArrayAllocExpr& node) override;
 
 private:
 	void PrintNode(const std::string& label);
 	void PrintLeaf(const std::string& label, bool isLast);
-	void VisitChild(const class AstNode& child, bool isLast);
+	void VisitChild(const AstNode& child, bool isLast);
 
+private:
 	std::ostringstream m_stream;
 	std::string m_prefix;
 	bool m_isLast = true;

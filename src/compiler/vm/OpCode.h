@@ -30,6 +30,7 @@ enum class OpCode : uint8_t
 	AllocateArray,
 	LoadElement,
 	StoreElement,
+	ArrayLength,
 
 	Retain,
 	Release,

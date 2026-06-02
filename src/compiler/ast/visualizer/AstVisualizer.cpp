@@ -1,4 +1,6 @@
 #include "AstVisualizer.h"
+
+#include "src/compiler/ast/ArrayAllocExpr.h"
 #include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
@@ -199,6 +201,12 @@ void AstVisualizer::Visit(const IfStmt& node)
 	{
 		VisitChild(*node.GetElseNode(), true);
 	}
+}
+
+void AstVisualizer::Visit(const ArrayAllocExpr& node)
+{
+	PrintNode("ArrayAlloc (" + node.GetElementTypeName() + ")");
+	VisitChild(node.GetSize(), true);
 }
 
 void AstVisualizer::Visit(const RunStmt& node)

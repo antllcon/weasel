@@ -1,4 +1,6 @@
 #include "CodeGenerator.h"
+
+#include "src/compiler/ast/ArrayAllocExpr.h"
 #include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
@@ -9,11 +11,14 @@
 #include "src/compiler/ast/FunctionDeclStmt.h"
 #include "src/compiler/ast/IdentifierExpr.h"
 #include "src/compiler/ast/IfStmt.h"
+#include "src/compiler/ast/IndexExpr.h"
+#include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
+#include "src/compiler/ast/ScalarTypeInfo.h"
 #include "src/compiler/ast/StringExpr.h"
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/VarDeclStmt.h"
@@ -396,14 +401,24 @@ void CodeGenerator::Visit(const FunctionCallExpr& node)
 	m_unresolvedCalls.push_back({patchOffset, node.GetName(), node.GetRange()});
 }
 
-void CodeGenerator::Visit(const IndexExpr& /*node*/)
+void CodeGenerator::Visit(const IndexExpr& node)
 {
-	throw std::runtime_error("Генерация кода для IndexExpr не реализована");
+	node.GetReceiver().Accept(*this);
+	node.GetIndex().Accept(*this);
+	m_chunk.WriteOpCode(OpCode::LoadElement, m_currentLine);
 }
 
-void CodeGenerator::Visit(const MemberAccessExpr& /*node*/)
+void CodeGenerator::Visit(const MemberAccessExpr& node)
 {
-	throw std::runtime_error("Генерация кода для MemberAccessExpr не реализована");
+	node.GetReceiver().Accept(*this);
+
+	if (node.GetField() == "size")
+	{
+		m_chunk.WriteOpCode(OpCode::ArrayLength, m_currentLine);
+		return;
+	}
+
+	throw std::runtime_error("Бэкенд: обращение к неизвестному полю");
 }
 
 void CodeGenerator::Visit(const BlockStmt& node)
@@ -496,16 +511,28 @@ void CodeGenerator::Visit(const VarDeclStmt& node)
 
 void CodeGenerator::Visit(const AssignStmt& node)
 {
-	node.GetRhs().Accept(*this);
+	if (const auto* id = dynamic_cast<const IdentifierExpr*>(&node.GetLhs()))
+	{
+		node.GetRhs().Accept(*this);
+		const auto it = m_symbols.find(id);
+		AssertIsIdentifierResolved(it != m_symbols.end(), id->GetName(), node.GetRange());
 
-	const auto* id = dynamic_cast<const IdentifierExpr*>(&node.GetLhs());
-	AssertIsLhsIdentifier(id != nullptr, node.GetRange());
+		m_chunk.WriteOpCode(OpCode::StoreLocal, m_currentLine);
+		m_chunk.WriteUint32(it->second.stackSlot, m_currentLine);
+		return;
+	}
 
-	const auto it = m_symbols.find(id);
-	AssertIsIdentifierResolved(it != m_symbols.end(), id->GetName(), node.GetRange());
+	if (const auto* indexExpr = dynamic_cast<const IndexExpr*>(&node.GetLhs()))
+	{
+		indexExpr->GetReceiver().Accept(*this);
+		indexExpr->GetIndex().Accept(*this);
+		node.GetRhs().Accept(*this);
 
-	m_chunk.WriteOpCode(OpCode::StoreLocal, m_currentLine);
-	m_chunk.WriteUint32(it->second.stackSlot, m_currentLine);
+		m_chunk.WriteOpCode(OpCode::StoreElement, m_currentLine);
+		return;
+	}
+
+	AssertIsLhsIdentifier(false, node.GetRange());
 }
 
 void CodeGenerator::Visit(const ExprStmt& node)
@@ -564,6 +591,12 @@ void CodeGenerator::Visit(const IfStmt& node)
 	}
 
 	m_chunk.PatchUint32(patchEnd, m_chunk.GetCodeSize());
+}
+
+void CodeGenerator::Visit(const ArrayAllocExpr& node)
+{
+	node.GetSize().Accept(*this);
+	m_chunk.WriteOpCode(OpCode::AllocateArray, m_currentLine);
 }
 
 void CodeGenerator::EmitLogicalNot()

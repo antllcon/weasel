@@ -11,6 +11,8 @@ public:
 	void Retain();
 	bool Release();
 
+	[[nodiscard]] uint32_t GetSize() const;
+
 	Value GetField(uint32_t index) const;
 	void SetField(uint32_t index, const Value& value);
 

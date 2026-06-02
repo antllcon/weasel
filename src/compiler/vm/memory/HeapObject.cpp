@@ -34,6 +34,10 @@ bool HeapObject::Release()
 	m_refCount--;
 	return m_refCount == 0;
 }
+uint32_t HeapObject::GetSize() const
+{
+	return static_cast<uint32_t>(m_fields.size());
+}
 
 Value HeapObject::GetField(uint32_t index) const
 {

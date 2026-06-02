@@ -1,6 +1,7 @@
-#include "TypeInfo.h"
+#include "ScalarTypeInfo.h"
 #include "src/compiler/core/LanguageTokens.h"
 
+#include <memory>
 #include <stdexcept>
 
 namespace

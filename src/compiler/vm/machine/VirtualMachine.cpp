@@ -29,6 +29,18 @@ uint32_t ExtractCurrentLine(const ExecutionContext& context)
 	return context.chunk.GetLine(errorIp);
 }
 
+void AssertIsIndexInBounds(bool inBounds, const ExecutionContext& context)
+{
+	if (!inBounds)
+	{
+		throw VmException(
+			"E_VM_OUT_OF_BOUNDS",
+			"Выход за границы массива",
+			context.ip,
+			ExtractCurrentLine(context));
+	}
+}
+
 void AssertIsNativeFunctionFound(bool isFound, const ExecutionContext& context)
 {
 	if (!isFound)
@@ -350,6 +362,7 @@ void ExecuteLoadElementInstruction(ExecutionContext& context)
 {
 	const uint32_t index = Pop(context).As<uint32_t>();
 	const auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+	AssertIsIndexInBounds(index < object->GetSize(), context);
 	Push(context, object->GetField(index));
 }
 
@@ -358,14 +371,20 @@ void ExecuteStoreElementInstruction(ExecutionContext& context)
 	const Value value = Pop(context);
 	const uint32_t index = Pop(context).As<uint32_t>();
 	auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+	AssertIsIndexInBounds(index < object->GetSize(), context);
 	object->SetField(index, value);
 }
 
 void ExecuteRetainInstruction(ExecutionContext& context)
 {
-	auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
-	object->Retain();
-	Push(context, Value(reinterpret_cast<uint64_t>(object)));
+	const auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+	Push(context, Value(object->GetSize()));
+}
+
+void ExecuteArrayLengthInstruction(ExecutionContext& context)
+{
+	const auto* object = reinterpret_cast<HeapObject*>(Pop(context).AsRaw());
+	Push(context, Value(object->GetSize()));
 }
 
 void ExecuteReleaseInstruction(ExecutionContext& context)
@@ -558,7 +577,8 @@ void Run(ExecutionContext& context)
 		case OpCode::StoreElement:
 			ExecuteStoreElementInstruction(context);
 			break;
-
+		case OpCode::ArrayLength:
+			ExecuteArrayLengthInstruction(context);
 		case OpCode::Retain:
 			ExecuteRetainInstruction(context);
 			break;

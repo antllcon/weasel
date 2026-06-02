@@ -1,4 +1,6 @@
 #include "NativeRegistry.h"
+
+#include "src/compiler/ast/ScalarTypeInfo.h"
 #include "src/compiler/vm/memory/HeapObject.h"
 #include <algorithm>
 #include <iostream>

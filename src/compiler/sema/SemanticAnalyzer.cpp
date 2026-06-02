@@ -1,4 +1,7 @@
 #include "SemanticAnalyzer.h"
+
+#include "src/compiler/ast/ArrayAllocExpr.h"
+#include "src/compiler/ast/ArrayTypeInfo.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
@@ -9,11 +12,15 @@
 #include "src/compiler/ast/FunctionDeclStmt.h"
 #include "src/compiler/ast/IdentifierExpr.h"
 #include "src/compiler/ast/IfStmt.h"
+#include "src/compiler/ast/IndexExpr.h"
+#include "src/compiler/ast/ListTypeInfo.h"
+#include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
+#include "src/compiler/ast/ScalarTypeInfo.h"
 #include "src/compiler/ast/StringExpr.h"
 #include "src/compiler/ast/TypeInfo.h"
 #include "src/compiler/ast/UnaryExpr.h"
@@ -24,6 +31,18 @@
 
 namespace
 {
+void AssertIsLhsValidForAssignment(bool isValid, const SourceRange& range)
+{
+	if (!isValid)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Левая часть присваивания должна быть переменной или элементом массива",
+			.line = range.start.line,
+			.pos = range.start.pos});
+	}
+}
+
 void AssertIsVariableNotRedeclared(bool isNew, const std::string& name)
 {
 	if (!isNew)
@@ -142,6 +161,67 @@ void AssertIsLiteralInBounds(
 	}
 }
 
+std::shared_ptr<TypeInfo> ParseTypeString(const std::string& typeName)
+{
+	if (typeName.starts_with(LanguageTokens::KwArray) && typeName.find('[') != std::string::npos)
+	{
+		const size_t start = typeName.find('[') + 1;
+		const size_t end = typeName.find_last_of(']');
+		const std::string inner = typeName.substr(start, end - start);
+		return std::make_shared<ArrayTypeInfo>(ParseTypeString(inner));
+	}
+
+	if (typeName.starts_with(LanguageTokens::KwList) && typeName.find('[') != std::string::npos)
+	{
+		const size_t start = typeName.find('[') + 1;
+		const size_t end = typeName.find_last_of(']');
+		const std::string inner = typeName.substr(start, end - start);
+		return std::make_shared<ListTypeInfo>(ParseTypeString(inner));
+	}
+
+	return ScalarTypeInfo::FromString(typeName);
+}
+
+void AssertIsIntegerType(const std::shared_ptr<TypeInfo>& type, const std::string& contextMessage, const SourceRange& range)
+{
+	const auto* scalar = dynamic_cast<const ScalarTypeInfo*>(type.get());
+	if (!scalar || !scalar->IsInteger())
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = contextMessage,
+			.line = range.start.line,
+			.pos = range.start.pos});
+	}
+}
+
+void AssertIsIndexableType(const std::shared_ptr<TypeInfo>& type, const SourceRange& range)
+{
+	const bool isArray = dynamic_cast<const ArrayTypeInfo*>(type.get()) != nullptr;
+	const bool isList = dynamic_cast<const ListTypeInfo*>(type.get()) != nullptr;
+
+	if (!isArray && !isList)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Индексация применима только к массивам и спискам",
+			.line = range.start.line,
+			.pos = range.start.pos});
+	}
+}
+
+void AssertIsMemberFound(bool isFound, const SourceRange& range)
+{
+	if (!isFound)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Поле или метод не найдены для данного типа",
+			.line = range.start.line,
+			.pos = range.start.pos});
+	}
+}
+
 bool CheckIntegerBounds(const std::string& value, BaseType baseType)
 {
 	try
@@ -216,25 +296,73 @@ void SemanticAnalyzer::CollectFunctions(const AstNode& root)
 
 	const auto* program = dynamic_cast<const ProgramNode*>(&root);
 	if (!program)
+	{
 		return;
+	}
 
 	for (const auto& decl : program->GetDeclarations())
 	{
 		const auto* fn = dynamic_cast<const FunctionDeclStmt*>(decl.get());
 		if (!fn)
+		{
 			continue;
+		}
 
 		FunctionInfo info;
-		info.returnType = ScalarTypeInfo::FromString(fn->GetReturnTypeName());
+		info.returnType = ParseTypeString(fn->GetReturnTypeName());
 
 		for (const auto& param : fn->GetParams())
 		{
-			auto paramType = ScalarTypeInfo::FromString(param.typeName);
-			info.params.emplace_back(param.name, std::move(paramType));
+			info.params.emplace_back(param.name, ParseTypeString(param.typeName));
 		}
 
 		m_functions[fn->GetName()] = std::move(info);
 	}
+}
+
+void SemanticAnalyzer::Visit(const ArrayAllocExpr& node)
+{
+	node.GetSize().Accept(*this);
+	AssertIsIntegerType(node.GetSize().GetResolvedType(), "Размер массива должен быть целым числом", node.GetSize().GetRange());
+
+	auto elementType = ParseTypeString(node.GetElementTypeName());
+	const_cast<ArrayAllocExpr&>(node).SetResolvedType(std::make_shared<ArrayTypeInfo>(elementType));
+}
+
+void SemanticAnalyzer::Visit(const IndexExpr& node)
+{
+	node.GetReceiver().Accept(*this);
+	node.GetIndex().Accept(*this);
+
+	auto receiverType = node.GetReceiver().GetResolvedType();
+	AssertIsIndexableType(receiverType, node.GetRange());
+	AssertIsIntegerType(node.GetIndex().GetResolvedType(), "Индекс должен быть целым числом", node.GetIndex().GetRange());
+
+	if (const auto* arrayType = dynamic_cast<const ArrayTypeInfo*>(receiverType.get()))
+	{
+		const_cast<IndexExpr&>(node).SetResolvedType(arrayType->GetElementType());
+	}
+	else if (const auto* listType = dynamic_cast<const ListTypeInfo*>(receiverType.get()))
+	{
+		const_cast<IndexExpr&>(node).SetResolvedType(listType->GetElementType());
+	}
+}
+
+void SemanticAnalyzer::Visit(const MemberAccessExpr& node)
+{
+	node.GetReceiver().Accept(*this);
+	auto receiverType = node.GetReceiver().GetResolvedType();
+
+	const bool isArray = dynamic_cast<const ArrayTypeInfo*>(receiverType.get()) != nullptr;
+	const bool isList = dynamic_cast<const ListTypeInfo*>(receiverType.get()) != nullptr;
+
+	if ((isArray || isList) && node.GetField() == "size")
+	{
+		const_cast<MemberAccessExpr&>(node).SetResolvedType(ScalarTypeInfo::Make(BaseType::Uint));
+		return;
+	}
+
+	AssertIsMemberFound(false, node.GetRange());
 }
 
 void SemanticAnalyzer::Visit(const ProgramNode& node)
@@ -256,8 +384,7 @@ void SemanticAnalyzer::Visit(const FunctionDeclStmt& node)
 	{
 		const uint32_t slot = m_nextSlot++;
 		m_maxSlot = std::max(m_maxSlot, m_nextSlot);
-		auto paramType = ScalarTypeInfo::FromString(param.typeName);
-		m_table.Declare(param.name, paramType, false, slot);
+		m_table.Declare(param.name, ParseTypeString(param.typeName), false, slot);
 	}
 	node.GetBody().Accept(*this);
 	m_table.LeaveScope();
@@ -290,7 +417,7 @@ void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 		return;
 	}
 
-	auto type = ScalarTypeInfo::FromString(node.GetTypeName());
+	auto type = ParseTypeString(node.GetTypeName());
 	AssertIsNotVoidType(type, node.GetName(), node.GetRange().start.line, node.GetRange().start.pos);
 
 	if (node.GetInit())
@@ -314,7 +441,9 @@ void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 
 void SemanticAnalyzer::Visit(const AssignStmt& node)
 {
-	AssertIsLhsIdentifier(node.GetLhs());
+	const bool isIdentifier = dynamic_cast<const IdentifierExpr*>(&node.GetLhs()) != nullptr;
+	const bool isIndexExpr = dynamic_cast<const IndexExpr*>(&node.GetLhs()) != nullptr;
+	AssertIsLhsValidForAssignment(isIdentifier || isIndexExpr, node.GetRange());
 
 	node.GetLhs().Accept(*this);
 
@@ -323,15 +452,16 @@ void SemanticAnalyzer::Visit(const AssignStmt& node)
 	node.GetRhs().Accept(*this);
 	m_expectedType = savedExpected;
 
-	const auto& ident = static_cast<const IdentifierExpr&>(node.GetLhs());
-	auto info = m_table.Resolve(ident.GetName());
-
-	if (!info)
+	if (isIdentifier)
 	{
-		return;
+		const auto& ident = static_cast<const IdentifierExpr&>(node.GetLhs());
+		auto info = m_table.Resolve(ident.GetName());
+		if (info)
+		{
+			AssertIsMutable(*info, ident.GetName());
+		}
 	}
 
-	AssertIsMutable(*info, ident.GetName());
 	AssertIsExactTypeMatch(
 		node.GetLhs().GetResolvedType(),
 		node.GetRhs().GetResolvedType(),
@@ -483,8 +613,7 @@ void SemanticAnalyzer::Visit(const FunctionCallExpr& node)
 		m_expectedType = nullptr;
 		node.GetArgs()[0]->Accept(*this);
 		m_expectedType = savedExpected;
-
-		auto targetType = ScalarTypeInfo::FromString(node.GetName());
+		auto targetType = ParseTypeString(node.GetName());
 		const_cast<FunctionCallExpr&>(node).SetResolvedType(targetType);
 		return;
 	}
@@ -561,14 +690,6 @@ void SemanticAnalyzer::Visit(const BoolExpr& node)
 }
 
 void SemanticAnalyzer::Visit(const ArrayLiteralExpr& /*node*/)
-{
-}
-
-void SemanticAnalyzer::Visit(const IndexExpr& /*node*/)
-{
-}
-
-void SemanticAnalyzer::Visit(const MemberAccessExpr& /*node*/)
 {
 }
 

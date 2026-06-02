@@ -1,5 +1,6 @@
 #include "CstToAstConverter.h"
 
+#include "src/compiler/ast/ArrayAllocExpr.h"
 #include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
@@ -112,12 +113,24 @@ VarModifier ParseModifier(const CstNode& modNode)
 
 	ThrowConversionError("Неизвестный модификатор переменной: " + val, modNode);
 }
+
 std::string ParseType(const CstNode& typeNode)
 {
 	const auto& child = *typeNode.children[0];
+
 	if (child.label == "BaseType")
 	{
 		return child.children[0]->value;
+	}
+
+	if (child.label == LanguageTokens::KwArray)
+	{
+		return std::string(LanguageTokens::KwArray) + std::string(LanguageTokens::SymBracketLeft) + ParseType(*typeNode.children[2]) + std::string(LanguageTokens::SymBracketRight);
+	}
+
+	if (child.label == LanguageTokens::KwList)
+	{
+		return std::string(LanguageTokens::KwList) + std::string(LanguageTokens::SymBracketLeft) + ParseType(*typeNode.children[2]) + std::string(LanguageTokens::SymBracketRight);
 	}
 
 	return child.value;
@@ -174,6 +187,14 @@ std::unique_ptr<Expr> ConvertPrimaryExpr(const CstNode& node)
 		CollectArgList(*node.children[1], elements);
 		return std::make_unique<ArrayLiteralExpr>(std::move(elements), range);
 	}
+
+	if (child.label == LanguageTokens::KwArray)
+	{
+		std::string elementTypeName = ParseType(*node.children[2]);
+		auto sizeExpr = ConvertExprByLabel(*node.children[5]);
+		return std::make_unique<ArrayAllocExpr>(std::move(elementTypeName), std::move(sizeExpr), range);
+	}
+
 	ThrowConversionError("Неподдерживаемое первичное выражение", node);
 }
 

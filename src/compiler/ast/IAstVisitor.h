@@ -5,8 +5,6 @@ class ProgramNode;
 class StructDeclStmt;
 class UnionDeclStmt;
 class EnumDeclStmt;
-class ErrorExpr;
-class ImplicitCastExpr;
 class BinaryExpr;
 class UnaryExpr;
 class IdentifierExpr;
@@ -36,8 +34,6 @@ public:
 	virtual void Visit(const StructDeclStmt& node) = 0;
 	virtual void Visit(const UnionDeclStmt& node) = 0;
 	virtual void Visit(const EnumDeclStmt& node) = 0;
-	virtual void Visit(const ErrorExpr& node) = 0;
-	virtual void Visit(const ImplicitCastExpr& node) = 0;
 	virtual void Visit(const BinaryExpr& node) = 0;
 	virtual void Visit(const UnaryExpr& node) = 0;
 	virtual void Visit(const IdentifierExpr& node) = 0;

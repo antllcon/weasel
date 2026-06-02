@@ -12,7 +12,6 @@
 #include "src/compiler/ast/FunctionDeclStmt.h"
 #include "src/compiler/ast/IdentifierExpr.h"
 #include "src/compiler/ast/IfStmt.h"
-#include "src/compiler/ast/ImplicitCastExpr.h"
 #include "src/compiler/ast/IndexExpr.h"
 #include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
@@ -353,15 +352,4 @@ void AstVisualizer::Visit(const EnumDeclStmt& node)
 	{
 		PrintLeaf("Value (" + values[i] + ")", i + 1 == values.size());
 	}
-}
-
-void AstVisualizer::Visit(const ErrorExpr&)
-{
-	PrintNode("ErrorExpr");
-}
-
-void AstVisualizer::Visit(const ImplicitCastExpr& node)
-{
-	PrintNode("ImplicitCast");
-	VisitChild(node.GetSource(), true);
 }

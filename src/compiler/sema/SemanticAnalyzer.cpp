@@ -7,6 +7,7 @@
 #include "src/compiler/ast/BlockStmt.h"
 #include "src/compiler/ast/BoolExpr.h"
 #include "src/compiler/ast/DoWhileStmt.h"
+#include "src/compiler/ast/EnumDeclStmt.h"
 #include "src/compiler/ast/ExprStmt.h"
 #include "src/compiler/ast/FunctionCallExpr.h"
 #include "src/compiler/ast/FunctionDeclStmt.h"
@@ -24,9 +25,12 @@
 #include "src/compiler/ast/TypeInfo.h"
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/VarDeclStmt.h"
+#include "src/compiler/ast/WhenStmt.h"
 #include "src/compiler/core/LanguageTokens.h"
 #include "src/compiler/stdlib/NativeRegistry.h"
 #include "src/diagnostics/CompilationException.h"
+
+#include <unordered_set>
 
 namespace
 {
@@ -180,19 +184,6 @@ void AssertIsLiteralInBounds(
 	}
 }
 
-std::shared_ptr<TypeInfo> ParseTypeString(const std::string& typeName)
-{
-	if (typeName.starts_with(LanguageTokens::KwArray) && typeName.find('[') != std::string::npos)
-	{
-		const size_t start = typeName.find('[') + 1;
-		const size_t end = typeName.find_last_of(']');
-		const std::string inner = typeName.substr(start, end - start);
-		return std::make_shared<ArrayTypeInfo>(ParseTypeString(inner));
-	}
-
-	return ScalarTypeInfo::FromString(typeName);
-}
-
 void AssertIsIntegerType(const std::shared_ptr<TypeInfo>& type, const std::string& contextMessage, const SourceRange& range)
 {
 	const auto* scalar = dynamic_cast<const ScalarTypeInfo*>(type.get());
@@ -285,6 +276,7 @@ bool IsPrimitiveType(const std::string& name)
 SemanticAnalyzer::SemaResult SemanticAnalyzer::Analyze(const AstNode& root, DiagnosticEngine& engine)
 {
 	m_engine = &engine;
+	CollectTypes(root);
 	CollectFunctions(root);
 	root.Accept(*this);
 	return SemaResult{
@@ -292,6 +284,24 @@ SemanticAnalyzer::SemaResult SemanticAnalyzer::Analyze(const AstNode& root, Diag
 		std::move(m_varDeclSlots),
 		std::move(m_resolvedIterators),
 		std::move(m_functions)};
+}
+
+void SemanticAnalyzer::CollectTypes(const AstNode& root)
+{
+	const auto* program = dynamic_cast<const ProgramNode*>(&root);
+	if (!program)
+	{
+		return;
+	}
+
+	for (const auto& decl : program->GetDeclarations())
+	{
+		if (const auto* enumDecl = dynamic_cast<const EnumDeclStmt*>(decl.get()))
+		{
+			auto typeInfo = std::make_shared<EnumTypeInfo>(enumDecl->GetName(), enumDecl->GetValues());
+			m_enums[enumDecl->GetName()] = typeInfo;
+		}
+	}
 }
 
 void SemanticAnalyzer::CollectFunctions(const AstNode& root)
@@ -330,6 +340,24 @@ void SemanticAnalyzer::CollectFunctions(const AstNode& root)
 	}
 }
 
+std::shared_ptr<TypeInfo> SemanticAnalyzer::ParseTypeString(const std::string& typeName)
+{
+	if (m_enums.contains(typeName))
+	{
+		return m_enums[typeName];
+	}
+
+	if (typeName.starts_with(LanguageTokens::KwArray) && typeName.find('[') != std::string::npos)
+	{
+		const size_t start = typeName.find('[') + 1;
+		const size_t end = typeName.find_last_of(']');
+		const std::string inner = typeName.substr(start, end - start);
+		return std::make_shared<ArrayTypeInfo>(ParseTypeString(inner));
+	}
+
+	return ScalarTypeInfo::FromString(typeName);
+}
+
 void SemanticAnalyzer::Visit(const ArrayAllocExpr& node)
 {
 	node.GetSize().Accept(*this);
@@ -356,9 +384,33 @@ void SemanticAnalyzer::Visit(const IndexExpr& node)
 
 void SemanticAnalyzer::Visit(const MemberAccessExpr& node)
 {
+	if (const auto* id = dynamic_cast<const IdentifierExpr*>(&node.GetReceiver()))
+	{
+		if (m_enums.contains(id->GetName()))
+		{
+			auto enumType = m_enums[id->GetName()];
+			const auto& fields = enumType->GetFields();
+
+			auto it = std::ranges::find(fields, node.GetField());
+			if (it != fields.end())
+			{
+				const_cast<MemberAccessExpr&>(node).SetResolvedType(enumType);
+				return;
+			}
+
+			m_engine->Report(DiagnosticData{
+				.phase = CompilerPhase::Semantic,
+				.message = "У перечисления '" + id->GetName() + "' нет поля '" + node.GetField() + "'",
+				.line = node.GetRange().start.line,
+				.pos = node.GetRange().start.pos});
+			return;
+		}
+	}
+
 	node.GetReceiver().Accept(*this);
 	auto receiverType = node.GetReceiver().GetResolvedType();
 
+	// TODO: это не должно быть нативной функцией?
 	const bool isArray = dynamic_cast<const ArrayTypeInfo*>(receiverType.get()) != nullptr;
 	if (isArray && node.GetField() == "size")
 	{
@@ -630,16 +682,14 @@ void SemanticAnalyzer::Visit(const BinaryExpr& node)
 	}
 	else if (leftType != rightType)
 	{
-		const bool isLeftStrict = dynamic_cast<const IdentifierExpr*>(&node.GetLeft()) != nullptr ||
-								  dynamic_cast<const MemberAccessExpr*>(&node.GetLeft()) != nullptr ||
-								  dynamic_cast<const IndexExpr*>(&node.GetLeft()) != nullptr;
+		const bool isLeftStrict = dynamic_cast<const IdentifierExpr*>(&node.GetLeft()) != nullptr || dynamic_cast<const MemberAccessExpr*>(&node.GetLeft()) != nullptr || dynamic_cast<const IndexExpr*>(&node.GetLeft()) != nullptr;
 
-		const bool isRightStrict = dynamic_cast<const IdentifierExpr*>(&node.GetRight()) != nullptr ||
-								   dynamic_cast<const MemberAccessExpr*>(&node.GetRight()) != nullptr ||
-								   dynamic_cast<const IndexExpr*>(&node.GetRight()) != nullptr;
+		const bool isRightStrict = dynamic_cast<const IdentifierExpr*>(&node.GetRight()) != nullptr || dynamic_cast<const MemberAccessExpr*>(&node.GetRight()) != nullptr || dynamic_cast<const IndexExpr*>(&node.GetRight()) != nullptr;
 
-		if (isLeftStrict && !isRightStrict) anchorType = leftType;
-		else if (isRightStrict && !isLeftStrict) anchorType = rightType;
+		if (isLeftStrict && !isRightStrict)
+			anchorType = leftType;
+		else if (isRightStrict && !isLeftStrict)
+			anchorType = rightType;
 	}
 
 	if (anchorType != nullptr)
@@ -780,4 +830,66 @@ void SemanticAnalyzer::Visit(const UnionDeclStmt& /*node*/)
 
 void SemanticAnalyzer::Visit(const EnumDeclStmt& /*node*/)
 {
+}
+
+void SemanticAnalyzer::Visit(const WhenStmt& node)
+{
+    std::shared_ptr<TypeInfo> subjectType = nullptr;
+    std::shared_ptr<EnumTypeInfo> enumType = nullptr;
+
+    if (node.GetSubject())
+    {
+        node.GetSubject()->Accept(*this);
+        subjectType = node.GetSubject()->GetResolvedType();
+        enumType = std::dynamic_pointer_cast<EnumTypeInfo>(subjectType);
+    }
+
+    std::unordered_set<std::string> coveredFields;
+
+    for (const auto& entry : node.GetEntries())
+    {
+        for (const auto& cond : entry.conditions)
+        {
+            const auto savedExpected = m_expectedType;
+            m_expectedType = subjectType ? subjectType : ScalarTypeInfo::Make(BaseType::Bool);
+
+            cond->Accept(*this);
+
+            m_expectedType = savedExpected;
+
+            AssertIsExactTypeMatch(
+                subjectType ? subjectType : ScalarTypeInfo::Make(BaseType::Bool),
+                cond->GetResolvedType(),
+                cond->GetRange());
+
+            if (enumType)
+            {
+                if (const auto* memberAccess = dynamic_cast<const MemberAccessExpr*>(cond.get()))
+                {
+                    coveredFields.insert(memberAccess->GetField());
+                }
+            }
+        }
+
+        entry.body->Accept(*this);
+    }
+
+    if (node.GetElseBody())
+    {
+        node.GetElseBody()->Accept(*this);
+    }
+    else if (enumType)
+    {
+        for (const auto& field : enumType->GetFields())
+        {
+            if (!coveredFields.contains(field))
+            {
+                m_engine->Report(DiagnosticData{
+                    .phase = CompilerPhase::Semantic,
+                    .message = "Пропущена ветка для поля '" + field + "' перечисления '" + enumType->GetName() + "'. Добавьте её или ветку else.",
+                    .line = node.GetRange().start.line,
+                    .pos = node.GetRange().start.pos});
+            }
+        }
+    }
 }

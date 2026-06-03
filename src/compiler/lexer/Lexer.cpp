@@ -319,6 +319,11 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 	case LanguageTokens::OpPlus[0]:
 		return MakeToken(TokenType::OpPlus, startPos, 1, state, startLine);
 	case LanguageTokens::OpMinus[0]:
+		if (Peek(state) == LanguageTokens::OpArrow[1])
+		{
+			Advance(state);
+			return MakeToken(TokenType::OpArrow, startPos, 2, state, startLine);
+		}
 		return MakeToken(TokenType::OpMinus, startPos, 1, state, startLine);
 	case LanguageTokens::OpMul[0]:
 		return MakeToken(TokenType::OpMul, startPos, 1, state, startLine);

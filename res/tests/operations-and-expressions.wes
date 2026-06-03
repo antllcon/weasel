@@ -1,0 +1,125 @@
+void <- main()
+{
+    print("1. Граничные значения (max / min)")
+    val int int_max = 9223372036854775807
+    val int int_min = -9223372036854775807 - 1
+    val uint uint_max = 18446744073709551615
+    val uint uint_min = 0
+
+    print("int_max:", int_max)
+    print("int_min:", int_min)
+    print("uint_max:", uint_max)
+    print("uint_min:", uint_min)
+    print()
+
+    print("2. Базовая арифметика (+, -, *, /, %)")
+    val int a = 10
+    val int b = 3
+    print("a + b =", a + b)
+    print("a - b =", a - b)
+    print("a * b =", a * b)
+    print("a / b =", a / b)
+    print("a % b =", a % b)
+
+    val int c = -10
+    val int d = 3
+    print("c + d =", c + d)
+    print("c % d =", c % d)
+
+    val int e = 10
+    val int f = -3
+    print("e / f =", e / f)
+    print("e % f =", e % f)
+
+    val int g = -10
+    val int h = -3
+    print("g - h =", g - h)
+    print("g % h =", g % h)
+    print()
+
+    print("3. Приоритет операций и глубокая вложенность")
+    val int math1 = a + b * 10
+    val int math2 = (a + b) * 10
+    print("a + b * 10 (40):", math1)
+    print("(a + b) * 10 (130):", math2)
+
+    # Глубокая вложенность с остатком и делением
+    val int math3 = ((a + b) * (c - d) / e) % 2
+    print("((10+3)*(-10-3)/10)%2 (-1):", math3)
+
+    # Умножение и деление на границах
+    val int edge_mul = int_max * 0
+    # val int edge_div = int_min / -1
+    print("int_max * 0 (0):", edge_mul)
+    # print("int_min / -1 (panic / overflow):", edge_div)
+    print()
+
+    print("4. Многократные унарные операции")
+    val int pos = 42
+    val int multi_neg = - - -pos
+    print("- - -42 (-42):", multi_neg)
+
+    val bool t = true
+    val bool multi_not = not not not not t
+    print("not not not not true (true):", multi_not)
+    print()
+
+    print("5. Сложная булева алгебра и сравнения")
+    val int x = 10
+    val int y = 20
+    val int z = 10
+
+    # Сравнение результатов сравнения (bool == bool)
+    val bool cmp_of_cmp = (x == z) == (y > x)
+    print("(x == z) == (y > x) (true):", cmp_of_cmp)
+
+    # Неравенство булевых значений (XOR аналог)
+    val bool bool_xor = (x < y) >< (x == 20)
+    print("true >< false (true):", bool_xor)
+
+    # Логика со скобками и без
+    val bool complex_logic1 = true or false and false
+    val bool complex_logic2 = (true or false) and false
+    print("true or false and false (true):", complex_logic1)
+    print("(true or false) and false (false):", complex_logic2)
+
+    # Сверхсложное условие
+    val bool boss_logic = not (x == y) and (z <= x) or not true >< false
+    print("boss_logic (true):", boss_logic)
+    print()
+
+    print("6. Строки: конкатенация и сравнения")
+    val string s1 = "Weasel"
+    val string s2 = ""
+    val string s3 = " is awesome"
+
+    # Цепочка сложения строк
+    val string full_str = s1 + s2 + s3 + "!"
+    print("Full string:", full_str)
+
+    # Сравнение строк
+    val bool str_eq = s1 == "Weasel"
+    val bool str_neq = s1 >< s3
+    print("s1 == Weasel (true):", str_eq)
+    print("s1 >< s3 (true):", str_neq)
+    print()
+
+    print("7. ВЫВОД ТИПОВ: СТРЕСС-ТЕСТ")
+    val uint u_base = 100
+
+    # 7.1. Литерал + Переменная
+    val uint infer1 = 50 + u_base
+    print("50 + uint (150):", infer1)
+
+    # 7.2. Литерал + Литерал + Переменная
+    val uint infer2 = 10 + 20 + u_base
+    print("10 + 20 + uint (130):", infer2)
+
+    # 7.3. Переменная + Литерал + Литерал
+    val uint infer3 = u_base + 30 + 40
+    print("uint + 30 + 40 (170):", infer3)
+
+    # 7.4. Сравнение литерала с uint
+    val bool infer4 = 100 == u_base
+    print("100 == uint (true):", infer4)
+}

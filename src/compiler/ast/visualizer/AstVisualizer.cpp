@@ -26,6 +26,7 @@
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
+#include "src/compiler/ast/WhenStmt.h"
 #include "src/compiler/core/LanguageTokens.h"
 #include "src/utils/logger/Logger.h"
 
@@ -208,6 +209,32 @@ void AstVisualizer::Visit(const ArrayAllocExpr& node)
 {
 	PrintNode("ArrayAlloc (" + node.GetElementTypeName() + ")");
 	VisitChild(node.GetSize(), true);
+}
+
+void AstVisualizer::Visit(const WhenStmt& node)
+{
+	PrintNode("When");
+	if (node.GetSubject())
+	{
+		VisitChild(*node.GetSubject(), false);
+	}
+
+	const auto& entries = node.GetEntries();
+	for (size_t i = 0; i < entries.size(); ++i)
+	{
+		PrintNode("Branch");
+		for (const auto& cond : entries[i].conditions)
+		{
+			VisitChild(*cond, false);
+		}
+		VisitChild(*entries[i].body, i + 1 == entries.size() && !node.GetElseBody());
+	}
+
+	if (node.GetElseBody())
+	{
+		PrintNode("Else");
+		VisitChild(*node.GetElseBody(), true);
+	}
 }
 
 void AstVisualizer::Visit(const RunStmt& node)

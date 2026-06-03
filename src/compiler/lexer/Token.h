@@ -24,6 +24,7 @@ enum class TokenType
 	OpMod,
 	Ampersand,
 	OpRange,
+	OpArrow,
 
 	Comma,
 	Dot,

@@ -41,6 +41,7 @@ inline constexpr std::string_view OpGreaterEq = ">=";
 inline constexpr std::string_view OpRange = "..";
 inline constexpr std::string_view OpPlus = "+";
 inline constexpr std::string_view OpMinus = "-";
+inline constexpr std::string_view OpArrow = "->";
 inline constexpr std::string_view OpMul = "*";
 inline constexpr std::string_view OpDiv = "/";
 inline constexpr std::string_view OpMod = "%";

@@ -1,5 +1,6 @@
 #pragma once
 
+class WhenStmt;
 class ArrayAllocExpr;
 class DoWhileStmt;
 class ProgramNode;
@@ -56,4 +57,5 @@ public:
 	virtual void Visit(const FunctionDeclStmt& node) = 0;
 	virtual void Visit(const ReturnStmt& node) = 0;
 	virtual void Visit(const IfStmt& node) = 0;
+	virtual void Visit(const WhenStmt& node) = 0;
 };

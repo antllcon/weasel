@@ -5,6 +5,7 @@
 #include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
 #include "src/compiler/ast/BoolExpr.h"
+#include "src/compiler/ast/DoWhileStmt.h"
 #include "src/compiler/ast/ExprStmt.h"
 #include "src/compiler/ast/FunctionCallExpr.h"
 #include "src/compiler/ast/FunctionDeclStmt.h"
@@ -21,6 +22,7 @@
 #include "src/compiler/ast/StringExpr.h"
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/VarDeclStmt.h"
+#include "src/compiler/ast/WhenStmt.h"
 #include "src/compiler/sema/SymbolTable.h"
 #include "src/compiler/stdlib/NativeRegistry.h"
 #include "src/compiler/vm/value/Value.h"
@@ -102,6 +104,14 @@ Value ParseNumLiteral(const std::string& text, const TypeInfo* typeInfo, bool is
 
 OpCode GetBinaryOpCode(BinaryOpKind op, const TypeInfo* typeInfo)
 {
+	if (dynamic_cast<const EnumTypeInfo*>(typeInfo))
+	{
+		if (op == BinaryOpKind::Eq || op == BinaryOpKind::NotEq)
+		{
+			return OpCode::EqUint;
+		}
+	}
+
 	const auto* scalar = dynamic_cast<const ScalarTypeInfo*>(typeInfo);
 	if (!scalar) return OpCode::AddInt;
 
@@ -208,7 +218,6 @@ void CodeGenerator::Visit(const UnionDeclStmt& /*node*/)
 
 void CodeGenerator::Visit(const EnumDeclStmt& /*node*/)
 {
-	throw std::runtime_error("Генерация кода для EnumDeclStmt не реализована");
 }
 
 void CodeGenerator::Visit(const BinaryExpr& node)
@@ -423,8 +432,21 @@ void CodeGenerator::Visit(const IndexExpr& node)
 
 void CodeGenerator::Visit(const MemberAccessExpr& node)
 {
+	if (const auto* enumType = dynamic_cast<const EnumTypeInfo*>(node.GetResolvedType().get()))
+	{
+		const auto& fields = enumType->GetFields();
+		auto it = std::ranges::find(fields, node.GetField());
+		if (it != fields.end())
+		{
+			const uint32_t index = static_cast<uint32_t>(std::distance(fields.begin(), it));
+			EmitConstant(Value(static_cast<uint64_t>(index)));
+			return;
+		}
+	}
+
 	node.GetReceiver().Accept(*this);
 
+	// todo это не должно быть натиной функцией?
 	if (node.GetField() == "size")
 	{
 		m_chunk.WriteOpCode(OpCode::ArrayLength, m_currentLine);
@@ -449,9 +471,15 @@ void CodeGenerator::Visit(const BlockStmt& node)
 	m_localCount = savedCount;
 }
 
-void CodeGenerator::Visit(const DoWhileStmt& /*node*/)
+void CodeGenerator::Visit(const DoWhileStmt& node)
 {
-	throw std::runtime_error("Генерация кода для DoWhileStmt не реализована");
+	const uint32_t startIp = m_chunk.GetCodeSize();
+
+	node.GetBody().Accept(*this);
+	node.GetCondition().Accept(*this);
+
+	m_chunk.WriteOpCode(OpCode::JumpIfTrue, m_currentLine);
+	m_chunk.WriteUint32(startIp, m_currentLine);
 }
 
 void CodeGenerator::Visit(const RunStmt& node)
@@ -487,7 +515,8 @@ void CodeGenerator::Visit(const RepStmt& node)
 
 	node.GetRanges()[1]->Accept(*this);
 
-	m_chunk.WriteOpCode(OpCode::AddInt, m_currentLine);
+	const auto iterType = node.GetRanges()[0]->GetResolvedType();
+	m_chunk.WriteOpCode(GetBinaryOpCode(BinaryOpKind::Less, iterType.get()), m_currentLine);
 
 	m_chunk.WriteOpCode(OpCode::JumpIfFalse, m_currentLine);
 	const uint32_t patchEnd = m_chunk.GetCodeSize();
@@ -497,8 +526,8 @@ void CodeGenerator::Visit(const RepStmt& node)
 
 	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
 	m_chunk.WriteUint32(iterSlot, m_currentLine);
-	EmitConstant(Value(static_cast<uint32_t>(1)));
-	m_chunk.WriteOpCode(OpCode::AddInt, m_currentLine);
+	EmitConstant(Value(static_cast<int64_t>(1)));
+	m_chunk.WriteOpCode(GetBinaryOpCode(BinaryOpKind::Add, iterType.get()), m_currentLine);
 	m_chunk.WriteOpCode(OpCode::StoreLocal, m_currentLine);
 	m_chunk.WriteUint32(iterSlot, m_currentLine);
 
@@ -506,6 +535,7 @@ void CodeGenerator::Visit(const RepStmt& node)
 	m_chunk.WriteUint32(checkIp, m_currentLine);
 
 	m_chunk.PatchUint32(patchEnd, m_chunk.GetCodeSize());
+
 	m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
 }
 
@@ -615,6 +645,91 @@ void CodeGenerator::Visit(const ArrayAllocExpr& node)
 {
 	node.GetSize().Accept(*this);
 	m_chunk.WriteOpCode(OpCode::AllocateArray, m_currentLine);
+}
+
+void CodeGenerator::Visit(const WhenStmt& node)
+{
+	const bool hasSubject = node.GetSubject() != nullptr;
+	if (hasSubject)
+	{
+		node.GetSubject()->Accept(*this);
+	}
+
+	std::vector<uint32_t> endJumps;
+
+	for (const auto& entry : node.GetEntries())
+	{
+		std::vector<uint32_t> nextBranchJumps;
+		std::vector<uint32_t> matchJumps;
+
+		for (size_t i = 0; i < entry.conditions.size(); ++i)
+		{
+			if (hasSubject)
+			{
+				m_chunk.WriteOpCode(OpCode::Dup, m_currentLine);
+				entry.conditions[i]->Accept(*this);
+				const auto opCode = GetBinaryOpCode(BinaryOpKind::Eq, node.GetSubject()->GetResolvedType().get());
+				m_chunk.WriteOpCode(opCode, m_currentLine);
+			}
+			else
+			{
+				entry.conditions[i]->Accept(*this);
+			}
+
+			if (i + 1 < entry.conditions.size())
+			{
+				m_chunk.WriteOpCode(OpCode::JumpIfTrue, m_currentLine);
+				matchJumps.push_back(m_chunk.GetCodeSize());
+				m_chunk.WriteUint32(0, m_currentLine);
+			}
+			else
+			{
+				m_chunk.WriteOpCode(OpCode::JumpIfFalse, m_currentLine);
+				nextBranchJumps.push_back(m_chunk.GetCodeSize());
+				m_chunk.WriteUint32(0, m_currentLine);
+			}
+		}
+
+		for (uint32_t jump : matchJumps)
+		{
+			m_chunk.PatchUint32(jump, m_chunk.GetCodeSize());
+		}
+
+		if (hasSubject)
+		{
+			m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+		}
+
+		entry.body->Accept(*this);
+
+		m_chunk.WriteOpCode(OpCode::Jump, m_currentLine);
+		endJumps.push_back(m_chunk.GetCodeSize());
+		m_chunk.WriteUint32(0, m_currentLine);
+
+		for (uint32_t jump : nextBranchJumps)
+		{
+			m_chunk.PatchUint32(jump, m_chunk.GetCodeSize());
+		}
+	}
+
+	if (node.GetElseBody())
+	{
+		if (hasSubject)
+		{
+			m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+		}
+		node.GetElseBody()->Accept(*this);
+	}
+	else if (hasSubject)
+	{
+		m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+	}
+
+	const uint32_t currentSize = m_chunk.GetCodeSize();
+	for (uint32_t jump : endJumps)
+	{
+		m_chunk.PatchUint32(jump, currentSize);
+	}
 }
 
 void CodeGenerator::EmitLogicalNot()

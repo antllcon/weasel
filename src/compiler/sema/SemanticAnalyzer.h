@@ -1,6 +1,7 @@
 #pragma once
 #include "SymbolTable.h"
 #include "src/compiler/ast/AstNode.h"
+#include "src/compiler/ast/EnumTypeInfo.h"
 #include "src/compiler/ast/IAstVisitor.h"
 #include "src/diagnostics/DiagnosticEngine.h"
 #include <memory>
@@ -29,7 +30,9 @@ public:
 	[[nodiscard]] SemaResult Analyze(const AstNode& root, DiagnosticEngine& engine);
 
 private:
+	void CollectTypes(const AstNode& root);
 	void CollectFunctions(const AstNode& root);
+	std::shared_ptr<TypeInfo> ParseTypeString(const std::string& typeName);
 	void Visit(const ProgramNode& node) override;
 	void Visit(const FunctionDeclStmt& node) override;
 	void Visit(const BlockStmt& node) override;
@@ -55,15 +58,18 @@ private:
 	void Visit(const StructDeclStmt& node) override;
 	void Visit(const UnionDeclStmt& node) override;
 	void Visit(const EnumDeclStmt& node) override;
+	void Visit(const WhenStmt& node) override;
 
 	SymbolTable m_table;
 	DiagnosticEngine* m_engine = nullptr;
 	uint32_t m_nextSlot = 0;
 	uint32_t m_maxSlot = 0;
+	std::unordered_map<std::string, std::shared_ptr<EnumTypeInfo>> m_enums;
 	std::unordered_map<const AstNode*, SymbolInfo> m_resolvedSymbols;
 	std::unordered_map<const AstNode*, uint32_t> m_varDeclSlots;
 	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> m_resolvedIterators;
 	std::unordered_map<std::string, FunctionInfo> m_functions;
 	std::shared_ptr<TypeInfo> m_currentReturnType;
 	std::shared_ptr<TypeInfo> m_expectedType;
+
 };

@@ -46,6 +46,8 @@ std::string TokenTypeToString(TokenType type)
 		return "OpPlus";
 	case TokenType::OpMinus:
 		return "OpMinus";
+	case TokenType::OpArrow:
+		return "Arrow";
 	case TokenType::OpMul:
 		return "OpMul";
 	case TokenType::OpDiv:

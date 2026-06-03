@@ -44,6 +44,7 @@ public:
 	void Visit(const ReturnStmt& node) override;
 	void Visit(const IfStmt& node) override;
 	void Visit(const ArrayAllocExpr& node) override;
+	void Visit(const WhenStmt& node) override;
 
 private:
 	struct UnresolvedCall

@@ -25,13 +25,14 @@
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
+#include "src/compiler/ast/WhenEntry.h"
+#include "src/compiler/ast/WhenStmt.h"
 #include "src/compiler/core/LanguageTokens.h"
 #include "src/compiler/lexer/Token.h"
 #include "src/diagnostics/CompilationException.h"
 
 namespace
 {
-
 SourceLocation FindFirstLeaf(const CstNode& node)
 {
 	if (node.children.empty())
@@ -69,6 +70,7 @@ SourceRange ExtractRange(const CstNode& node)
 std::unique_ptr<Expr> ConvertExprByLabel(const CstNode& node);
 std::unique_ptr<BlockStmt> ConvertStmtList(const CstNode& node);
 std::unique_ptr<Stmt> ConvertElseOpt(const CstNode& node);
+std::unique_ptr<Stmt> ConvertStmt(const CstNode& node);
 
 BinaryOpKind ParseBinaryOp(const CstNode& opNode)
 {
@@ -292,6 +294,83 @@ std::unique_ptr<Expr> ConvertExpr(const CstNode& node)
 	return ConvertExprByLabel(node);
 }
 
+void AssertIsWhenValid(bool isValid, const CstNode& node)
+{
+	if (!isValid)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Parser,
+			.message = "Некорректная структура оператора when",
+			.line = node.location.line,
+			.pos = node.location.pos});
+	}
+}
+
+void CollectWhenConditions(const CstNode& node, std::vector<std::unique_ptr<Expr>>& conditions)
+{
+	if (node.children.size() == 3 && node.children[1]->value == LanguageTokens::SymComma)
+	{
+		CollectWhenConditions(*node.children[0], conditions);
+		conditions.push_back(ConvertExpr(*node.children[2]));
+	}
+	else
+	{
+		conditions.push_back(ConvertExpr(*node.children[0]));
+	}
+}
+
+void CollectWhenEntries(const CstNode& node, std::vector<WhenEntry>& entries)
+{
+	if (node.children.empty())
+	{
+		return;
+	}
+
+	if (node.children.size() == 2)
+	{
+		CollectWhenEntries(*node.children[0], entries);
+
+		const CstNode& entryNode = *node.children[1];
+		std::vector<std::unique_ptr<Expr>> conditions;
+		CollectWhenConditions(*entryNode.children[0], conditions);
+
+		entries.push_back(WhenEntry{
+			std::move(conditions),
+			ConvertStmt(*entryNode.children[2])});
+	}
+}
+
+std::unique_ptr<Stmt> ConvertWhenStmt(const CstNode& node)
+{
+	std::unique_ptr<Expr> subject = nullptr;
+	std::vector<WhenEntry> entries;
+	std::unique_ptr<Stmt> elseBody = nullptr;
+
+	size_t bracesIndex = 1;
+
+	if (node.children[1]->value == LanguageTokens::SymParenLeft)
+	{
+		subject = ConvertExpr(*node.children[2]);
+		bracesIndex = 4;
+	}
+
+	AssertIsWhenValid(node.children[bracesIndex]->value == LanguageTokens::SymBraceLeft, node);
+
+	CollectWhenEntries(*node.children[bracesIndex + 1], entries);
+
+	const size_t elseIndex = bracesIndex + 3;
+	if (elseIndex < node.children.size())
+	{
+		elseBody = ConvertElseOpt(*node.children[elseIndex]);
+	}
+
+	return std::make_unique<WhenStmt>(
+		std::move(subject),
+		std::move(entries),
+		std::move(elseBody),
+		ExtractRange(node));
+}
+
 std::unique_ptr<Stmt> ConvertVarDecl(const CstNode& node)
 {
 	const VarModifier modifier = ParseModifier(*node.children[0]);
@@ -434,6 +513,7 @@ std::unique_ptr<Stmt> ConvertStmt(const CstNode& node)
 	if (firstChild.label == "WhileStmt") return ConvertWhileStmt(firstChild);
 	if (firstChild.label == "DoWhileStmt") return ConvertDoWhileStmt(firstChild);
 	if (firstChild.label == "ReturnStmt") return ConvertReturnStmt(firstChild);
+	if (firstChild.label == "WhenStmt") return ConvertWhenStmt(firstChild);
 	if (firstChild.label == "ExprStmt")
 	{
 		auto expr = ConvertExpr(*firstChild.children[0]);

@@ -358,17 +358,22 @@ std::unique_ptr<Stmt> ConvertWhenStmt(const CstNode& node)
 
 	CollectWhenEntries(*node.children[bracesIndex + 1], entries);
 
-	const size_t elseIndex = bracesIndex + 3;
+	const size_t elseIndex = bracesIndex + 2;
 	if (elseIndex < node.children.size())
 	{
-		elseBody = ConvertElseOpt(*node.children[elseIndex]);
+		const CstNode& elseNode = *node.children[elseIndex];
+		if (!elseNode.children.empty())
+		{
+			elseBody = ConvertStmt(*elseNode.children[2]);
+		}
 	}
 
 	return std::make_unique<WhenStmt>(
 		std::move(subject),
 		std::move(entries),
 		std::move(elseBody),
-		ExtractRange(node));
+		ExtractRange(node)
+	);
 }
 
 std::unique_ptr<Stmt> ConvertVarDecl(const CstNode& node)

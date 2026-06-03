@@ -103,10 +103,9 @@ size_t FindMatchingParenLeft(const std::vector<Token>& tokens, size_t closeIdx)
 bool IsControlStructureEnd(const std::vector<Token>& tokens, size_t prevIdx)
 {
 	const auto& prev = tokens[prevIdx];
-
 	if (prev.type == TokenType::Keyword)
 	{
-		if (prev.value == "else" || prev.value == "run")
+		if (prev.value == "else" || prev.value == "run" || prev.value == "when")
 			return true;
 	}
 	else if (prev.type == TokenType::ParenRight)
@@ -121,12 +120,6 @@ bool IsControlStructureEnd(const std::vector<Token>& tokens, size_t prevIdx)
 				if (tokenBefore.type == TokenType::Keyword && (tokenBefore.value == "when" || tokenBefore.value == "run"))
 				{
 					return true;
-				}
-				if (tokenBefore.type == TokenType::Identifier)
-				{
-					const size_t beforeId = FindPrevMeaningfulIndex(tokens, beforeParen);
-					if (beforeId < tokens.size() && tokens[beforeId].type == TokenType::OpMove)
-						return true;
 				}
 			}
 		}

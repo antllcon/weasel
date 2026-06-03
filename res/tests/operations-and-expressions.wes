@@ -104,7 +104,7 @@ void <- main()
     print("s1 >< s3 (true):", str_neq)
     print()
 
-    print("7. ВЫВОД ТИПОВ: СТРЕСС-ТЕСТ")
+    print("7. Вывод типов")
     val uint u_base = 100
 
     # 7.1. Литерал + Переменная

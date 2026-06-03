@@ -1,6 +1,6 @@
 #include "FrontendPipeline.h"
 #include "src/compiler/ast/visualizer/AstVisualizer.h"
-#include "src/compiler/cst_to_ast/CstToAstConverter.h"
+#include "src/compiler/cst-to-ast/CstToAstConverter.h"
 #include "src/compiler/lexer/Lexer.h"
 #include "src/compiler/lexer/visualizer/LexerVisualizer.h"
 #include "src/compiler/reader/SourceLoader.h"

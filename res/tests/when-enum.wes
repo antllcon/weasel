@@ -1,0 +1,84 @@
+enum Status
+[
+    NEW,
+    PROCESSING,
+    DONE,
+    ERROR
+]
+
+enum Color
+[
+    RED,
+    GREEN,
+    BLUE
+]
+
+void <- main()
+{
+    print("Тестирование When и Enum")
+    print()
+
+    print("1. Конструкция when без предмета (замена if-else if)")
+    val int score = 85
+    print("Входной балл:", score)
+
+    when
+    {
+        score >= 90 -> print("-> Оценка: Отлично")
+        score >= 70 -> print("-> Оценка: Хорошо")
+        score >= 50 -> print("-> Оценка: Удовлетворительно")
+        else -> print("-> Оценка: Лох")
+    }
+    print()
+
+    print("2. Конструкция when с предметом (целочисленные значения)")
+    val int dayCode = 4
+    print("Код дня недели:", dayCode)
+
+    when (dayCode)
+    {
+        1, 2, 3, 4, 5 -> print("-> Это будний день. Надо работать")
+        6, 7 -> print("-> Это выходной? Нет, это six-seven")
+        else -> print("-> Ошибка: неизвестный день недели")
+    }
+    print()
+
+    print("3. Базовая работа с enum")
+    val Status currentStatus = Status.PROCESSING
+    val Status nextStatus = Status.DONE
+
+    print("currentStatus (PROCESSING = 1):", currentStatus)
+    print("nextStatus (DONE = 2):", nextStatus)
+
+    val bool isDone = currentStatus == Status.DONE
+    print("currentStatus == Status.DONE (false):", isDone)
+    print()
+
+    print("4. Конструкция when с enum (Проверка исчерпываемости)")
+    print("Текущий статус процесса:")
+
+    when (currentStatus)
+    {
+        Status.NEW -> print("-> Задача только создана")
+        Status.PROCESSING -> print("-> Задача в процессе выполнения...")
+        Status.DONE -> print("-> Задача успешно завершена")
+        Status.ERROR -> print("-> Произошла ошибка при выполнении")
+    }
+    print()
+
+    print("5. Блоки кода внутри веток when и множественный матчинг enum")
+    val Color themeColor = Color.GREEN
+
+    when (themeColor)
+    {
+        Color.RED, Color.BLUE -> print("-> Выбран красный или синий цвет")
+        Color.GREEN -> {
+            print("-> Выбран зеленый цвет!")
+            print("-> Это блок из нескольких инструкций.")
+            val int a = 10
+            val int b = 20
+            print("-> 10 + 20 =", a + b)
+        }
+    }
+    print()
+}

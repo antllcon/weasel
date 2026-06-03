@@ -1,0 +1,97 @@
+# 1. Проверка базовых литералов и свойства size
+void <- testBasicLiterals()
+{
+    print("Test: Basic Literals")
+    val array[int] arr = [10, 20, 30]
+
+    print(arr[0])    # Ожидаем: 10
+    print(arr[1])    # Ожидаем: 20
+    print(arr[2])    # Ожидаем: 30
+    print(arr.size)  # Ожидаем: 3
+}
+
+# 2. Проверка пустого массива (семантика должна корректно вывести тип из контекста)
+void <- testEmptyArray()
+{
+    print("Test: Empty Array")
+    val array[string] emptyArr = array[string](0)
+
+    print(emptyArr.size) # Ожидаем: 0
+}
+
+# 3. Проверка динамического выделения памяти и записи (var)
+void <- testAllocationAndWrite()
+{
+    print("Test: Allocation & Write")
+    var array[real] dynamicArr = array[real](3)
+
+    # Записываем значения
+    dynamicArr[0] = 1.14
+    dynamicArr[1] = 2.71
+    dynamicArr[2] = 3.14
+
+    print(dynamicArr[0]) # Ожидаем: 1.14
+    print(dynamicArr[2]) # Ожидаем: 3.14
+    print(dynamicArr.size) # Ожидаем: 3
+}
+
+# 4. Проверка массивов нечисловых типов
+void <- testMixedTypesArrays()
+{
+    print("Test: Bool & String Arrays")
+    val array[bool] flags = [true, false, true]
+    print(flags[1]) # Ожидаем: false
+
+    var array[string] words = ["Weasel", "Language"]
+    words[1] = "Compiler"
+    print(words[0]) # Ожидаем: Weasel
+    print(words[1]) # Ожидаем: Compiler
+}
+
+# 5. Проверка вложенных массивов (многомерность)
+void <- testNestedArrays()
+{
+    print("Test: Nested Arrays (Matrix)")
+    val array[array[int]] matrix = [
+        [1, 2],
+        [3, 4, 5]
+    ]
+
+    print(matrix[0][0]) # Ожидаем: 1
+    print(matrix[1][2]) # Ожидаем: 5
+    print(matrix.size)  # Ожидаем: 2
+}
+
+# 6. Проверка ошибок (раскомментировать для проверки падений ВМ)
+void <- testRuntimeErrors()
+{
+    val array[int] arr = [1]
+    print(arr[5]) # Ожидаем падение ВМ: E_VM_OUT_OF_BOUNDS
+}
+
+void <- testHugeArray()
+{
+    print("Test: Huge Array ")
+
+    var array[int] hugeArr = array[int](1000000)
+
+    hugeArr[0] = 1
+    hugeArr[500000] = 2
+    hugeArr[999999] = 3
+
+    print(hugeArr[0])       # Ожидаем: 1
+    print(hugeArr[500000])  # Ожидаем: 2
+    print(hugeArr[999999])  # Ожидаем: 3
+    print(hugeArr.size)     # Ожидаем: 1000000
+}
+
+void <- main()
+{
+    testBasicLiterals()
+    testEmptyArray()
+    testAllocationAndWrite()
+    testMixedTypesArrays()
+    testNestedArrays()
+    testRuntimeErrors()
+    testHugeArray()
+}

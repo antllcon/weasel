@@ -1,0 +1,160 @@
+Program -> DeclList
+
+DeclList -> DeclList Decl
+DeclList -> e
+
+Decl -> FuncDecl
+Decl -> StructDecl
+Decl -> EnumDecl
+Decl -> UnionDecl
+Decl -> VarDecl
+Decl -> ClassDecl
+
+ClassDecl -> class id { ClassBody }
+
+ClassBody -> ClassBody ClassMember
+ClassBody -> e
+
+ClassMember -> VarDecl nl
+ClassMember -> FuncDecl
+
+Type -> BaseType
+Type -> id
+Type -> array [ Type ]
+
+BaseType -> int
+BaseType -> uint
+BaseType -> real
+BaseType -> bool
+BaseType -> string
+BaseType -> void
+
+FuncDecl -> Type <- id ( ParamList ) { StmtList }
+FuncDecl -> Type <- id ( ) { StmtList }
+
+ParamList -> ParamList , Param
+ParamList -> Param
+
+Param -> Type id
+
+StructDecl -> struct id [ FieldList ]
+UnionDecl -> union id [ FieldList ]
+
+FieldList -> FieldList Field
+FieldList -> e
+Field -> Type id
+
+EnumDecl -> enum id [ EnumIdList ]
+EnumIdList -> EnumIdList , id
+EnumIdList -> id
+
+StmtList -> StmtList Stmt
+StmtList -> e
+
+Stmt -> VarDecl nl
+Stmt -> AssignStmt nl
+Stmt -> ReturnStmt nl
+Stmt -> ExprStmt nl
+Stmt -> WhileStmt
+Stmt -> DoWhileStmt
+Stmt -> ForStmt
+Stmt -> WhenStmt
+Stmt -> { StmtList } nl
+
+WhenStmt -> when { WhenEntries WhenElseOpt }
+WhenStmt -> when ( Expr ) { WhenEntries WhenElseOpt }
+
+WhenEntries -> WhenEntries WhenEntry
+WhenEntries -> e
+
+WhenEntry -> WhenConditions -> Stmt
+
+WhenConditions -> WhenConditions , Expr
+WhenConditions -> Expr
+
+WhenElseOpt -> else -> Stmt
+WhenElseOpt -> e
+
+VarDecl -> Modifier Type id AssignOp Expr
+VarDecl -> Modifier Type id
+
+Modifier -> val
+Modifier -> var
+Modifier -> let
+
+AssignOp -> =
+AssignOp -> <-
+
+AssignStmt -> Expr AssignOp Expr
+
+WhileStmt -> run ( Expr ) { StmtList }
+DoWhileStmt -> { StmtList } run ( Expr )
+
+ForStmt -> rep ( id in Expr .. Expr ) { StmtList }
+ForStmt -> rep ( id , id in Expr .. Expr , Expr .. Expr ) { StmtList }
+
+ReturnStmt -> return Expr
+ReturnStmt -> return
+
+ExprStmt -> Expr
+
+Expr -> LogicOrExpr
+
+LogicOrExpr -> LogicOrExpr or LogicAndExpr
+LogicOrExpr -> LogicAndExpr
+
+LogicAndExpr -> LogicAndExpr and EqExpr
+LogicAndExpr -> EqExpr
+
+EqExpr -> EqExpr == RelExpr
+EqExpr -> EqExpr >< RelExpr
+EqExpr -> RelExpr
+
+RelExpr -> RelExpr < AddExpr
+RelExpr -> RelExpr > AddExpr
+RelExpr -> RelExpr <= AddExpr
+RelExpr -> RelExpr >= AddExpr
+RelExpr -> AddExpr
+
+AddExpr -> AddExpr + MulExpr
+AddExpr -> AddExpr - MulExpr
+AddExpr -> MulExpr
+
+MulExpr -> MulExpr * UnaryExpr
+MulExpr -> MulExpr / UnaryExpr
+MulExpr -> MulExpr % UnaryExpr
+MulExpr -> UnaryExpr
+
+UnaryExpr -> not UnaryExpr
+UnaryExpr -> & UnaryExpr
+UnaryExpr -> * UnaryExpr
+UnaryExpr -> - UnaryExpr
+UnaryExpr -> PostfixExpr
+
+PostfixExpr -> PostfixExpr . MethodName ( ArgList )
+PostfixExpr -> PostfixExpr . MethodName ( )
+PostfixExpr -> PostfixExpr . MethodName
+PostfixExpr -> PostfixExpr [ Expr ]
+PostfixExpr -> PrimaryExpr
+
+MethodName -> id
+MethodName -> int
+MethodName -> uint
+MethodName -> real
+MethodName -> bool
+MethodName -> string
+MethodName -> void
+
+PrimaryExpr -> id
+PrimaryExpr -> num
+PrimaryExpr -> str
+PrimaryExpr -> true
+PrimaryExpr -> false
+PrimaryExpr -> id ( ArgList )
+PrimaryExpr -> id ( )
+PrimaryExpr -> ( Expr )
+PrimaryExpr -> [ ArgList ]
+PrimaryExpr -> array [ Type ] ( Expr )
+
+ArgList -> ArgList , Expr
+ArgList -> Expr

@@ -699,6 +699,7 @@ void Run(ExecutionContext& context)
 			break;
 		case OpCode::ArrayLength:
 			ExecuteArrayLengthInstruction(context);
+			break;
 		case OpCode::Retain:
 			ExecuteRetainInstruction(context);
 			break;

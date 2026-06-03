@@ -1,6 +1,7 @@
 #include "CodeGenerator.h"
 
 #include "src/compiler/ast/ArrayAllocExpr.h"
+#include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
@@ -340,9 +341,21 @@ void CodeGenerator::Visit(const BoolExpr& node)
 	EmitConstant(Value(val));
 }
 
-void CodeGenerator::Visit(const ArrayLiteralExpr& /*node*/)
+void CodeGenerator::Visit(const ArrayLiteralExpr& node)
 {
-	throw std::runtime_error("Генерация кода для ArrayLiteralExpr не реализована");
+	const auto& elements = node.GetElements();
+	const uint32_t size = static_cast<uint32_t>(elements.size());
+
+	EmitConstant(Value(size));
+	m_chunk.WriteOpCode(OpCode::AllocateArray, m_currentLine);
+
+	for (uint32_t i = 0; i < size; ++i)
+	{
+		m_chunk.WriteOpCode(OpCode::Dup, m_currentLine);
+		EmitConstant(Value(i));
+		elements[i]->Accept(*this);
+		m_chunk.WriteOpCode(OpCode::StoreElement, m_currentLine);
+	}
 }
 
 void CodeGenerator::Visit(const FunctionCallExpr& node)

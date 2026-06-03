@@ -1,0 +1,89 @@
+void <- testBasicLiterals()
+{
+    print("Проверка базовых литералов и свойства size")
+    val array[int] arr = [10, 20, 30]
+
+    print(arr[0])
+    print(arr[1])
+    print(arr[2])
+    print(arr.size)
+}
+
+void <- testEmptyArray()
+{
+    print("Проверка пустого массива")
+    val array[string] emptyArr = array[string](0)
+
+    print(emptyArr.size)
+}
+
+void <- testAllocationAndWrite()
+{
+    print("Проверка динамического выделения памяти и записи (var)")
+    var array[real] dynamicArr = array[real](3)
+
+    dynamicArr[0] = 1.14
+    dynamicArr[1] = 2.71
+    dynamicArr[2] = 3.14
+
+    print(dynamicArr[0])
+    print(dynamicArr[2])
+    print(dynamicArr.size)
+}
+
+void <- testMixedTypesArrays()
+{
+    print("Проверка массивов разных типов")
+    val array[bool] flags = [true, false, true]
+    print(flags[1]) # Ожидаем: false
+
+    var array[string] words = ["Weasel", "Language"]
+    words[1] = "Compiler"
+    print(words[0])
+    print(words[1])
+}
+
+void <- testNestedArrays()
+{
+    print("Проверка вложенности массивов")
+    val array[array[int]] matrix = [
+        [1, 2],
+        [3, 4, 5]
+    ]
+
+    print(matrix[0][0])
+    print(matrix[1][2])
+    print(matrix.size)
+
+void <- testRuntimeErrors()
+{
+#    val array[int] arr = [1]
+#    print(arr[5])
+}
+
+void <- testHugeArray()
+{
+    print("Огромный массив")
+
+    var array[int] hugeArr = array[int](1000000)
+
+    hugeArr[0] = 1
+    hugeArr[500000] = 2
+    hugeArr[999999] = 3
+
+    print(hugeArr[0])
+    print(hugeArr[500000])
+    print(hugeArr[999999])
+    print(hugeArr.size)
+}
+
+void <- main()
+{
+    testBasicLiterals()
+    testEmptyArray()
+    testAllocationAndWrite()
+    testMixedTypesArrays()
+    testNestedArrays()
+    testRuntimeErrors()
+    testHugeArray()
+}

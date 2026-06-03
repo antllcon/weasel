@@ -1,6 +1,7 @@
 #include "SemanticAnalyzer.h"
 
 #include "src/compiler/ast/ArrayAllocExpr.h"
+#include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/ArrayTypeInfo.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
@@ -34,6 +35,30 @@
 
 namespace
 {
+void AssertIsArrayTypeKnown(bool isKnown, const SourceRange& range)
+{
+	if (!isKnown)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Невозможно вывести тип пустого массива без контекста",
+			.line = range.start.line,
+			.pos = range.start.pos});
+	}
+}
+
+void AssertIsArrayElementTypesMatch(bool isMatch, const std::string& expected, const std::string& actual, const SourceRange& range)
+{
+	if (!isMatch)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Типы элементов массива должны совпадать. Ожидался: " + expected + ", получен: " + actual,
+			.line = range.start.line,
+			.pos = range.start.pos});
+	}
+}
+
 void AssertIsInitializedIfImmutable(bool hasInit, VarModifier modifier, const std::string& name, const SourceRange& range)
 {
 	if (!hasInit && modifier != VarModifier::Var)
@@ -816,8 +841,34 @@ void SemanticAnalyzer::Visit(const BoolExpr& node)
 	const_cast<BoolExpr&>(node).SetResolvedType(type);
 }
 
-void SemanticAnalyzer::Visit(const ArrayLiteralExpr& /*node*/)
+void SemanticAnalyzer::Visit(const ArrayLiteralExpr& node)
 {
+	const auto& elements = node.GetElements();
+
+	if (elements.empty())
+	{
+		AssertIsArrayTypeKnown(m_expectedType != nullptr, node.GetRange());
+		const_cast<ArrayLiteralExpr&>(node).SetResolvedType(m_expectedType);
+		return;
+	}
+
+	elements[0]->Accept(*this);
+	auto elementType = elements[0]->GetResolvedType();
+
+	for (size_t i = 1; i < elements.size(); ++i)
+	{
+		elements[i]->Accept(*this);
+		auto currentType = elements[i]->GetResolvedType();
+
+		AssertIsArrayElementTypesMatch(
+			elementType->GetName() == currentType->GetName(),
+			elementType->GetName(),
+			currentType->GetName(),
+			elements[i]->GetRange());
+	}
+
+	auto arrayType = std::make_shared<ArrayTypeInfo>(elementType);
+	const_cast<ArrayLiteralExpr&>(node).SetResolvedType(arrayType);
 }
 
 void SemanticAnalyzer::Visit(const StructDeclStmt& /*node*/)

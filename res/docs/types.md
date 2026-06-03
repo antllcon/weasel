@@ -21,7 +21,7 @@
 ``` wes
 val int temperature = -15
 val uint score = 1050
-val real pi = 3.14159265
+val real pi = 3.14159265ф
 ```
 
 ### Логический тип

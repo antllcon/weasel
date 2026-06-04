@@ -237,6 +237,10 @@ void AstVisualizer::Visit(const WhenStmt& node)
 	}
 }
 
+void AstVisualizer::Visit(const ClassicForStmt& /*node*/)
+{
+}
+
 void AstVisualizer::Visit(const RunStmt& node)
 {
 	PrintNode("While");

@@ -36,6 +36,7 @@ public:
 	void Visit(const BlockStmt& node) override;
 	void Visit(const DoWhileStmt& node) override;
 	void Visit(const RunStmt& node) override;
+	void Visit(const ClassicForStmt& node) override;
 	void Visit(const RepStmt& node) override;
 	void Visit(const VarDeclStmt& node) override;
 	void Visit(const AssignStmt& node) override;

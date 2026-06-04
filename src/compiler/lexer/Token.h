@@ -27,6 +27,7 @@ enum class TokenType
 	OpArrow,
 
 	Comma,
+	Semicolon,
 	Dot,
 	Colon,
 	NewLine,

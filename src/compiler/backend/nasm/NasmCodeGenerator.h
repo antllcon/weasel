@@ -39,6 +39,7 @@ public:
 	void Visit(const IfStmt& node) override;
 	void Visit(const ArrayAllocExpr& node) override;
 	void Visit(const WhenStmt& node) override;
+	void Visit(const ClassicForStmt& node) override;
 
 private:
 	std::string MakeLabel(const std::string& prefix);

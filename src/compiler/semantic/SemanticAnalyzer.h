@@ -3,6 +3,7 @@
 #include "ScopeManager.h"
 #include "TypeResolver.h"
 #include "src/compiler/ast/AstNode.h"
+#include "src/compiler/ast/ClassicForStmt.h"
 #include "src/compiler/ast/IAstVisitor.h"
 #include "src/diagnostics/DiagnosticEngine.h"
 #include "src/compiler/codegen/CodegenContext.h"
@@ -28,6 +29,7 @@ private:
 	void Visit(const VarDeclStmt& node) override;
 	void Visit(const AssignStmt& node) override;
 	void Visit(const IfStmt& node) override;
+	void Visit(const ClassicForStmt& node) override;
 	void Visit(const RepStmt& node) override;
 	void Visit(const RunStmt& node) override;
 	void Visit(const DoWhileStmt& node) override;
@@ -57,6 +59,7 @@ private:
 	std::unordered_map<const AstNode*, SymbolInfo> m_resolvedSymbols;
 	std::unordered_map<const AstNode*, uint32_t> m_varDeclSlots;
 	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> m_resolvedIterators;
+	std::unordered_map<const ClassicForStmt*, SymbolInfo> m_classicForInits;
 	std::unordered_map<std::string, FunctionInfo> m_functions;
 
 	std::shared_ptr<TypeInfo> m_currentReturnType;

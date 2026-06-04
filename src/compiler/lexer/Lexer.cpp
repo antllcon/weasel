@@ -347,6 +347,8 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 		return MakeToken(TokenType::Ampersand, startPos, 1, state, startLine);
 	case LanguageTokens::SymComma[0]:
 		return MakeToken(TokenType::Comma, startPos, 1, state, startLine);
+	case LanguageTokens::SymSemicolon[0]:
+		return MakeToken(TokenType::Semicolon, startPos, 1, state, startLine);
 	case LanguageTokens::SymParenLeft[0]:
 		HandleBracketOpen(state);
 		return MakeToken(TokenType::ParenLeft, startPos, 1, state, startLine);

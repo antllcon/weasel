@@ -16,6 +16,7 @@
 #include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
+#include "src/compiler/ast/ClassicForStmt.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
@@ -558,6 +559,32 @@ void CodeGenerator::Visit(const RunStmt& node)
 	m_chunk.WriteUint32(checkIp, m_currentLine);
 
 	m_chunk.PatchUint32(patchEnd, m_chunk.GetCodeSize());
+}
+
+void CodeGenerator::Visit(const ClassicForStmt& node)
+{
+	const auto it = m_context.classicForInits.find(&node);
+	AssertIsIdentifierResolved(it != m_context.classicForInits.end(), node.GetInitName(), node.GetRange());
+
+	node.GetInitExpr().Accept(*this);
+
+	const uint32_t checkIp = m_chunk.GetCodeSize();
+
+	node.GetCondition().Accept(*this);
+
+	m_chunk.WriteOpCode(OpCode::JumpIfFalse, m_currentLine);
+	const uint32_t patchEnd = m_chunk.GetCodeSize();
+	m_chunk.WriteUint32(0, m_currentLine);
+
+	node.GetBody().Accept(*this);
+	node.GetStep().Accept(*this);
+
+	m_chunk.WriteOpCode(OpCode::Jump, m_currentLine);
+	m_chunk.WriteUint32(checkIp, m_currentLine);
+
+	m_chunk.PatchUint32(patchEnd, m_chunk.GetCodeSize());
+
+	m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
 }
 
 void CodeGenerator::Visit(const RepStmt& node)

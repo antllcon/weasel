@@ -1,5 +1,6 @@
 #include "LalrParser.h"
 #include "LalrParseStepsPrinter.h"
+#include "src/compiler/core/LanguageTokens.h"
 #include "src/compiler/lexer/Token.h"
 #include "src/diagnostics/CompilationException.h"
 #include "src/grammar/cst/CstNode.h"
@@ -117,7 +118,7 @@ bool IsControlStructureEnd(const std::vector<Token>& tokens, size_t prevIdx)
 			if (beforeParen < tokens.size())
 			{
 				const auto& tokenBefore = tokens[beforeParen];
-				if (tokenBefore.type == TokenType::Keyword && (tokenBefore.value == "when" || tokenBefore.value == "run"))
+				if (tokenBefore.type == TokenType::Keyword && (tokenBefore.value == "when" || tokenBefore.value == "run" || tokenBefore.value == LanguageTokens::KwRep))
 				{
 					return true;
 				}
@@ -138,7 +139,7 @@ bool IsControlStructureEnd(const std::vector<Token>& tokens, size_t prevIdx)
 	size_t cur = prevIdx;
 	while (cur < tokens.size())
 	{
-		if (tokens[cur].type == TokenType::Keyword && tokens[cur].value == "rep")
+		if (tokens[cur].type == TokenType::Keyword && tokens[cur].value == LanguageTokens::KwRep)
 			return true;
 		const size_t prev2 = FindPrevMeaningfulIndex(tokens, cur);
 		if (prev2 >= tokens.size() || tokens[prev2].type == TokenType::BraceLeft || tokens[prev2].type == TokenType::BraceRight)

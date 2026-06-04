@@ -18,6 +18,7 @@
 #include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
+#include "src/compiler/ast/ClassicForStmt.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
@@ -310,6 +311,7 @@ CodegenContext SemanticAnalyzer::Analyze(const AstNode& root, DiagnosticEngine& 
 		std::move(m_resolvedSymbols),
 		std::move(m_varDeclSlots),
 		std::move(m_resolvedIterators),
+		std::move(m_classicForInits),
 		std::move(m_functions)
 	};
 }
@@ -571,6 +573,37 @@ void SemanticAnalyzer::Visit(const IfStmt& node)
 	{
 		elseBlock->Accept(*this);
 	}
+}
+
+void SemanticAnalyzer::Visit(const ClassicForStmt& node)
+{
+	m_scopeManager.EnterScope();
+	const uint32_t savedSlot = m_scopeManager.GetCurrentSlot();
+
+	auto initType = m_typeResolver.Resolve(node.GetInitType());
+
+	const uint32_t slot = m_scopeManager.AllocateSlot();
+	const bool isNew = m_scopeManager.Declare(node.GetInitName(), initType, true, slot, false, nullptr);
+	AssertIsVariableNotRedeclared(isNew, node.GetInitName());
+
+	m_classicForInits[&node] = SymbolInfo{initType, slot, true, false, nullptr};
+
+	const auto savedExpected = m_expectedType;
+	m_expectedType = initType;
+	node.GetInitExpr().Accept(*this);
+	m_expectedType = savedExpected;
+
+	node.GetCondition().Accept(*this);
+	AssertIsBool(
+		GetType(node.GetCondition()),
+		node.GetCondition().GetRange().start.line,
+		node.GetCondition().GetRange().start.pos);
+
+	node.GetStep().Accept(*this);
+	node.GetBody().Accept(*this);
+
+	m_scopeManager.RestoreSlot(savedSlot);
+	m_scopeManager.LeaveScope();
 }
 
 void SemanticAnalyzer::Visit(const RepStmt& node)

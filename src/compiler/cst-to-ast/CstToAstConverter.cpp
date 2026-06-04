@@ -17,6 +17,7 @@
 #include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
+#include "src/compiler/ast/ClassicForStmt.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
@@ -492,6 +493,21 @@ std::unique_ptr<Stmt> ConvertForStmt2D(const CstNode& node)
 		std::move(iterators), std::move(ranges), std::move(body), ExtractRange(node));
 }
 
+std::unique_ptr<Stmt> ConvertClassicForStmt(const CstNode& node)
+{
+	// repeat ( BaseType id = Expr ; Expr ; AssignStmt ) { StmtList }
+	// [0]=repeat [1]=( [2]=BaseType [3]=id [4]== [5]=Expr [6]=; [7]=Expr [8]=; [9]=AssignStmt [10]=) [11]={ [12]=StmtList [13]=}
+	const std::string initType = node.children[2]->children[0]->value;
+	const std::string initName = node.children[3]->value;
+	auto initExpr = ConvertExpr(*node.children[5]);
+	auto condition = ConvertExpr(*node.children[7]);
+	auto step = ConvertAssignStmt(*node.children[9]);
+	auto body = ConvertStmtList(*node.children[12]);
+
+	return std::make_unique<ClassicForStmt>(
+		initType, initName, std::move(initExpr), std::move(condition), std::move(step), std::move(body), ExtractRange(node));
+}
+
 std::unique_ptr<Stmt> ConvertForStmt(const CstNode& node)
 {
 	if (node.children.size() == 11)
@@ -502,8 +518,12 @@ std::unique_ptr<Stmt> ConvertForStmt(const CstNode& node)
 	{
 		return ConvertForStmt2D(node);
 	}
+	if (node.children.size() == 14)
+	{
+		return ConvertClassicForStmt(node);
+	}
 
-	ThrowConversionError("Неподдерживаемая форма rep с " + std::to_string(node.children.size()) + " дочерними узлами", node);
+	ThrowConversionError("Неподдерживаемая форма repeat с " + std::to_string(node.children.size()) + " дочерними узлами", node);
 }
 
 std::unique_ptr<Stmt> ConvertWhileStmt(const CstNode& node)

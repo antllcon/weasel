@@ -90,8 +90,9 @@ AssignStmt -> Expr AssignOp Expr
 WhileStmt -> run ( Expr ) { StmtList }
 DoWhileStmt -> { StmtList } run ( Expr )
 
-ForStmt -> rep ( id in Expr .. Expr ) { StmtList }
-ForStmt -> rep ( id , id in Expr .. Expr , Expr .. Expr ) { StmtList }
+ForStmt -> repeat ( id in Expr .. Expr ) { StmtList }
+ForStmt -> repeat ( id , id in Expr .. Expr , Expr .. Expr ) { StmtList }
+ForStmt -> repeat ( BaseType id = Expr ; Expr ; AssignStmt ) { StmtList }
 
 ReturnStmt -> return Expr
 ReturnStmt -> return

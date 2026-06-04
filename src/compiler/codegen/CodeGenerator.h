@@ -18,6 +18,11 @@ public:
 		std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators,
 		std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions);
 
+	void EmitCast(const FunctionCallExpr& node);
+	void EmitPrint(const FunctionCallExpr& node);
+	void EmitPrintLn(const FunctionCallExpr& node);
+	void EmitUserFunctionCall(const FunctionCallExpr& node);
+
 	[[nodiscard]] Chunk Generate(const AstNode& root);
 
 	void Visit(const ProgramNode& node) override;
@@ -58,6 +63,7 @@ private:
 	std::shared_ptr<TypeInfo> GetType(const AstNode& node) const;
 	void EmitLogicalNot();
 	void EmitConstant(Value value);
+	void EmitPrintCore(const FunctionCallExpr& node);
 
 	AstAnnotations m_annotations;
 	std::unordered_map<const AstNode*, SymbolInfo> m_symbols;

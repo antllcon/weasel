@@ -26,6 +26,7 @@
 #include "src/compiler/ast/WhenStmt.h"
 #include "src/compiler/semantic/SymbolTable.h"
 #include "src/compiler/stdlib/NativeRegistry.h"
+#include "src/compiler/stdlib/PrintResolver.h"
 #include "src/compiler/vm/value/Value.h"
 #include "src/diagnostics/CompilationException.h"
 
@@ -77,6 +78,29 @@ void AssertIsFunctionOffsetResolved(bool found, const std::string& name, const S
 			.line = range.start.line,
 			.pos = range.start.pos});
 	}
+}
+
+void AssertIsNativeCastResolved(bool isResolved, const std::string& name, const SourceRange& range)
+{
+	if (!isResolved)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Backend,
+			.message = "Бэкенд: не реализовано нативное преобразование " + name,
+			.line = range.start.line,
+			.pos = range.start.pos});
+	}
+}
+
+using BuiltinEmitter = std::function<void(CodeGenerator&, const FunctionCallExpr&)>;
+
+const std::unordered_map<std::string, BuiltinEmitter>& GetBuiltinEmitters()
+{
+	static const std::unordered_map<std::string, BuiltinEmitter> emitters = {
+		{"print", [](auto& gen, const auto& node) { gen.EmitPrint(node); }},
+		{"println", [](auto& gen, const auto& node) { gen.EmitPrintLn(node); }},
+	};
+	return emitters;
 }
 
 bool IsPrimitiveType(const std::string& name)
@@ -187,6 +211,85 @@ CodeGenerator::CodeGenerator(
 	, m_repIterators(std::move(repIterators))
 	, m_functions(std::move(functions))
 {
+}
+
+void CodeGenerator::EmitCast(const FunctionCallExpr& node)
+{
+	node.GetArgs()[0]->Accept(*this);
+	const std::string srcBase = ExtractBaseTypeName(GetType(*node.GetArgs()[0]).get());
+	const std::string targetBase = node.GetName();
+
+	if (srcBase != targetBase)
+	{
+		const std::string nativeName = "__cast_" + srcBase + "_" + targetBase;
+		if (const auto* native = NativeRegistry::FindByName(nativeName))
+		{
+			EmitNativeCall(m_chunk, native->id, 1, m_currentLine);
+		}
+		else
+		{
+			AssertIsNativeCastResolved(false, nativeName, node.GetRange());
+		}
+	}
+}
+
+void CodeGenerator::EmitPrintCore(const FunctionCallExpr& node)
+{
+	const auto argCount = static_cast<uint32_t>(node.GetArgs().size());
+	for (uint32_t i = 0; i < argCount; ++i)
+	{
+		node.GetArgs()[i]->Accept(*this);
+
+		const std::string nativeName = PrintResolver::Resolve(GetType(*node.GetArgs()[i]).get());
+		if (const auto* native = NativeRegistry::FindByName(nativeName))
+		{
+			EmitNativeCall(m_chunk, native->id, 1, m_currentLine);
+			m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+		}
+
+		if (i + 1 < argCount)
+		{
+			if (const auto* native = NativeRegistry::FindByName("print_space"))
+			{
+				EmitNativeCall(m_chunk, native->id, 0, m_currentLine);
+				m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+			}
+		}
+	}
+}
+
+void CodeGenerator::EmitPrint(const FunctionCallExpr& node)
+{
+	EmitPrintCore(node);
+	EmitConstant(Value(static_cast<uint64_t>(0)));
+}
+
+void CodeGenerator::EmitPrintLn(const FunctionCallExpr& node)
+{
+	EmitPrintCore(node);
+	if (const auto* native = NativeRegistry::FindByName("print_newline"))
+	{
+		EmitNativeCall(m_chunk, native->id, 0, m_currentLine);
+	}
+}
+
+void CodeGenerator::EmitUserFunctionCall(const FunctionCallExpr& node)
+{
+	for (const auto& arg : node.GetArgs())
+	{
+		arg->Accept(*this);
+	}
+
+	const auto argCount = static_cast<uint32_t>(node.GetArgs().size());
+
+	if (const auto* native = NativeRegistry::FindByName(node.GetName()))
+	{
+		EmitNativeCall(m_chunk, native->id, argCount, m_currentLine);
+		return;
+	}
+
+	const uint32_t patchOffset = EmitCallWithPlaceholder(m_chunk, argCount, m_currentLine);
+	m_unresolvedCalls.push_back({patchOffset, node.GetName(), node.GetRange()});
 }
 
 Chunk CodeGenerator::Generate(const AstNode& root)
@@ -373,85 +476,18 @@ void CodeGenerator::Visit(const FunctionCallExpr& node)
 {
 	if (IsPrimitiveType(node.GetName()))
 	{
-		node.GetArgs()[0]->Accept(*this);
-
-		const std::string srcBase = ExtractBaseTypeName(GetType(*node.GetArgs()[0]).get());
-		const std::string targetBase = node.GetName();
-
-		if (srcBase != targetBase)
-		{
-			const std::string nativeName = "__cast_" + srcBase + "_" + targetBase;
-			if (const auto* native = NativeRegistry::FindByName(nativeName))
-			{
-				EmitNativeCall(m_chunk, native->id, 1, m_currentLine);
-			}
-			else
-			{
-				throw CompilationException(DiagnosticData{
-					.phase = CompilerPhase::Backend,
-					.message = "Бэкенд: не реализовано нативное преобразование " + nativeName,
-					.line = node.GetRange().start.line,
-					.pos = node.GetRange().start.pos});
-			}
-		}
+		EmitCast(node);
 		return;
 	}
 
-	if (node.GetName() == "print" || node.GetName() == "println")
+	const auto& builtins = GetBuiltinEmitters();
+	if (const auto it = builtins.find(node.GetName()); it != builtins.end())
 	{
-		const auto argCount = static_cast<uint32_t>(node.GetArgs().size());
-
-		for (uint32_t i = 0; i < argCount; ++i)
-		{
-			node.GetArgs()[i]->Accept(*this);
-
-			const std::string nativeName = NativeRegistry::ResolvePrintNative(GetType(*node.GetArgs()[i]).get());
-			if (const auto* native = NativeRegistry::FindByName(nativeName))
-			{
-				EmitNativeCall(m_chunk, native->id, 1, m_currentLine);
-				m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
-			}
-
-			if (i + 1 < argCount)
-			{
-				if (const auto* native = NativeRegistry::FindByName("print_space"))
-				{
-					EmitNativeCall(m_chunk, native->id, 0, m_currentLine);
-					m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
-				}
-			}
-		}
-
-		if (node.GetName() == "println")
-		{
-			if (const auto* native = NativeRegistry::FindByName("print_newline"))
-			{
-				EmitNativeCall(m_chunk, native->id, 0, m_currentLine);
-			}
-		}
-		else
-		{
-			EmitConstant(Value(static_cast<uint64_t>(0)));
-		}
-
+		it->second(*this, node);
 		return;
 	}
 
-	for (const auto& arg : node.GetArgs())
-	{
-		arg->Accept(*this);
-	}
-
-	const auto argCount = static_cast<uint32_t>(node.GetArgs().size());
-
-	if (const auto* native = NativeRegistry::FindByName(node.GetName()))
-	{
-		EmitNativeCall(m_chunk, native->id, argCount, m_currentLine);
-		return;
-	}
-
-	const uint32_t patchOffset = EmitCallWithPlaceholder(m_chunk, argCount, m_currentLine);
-	m_unresolvedCalls.push_back({patchOffset, node.GetName(), node.GetRange()});
+	EmitUserFunctionCall(node);
 }
 
 void CodeGenerator::Visit(const IndexExpr& node)

@@ -16,7 +16,7 @@ struct ExecutionContext
 	const Chunk& chunk;
 	std::vector<Value>& stack;
 	std::vector<VirtualMachine::CallFrame>& frames;
-	const std::vector<VirtualMachine::NativeCallback>& natives;
+	const std::vector<NativeCallback>& natives;
 	HeapTracker& tracker;
 	uint32_t& stackTop;
 	uint32_t ip;

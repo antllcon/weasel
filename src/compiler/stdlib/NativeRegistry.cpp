@@ -1,5 +1,4 @@
 #include "NativeRegistry.h"
-
 #include "src/compiler/ast/ScalarTypeInfo.h"
 #include "src/compiler/vm/memory/HeapObject.h"
 #include <algorithm>
@@ -112,18 +111,5 @@ const NativeFunction* FindByName(const std::string& name) noexcept
 	const auto& all = GetRegistryInstance();
 	const auto it = std::ranges::find_if(all, [&name](const auto& fn) { return fn.name == name; });
 	return it != all.end() ? &*it : nullptr;
-}
-
-std::string ResolvePrintNative(const TypeInfo* typeInfo) noexcept
-{
-	const auto* scalar = dynamic_cast<const ScalarTypeInfo*>(typeInfo);
-	if (!scalar) return "print_signed";
-
-	if (scalar->GetBaseType() == BaseType::String) return "print_string";
-	if (scalar->GetBaseType() == BaseType::Bool) return "print_bool";
-	if (scalar->GetBaseType() == BaseType::Real) return "print_real";
-	if (scalar->GetBaseType() == BaseType::Uint) return "print_unsigned";
-
-	return "print_signed";
 }
 } // namespace NativeRegistry

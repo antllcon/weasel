@@ -386,7 +386,7 @@ void CodeGenerator::Visit(const FunctionCallExpr& node)
 		return;
 	}
 
-	if (node.GetName() == "print")
+	if (node.GetName() == "print" || node.GetName() == "println")
 	{
 		const auto argCount = static_cast<uint32_t>(node.GetArgs().size());
 
@@ -411,9 +411,16 @@ void CodeGenerator::Visit(const FunctionCallExpr& node)
 			}
 		}
 
-		if (const auto* native = NativeRegistry::FindByName("print_newline"))
+		if (node.GetName() == "println")
 		{
-			EmitNativeCall(m_chunk, native->id, 0, m_currentLine);
+			if (const auto* native = NativeRegistry::FindByName("print_newline"))
+			{
+				EmitNativeCall(m_chunk, native->id, 0, m_currentLine);
+			}
+		}
+		else
+		{
+			EmitConstant(Value(static_cast<uint64_t>(0)));
 		}
 
 		return;

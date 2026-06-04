@@ -1,0 +1,82 @@
+void <- testBasicRun()
+{
+    var int i = 0
+
+    run (i < 3)
+    {
+        print(i)
+        i = i + 1
+    }
+}
+
+void <- testDoWhile()
+{
+    var int i = 10
+
+    {
+        print(i)
+        i = i + 1
+    } run (i < 5)
+}
+
+void <- testArrayIteration()
+{
+    val array[int] arr = [10, 20, 30, 40]
+
+    var uint i = 0
+    var int sum = 0
+
+    run (i < arr.size)
+    {
+        sum = sum + arr[i]
+        i = i + 1
+    }
+
+    print("Sum:", sum)
+}
+
+void <- testFloatAndBool()
+{
+    var real r = 0.0
+    var bool keepRunning = true
+
+    run (keepRunning)
+    {
+        r = r + 0.5
+        print(r)
+
+        keepRunning = r < 1.5
+    }
+}
+
+void <- testNestedLoops()
+{
+    var int x = 0
+    run (x < 2)
+    {
+        var int y = 0
+        run (y < 2)
+        {
+            print(x * 10 + y)
+            y = y + 1
+        }
+        x = x + 1
+    }
+}
+
+void <- testInfiniteLoop()
+{
+    run (true)
+    {
+    }
+}
+
+void <- main()
+{
+    testBasicRun()
+    testDoWhile()
+    testArrayIteration()
+    testFloatAndBool()
+    testNestedLoops()
+    testInfiniteLoop()
+}

@@ -61,7 +61,8 @@ enum Status
 val Status currentTask = Status.PROCESSING
 
 # Ветка else здесь не нужна, компилятор гарантирует покрытие всех полей
-when (currentTask) {
+when (currentTask) 
+{
     Status.NEW -> print("Задача только создана")
     Status.PROCESSING -> print("Задача в процессе выполнения...")
     Status.DONE -> print("Задача успешно завершена")

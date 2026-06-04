@@ -394,13 +394,17 @@ void SemanticAnalyzer::Visit(const ArrayAllocExpr& node)
 
 void SemanticAnalyzer::Visit(const IndexExpr& node)
 {
+	const auto savedExpected = m_expectedType;
+	m_expectedType = nullptr;
+
 	node.GetReceiver().Accept(*this);
 	node.GetIndex().Accept(*this);
+
+	m_expectedType = savedExpected;
 
 	auto receiverType = node.GetReceiver().GetResolvedType();
 	AssertIsIndexableType(receiverType, node.GetRange());
 	AssertIsIntegerType(node.GetIndex().GetResolvedType(), "Индекс должен быть целым числом", node.GetIndex().GetRange());
-
 	if (const auto* arrayType = dynamic_cast<const ArrayTypeInfo*>(receiverType.get()))
 	{
 		const_cast<IndexExpr&>(node).SetResolvedType(arrayType->GetElementType());
@@ -749,7 +753,7 @@ void SemanticAnalyzer::Visit(const UnaryExpr& node)
 
 void SemanticAnalyzer::Visit(const FunctionCallExpr& node)
 {
-	if (node.GetName() == "print")
+	if (node.GetName() == "print" || node.GetName() == "println")
 	{
 		for (const auto& arg : node.GetArgs())
 		{

@@ -133,6 +133,48 @@ std::string ParseType(const CstNode& typeNode)
 	return child.value;
 }
 
+std::string ProcessEscapeSequences(const std::string& input)
+{
+	std::string result;
+	result.reserve(input.size());
+
+	for (size_t i = 0; i < input.size(); ++i)
+	{
+		if (input[i] == '\\' && i + 1 < input.size())
+		{
+			const char next = input[++i];
+			switch (next)
+			{
+			case 'n':
+				result += '\n';
+				break;
+			case 't':
+				result += '\t';
+				break;
+			case 'r':
+				result += '\r';
+				break;
+			case '\\':
+				result += '\\';
+				break;
+			case '"':
+				result += '"';
+				break;
+			default:
+				result += '\\';
+				result += next;
+				break;
+			}
+		}
+		else
+		{
+			result += input[i];
+		}
+	}
+
+	return result;
+}
+
 void CollectArgList(const CstNode& node, std::vector<std::unique_ptr<Expr>>& args);
 std::unique_ptr<Expr> ConvertPostfixExpr(const CstNode& node);
 std::unique_ptr<Expr> ConvertUnaryExpr(const CstNode& node);
@@ -164,7 +206,7 @@ std::unique_ptr<Expr> ConvertPrimaryExpr(const CstNode& node)
 	}
 	if (child.label == "str")
 	{
-		return std::make_unique<StringExpr>(child.value, range);
+		return std::make_unique<StringExpr>(ProcessEscapeSequences(child.value), range);
 	}
 	if (child.label == "true")
 	{
@@ -372,8 +414,7 @@ std::unique_ptr<Stmt> ConvertWhenStmt(const CstNode& node)
 		std::move(subject),
 		std::move(entries),
 		std::move(elseBody),
-		ExtractRange(node)
-	);
+		ExtractRange(node));
 }
 
 std::unique_ptr<Stmt> ConvertVarDecl(const CstNode& node)

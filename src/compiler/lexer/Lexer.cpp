@@ -228,8 +228,20 @@ Token ParseString(LexerState& state)
 	Advance(state);
 	const size_t contentStart = state.pos;
 
-	while (!IsAtEnd(state) && Peek(state) != '"')
+	while (!IsAtEnd(state))
 	{
+		if (Peek(state) == '\\' && PeekNext(state) != '\0')
+		{
+			Advance(state);
+			Advance(state);
+			continue;
+		}
+
+		if (Peek(state) == '"')
+		{
+			break;
+		}
+
 		if (Peek(state) == '\n')
 		{
 			state.line++;

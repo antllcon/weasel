@@ -4,8 +4,8 @@
 #include "src/compiler/lexer/Lexer.h"
 #include "src/compiler/lexer/visualizer/LexerVisualizer.h"
 #include "src/compiler/reader/SourceLoader.h"
-#include "src/compiler/sema/SemanticAnalyzer.h"
-#include "src/compiler/sema/SymbolTableVisualizer.h"
+#include "src/compiler/semantic/SemanticAnalyzer.h"
+#include "src/compiler/semantic/SymbolTableVisualizer.h"
 #include "src/diagnostics/CompilationException.h"
 #include "src/grammar/cst/CstVisualizer.h"
 #include "src/grammar/lalr/LalrParser.h"
@@ -110,6 +110,7 @@ std::optional<FrontendResult> Run(const std::filesystem::path& sourceFile, const
 
 	return FrontendResult{
 		std::move(astRoot),
+		std::move(semaResult.annotations),
 		std::move(semaResult.symbols),
 		std::move(semaResult.varDeclSlots),
 		std::move(semaResult.repIterators),

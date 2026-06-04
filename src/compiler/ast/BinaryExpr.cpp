@@ -5,10 +5,6 @@ BinaryExpr::BinaryExpr(BinaryOpKind op, std::unique_ptr<Expr> left, std::unique_
 	, m_left(std::move(left))
 	, m_right(std::move(right))
 {
-	if (m_left->IsPoisoned() || m_right->IsPoisoned())
-	{
-		MarkPoisoned();
-	}
 }
 
 void BinaryExpr::Accept(IAstVisitor& visitor) const
@@ -25,10 +21,12 @@ BinaryOpKind BinaryExpr::GetOp() const
 {
 	return m_op;
 }
+
 const Expr& BinaryExpr::GetLeft() const
 {
 	return *m_left;
 }
+
 const Expr& BinaryExpr::GetRight() const
 {
 	return *m_right;

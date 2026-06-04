@@ -305,6 +305,7 @@ SemanticAnalyzer::SemaResult SemanticAnalyzer::Analyze(const AstNode& root, Diag
 	CollectFunctions(root);
 	root.Accept(*this);
 	return SemaResult{
+		std::move(m_annotations),
 		std::move(m_resolvedSymbols),
 		std::move(m_varDeclSlots),
 		std::move(m_resolvedIterators),
@@ -386,10 +387,10 @@ std::shared_ptr<TypeInfo> SemanticAnalyzer::ParseTypeString(const std::string& t
 void SemanticAnalyzer::Visit(const ArrayAllocExpr& node)
 {
 	node.GetSize().Accept(*this);
-	AssertIsIntegerType(node.GetSize().GetResolvedType(), "Размер массива должен быть целым числом", node.GetSize().GetRange());
+	AssertIsIntegerType(GetType(node.GetSize()), "Размер массива должен быть целым числом", node.GetSize().GetRange());
 
 	auto elementType = ParseTypeString(node.GetElementTypeName());
-	const_cast<ArrayAllocExpr&>(node).SetResolvedType(std::make_shared<ArrayTypeInfo>(elementType));
+	SetType(node, std::make_shared<ArrayTypeInfo>(elementType));
 }
 
 void SemanticAnalyzer::Visit(const IndexExpr& node)
@@ -402,12 +403,12 @@ void SemanticAnalyzer::Visit(const IndexExpr& node)
 
 	m_expectedType = savedExpected;
 
-	auto receiverType = node.GetReceiver().GetResolvedType();
+	auto receiverType = GetType(node.GetReceiver());
 	AssertIsIndexableType(receiverType, node.GetRange());
-	AssertIsIntegerType(node.GetIndex().GetResolvedType(), "Индекс должен быть целым числом", node.GetIndex().GetRange());
+	AssertIsIntegerType(GetType(node.GetIndex()), "Индекс должен быть целым числом", node.GetIndex().GetRange());
 	if (const auto* arrayType = dynamic_cast<const ArrayTypeInfo*>(receiverType.get()))
 	{
-		const_cast<IndexExpr&>(node).SetResolvedType(arrayType->GetElementType());
+		SetType(node, arrayType->GetElementType());
 	}
 }
 
@@ -423,7 +424,7 @@ void SemanticAnalyzer::Visit(const MemberAccessExpr& node)
 			auto it = std::ranges::find(fields, node.GetField());
 			if (it != fields.end())
 			{
-				const_cast<MemberAccessExpr&>(node).SetResolvedType(enumType);
+				SetType(node, enumType);
 				return;
 			}
 
@@ -437,13 +438,12 @@ void SemanticAnalyzer::Visit(const MemberAccessExpr& node)
 	}
 
 	node.GetReceiver().Accept(*this);
-	auto receiverType = node.GetReceiver().GetResolvedType();
+	auto receiverType = GetType(node.GetReceiver());
 
-	// TODO: это не должно быть нативной функцией?
 	const bool isArray = dynamic_cast<const ArrayTypeInfo*>(receiverType.get()) != nullptr;
 	if (isArray && node.GetField() == "size")
 	{
-		const_cast<MemberAccessExpr&>(node).SetResolvedType(ScalarTypeInfo::Make(BaseType::Uint));
+		SetType(node, ScalarTypeInfo::Make(BaseType::Uint));
 		return;
 	}
 
@@ -515,7 +515,7 @@ void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 		node.GetInit()->Accept(*this);
 		m_expectedType = savedExpected;
 
-		AssertIsExactTypeMatch(type, node.GetInit()->GetResolvedType(), node.GetRange());
+		AssertIsExactTypeMatch(type, GetType(*node.GetInit()), node.GetRange());
 	}
 
 	const bool isConst = node.GetModifier() == VarModifier::Def;
@@ -546,7 +546,7 @@ void SemanticAnalyzer::Visit(const AssignStmt& node)
 	node.GetLhs().Accept(*this);
 
 	const auto savedExpected = m_expectedType;
-	m_expectedType = node.GetLhs().GetResolvedType();
+	m_expectedType = GetType(node.GetLhs());
 	node.GetRhs().Accept(*this);
 	m_expectedType = savedExpected;
 
@@ -561,8 +561,8 @@ void SemanticAnalyzer::Visit(const AssignStmt& node)
 	}
 
 	AssertIsExactTypeMatch(
-		node.GetLhs().GetResolvedType(),
-		node.GetRhs().GetResolvedType(),
+		GetType(node.GetLhs()),
+		GetType(node.GetRhs()),
 		node.GetRange());
 }
 
@@ -570,7 +570,7 @@ void SemanticAnalyzer::Visit(const IfStmt& node)
 {
 	node.GetCondition().Accept(*this);
 	AssertIsBool(
-		node.GetCondition().GetResolvedType(),
+		GetType(node.GetCondition()),
 		node.GetCondition().GetRange().start.line,
 		node.GetCondition().GetRange().start.pos);
 
@@ -610,14 +610,14 @@ void SemanticAnalyzer::Visit(const RepStmt& node)
 		m_expectedType = nullptr;
 		ranges[endIdx]->Accept(*this);
 
-		auto iterType = ranges[endIdx]->GetResolvedType();
+		auto iterType = GetType(*ranges[endIdx]);
 		AssertIsIntegerType(iterType, "Граница цикла должна быть целочисленного типа", ranges[endIdx]->GetRange());
 
 		m_expectedType = iterType;
 		ranges[startIdx]->Accept(*this);
 		m_expectedType = savedExpected;
 
-		AssertIsExactTypeMatch(iterType, ranges[startIdx]->GetResolvedType(), ranges[startIdx]->GetRange());
+		AssertIsExactTypeMatch(iterType, GetType(*ranges[startIdx]), ranges[startIdx]->GetRange());
 
 		const uint32_t slot = m_nextSlot++;
 		m_maxSlot = std::max(m_maxSlot, m_nextSlot);
@@ -640,7 +640,7 @@ void SemanticAnalyzer::Visit(const RunStmt& node)
 {
 	node.GetCondition().Accept(*this);
 	AssertIsBool(
-		node.GetCondition().GetResolvedType(),
+		GetType(node.GetCondition()),
 		node.GetCondition().GetRange().start.line,
 		node.GetCondition().GetRange().start.pos);
 	node.GetBody().Accept(*this);
@@ -651,7 +651,7 @@ void SemanticAnalyzer::Visit(const DoWhileStmt& node)
 	node.GetBody().Accept(*this);
 	node.GetCondition().Accept(*this);
 	AssertIsBool(
-		node.GetCondition().GetResolvedType(),
+		GetType(node.GetCondition()),
 		node.GetCondition().GetRange().start.line,
 		node.GetCondition().GetRange().start.pos);
 }
@@ -668,7 +668,7 @@ void SemanticAnalyzer::Visit(const ReturnStmt& node)
 	node.GetValue()->Accept(*this);
 	m_expectedType = savedExpected;
 
-	AssertIsExactTypeMatch(m_currentReturnType, node.GetValue()->GetResolvedType(), node.GetRange());
+	AssertIsExactTypeMatch(m_currentReturnType, GetType(node), node.GetRange());
 }
 
 void SemanticAnalyzer::Visit(const ExprStmt& node)
@@ -688,7 +688,7 @@ void SemanticAnalyzer::Visit(const IdentifierExpr& node)
 			.pos = node.GetRange().start.pos});
 		return;
 	}
-	const_cast<IdentifierExpr&>(node).SetResolvedType(result->type);
+	SetType(node, result->type);
 	m_resolvedSymbols[&node] = *result;
 }
 
@@ -698,10 +698,10 @@ void SemanticAnalyzer::Visit(const BinaryExpr& node)
 
 	m_expectedType = nullptr;
 	node.GetLeft().Accept(*this);
-	auto leftType = node.GetLeft().GetResolvedType();
+	auto leftType = GetType(node.GetLeft());
 
 	node.GetRight().Accept(*this);
-	auto rightType = node.GetRight().GetResolvedType();
+	auto rightType = GetType(node.GetRight());
 
 	std::shared_ptr<TypeInfo> anchorType = nullptr;
 
@@ -716,19 +716,23 @@ void SemanticAnalyzer::Visit(const BinaryExpr& node)
 		const bool isRightStrict = dynamic_cast<const IdentifierExpr*>(&node.GetRight()) != nullptr || dynamic_cast<const MemberAccessExpr*>(&node.GetRight()) != nullptr || dynamic_cast<const IndexExpr*>(&node.GetRight()) != nullptr;
 
 		if (isLeftStrict && !isRightStrict)
+		{
 			anchorType = leftType;
+		}
 		else if (isRightStrict && !isLeftStrict)
+		{
 			anchorType = rightType;
+		}
 	}
 
 	if (anchorType != nullptr)
 	{
 		m_expectedType = anchorType;
 		node.GetLeft().Accept(*this);
-		leftType = node.GetLeft().GetResolvedType();
+		leftType = GetType(node.GetLeft());
 
 		node.GetRight().Accept(*this);
-		rightType = node.GetRight().GetResolvedType();
+		rightType = GetType(node.GetRight());
 	}
 
 	m_expectedType = savedExpected;
@@ -737,18 +741,18 @@ void SemanticAnalyzer::Visit(const BinaryExpr& node)
 
 	if (IsComparisonOp(node.GetOp()) || IsLogicalOp(node.GetOp()))
 	{
-		const_cast<BinaryExpr&>(node).SetResolvedType(ScalarTypeInfo::Make(BaseType::Bool));
+		SetType(node, ScalarTypeInfo::Make(BaseType::Bool));
 	}
 	else
 	{
-		const_cast<BinaryExpr&>(node).SetResolvedType(leftType);
+		SetType(node, leftType);
 	}
 }
 
 void SemanticAnalyzer::Visit(const UnaryExpr& node)
 {
 	node.GetOperand().Accept(*this);
-	const_cast<UnaryExpr&>(node).SetResolvedType(node.GetOperand().GetResolvedType());
+	SetType(node, GetType(node.GetOperand()));
 }
 
 void SemanticAnalyzer::Visit(const FunctionCallExpr& node)
@@ -759,7 +763,8 @@ void SemanticAnalyzer::Visit(const FunctionCallExpr& node)
 		{
 			arg->Accept(*this);
 		}
-		const_cast<FunctionCallExpr&>(node).SetResolvedType(ScalarTypeInfo::Make(BaseType::Void));
+
+		SetType(node, ScalarTypeInfo::Make(BaseType::Void));
 		return;
 	}
 
@@ -769,8 +774,7 @@ void SemanticAnalyzer::Visit(const FunctionCallExpr& node)
 		m_expectedType = nullptr;
 		node.GetArgs()[0]->Accept(*this);
 		m_expectedType = savedExpected;
-		auto targetType = ParseTypeString(node.GetName());
-		const_cast<FunctionCallExpr&>(node).SetResolvedType(targetType);
+		SetType(node, ParseTypeString(node.GetName()));
 		return;
 	}
 
@@ -795,11 +799,11 @@ void SemanticAnalyzer::Visit(const FunctionCallExpr& node)
 
 		AssertIsExactTypeMatch(
 			fn.params[i].second,
-			node.GetArgs()[i]->GetResolvedType(),
+			GetType(*node.GetArgs()[i]),
 			node.GetArgs()[i]->GetRange());
 	}
 
-	const_cast<FunctionCallExpr&>(node).SetResolvedType(fn.returnType);
+	SetType(node, fn.returnType);
 }
 
 void SemanticAnalyzer::Visit(const NumExpr& node)
@@ -813,7 +817,7 @@ void SemanticAnalyzer::Visit(const NumExpr& node)
 				const bool isInBounds = CheckIntegerBounds(node.GetValue(), scalar->GetBaseType());
 				AssertIsLiteralInBounds(isInBounds, node.GetValue(), scalar->GetName(), node.GetRange());
 
-				const_cast<NumExpr&>(node).SetResolvedType(m_expectedType);
+				SetType(node, m_expectedType);
 				return;
 			}
 
@@ -822,7 +826,7 @@ void SemanticAnalyzer::Visit(const NumExpr& node)
 				const bool isInBounds = CheckFloatBounds(node.GetValue());
 				AssertIsLiteralInBounds(isInBounds, node.GetValue(), scalar->GetName(), node.GetRange());
 
-				const_cast<NumExpr&>(node).SetResolvedType(m_expectedType);
+				SetType(node, m_expectedType);
 				return;
 			}
 		}
@@ -830,19 +834,19 @@ void SemanticAnalyzer::Visit(const NumExpr& node)
 
 	const auto base = node.IsFloat() ? BaseType::Real : BaseType::Int;
 	auto type = ScalarTypeInfo::Make(base);
-	const_cast<NumExpr&>(node).SetResolvedType(type);
+	SetType(node, type);
 }
 
 void SemanticAnalyzer::Visit(const StringExpr& node)
 {
 	auto type = ScalarTypeInfo::Make(BaseType::String);
-	const_cast<StringExpr&>(node).SetResolvedType(type);
+	SetType(node, type);
 }
 
 void SemanticAnalyzer::Visit(const BoolExpr& node)
 {
 	auto type = ScalarTypeInfo::Make(BaseType::Bool);
-	const_cast<BoolExpr&>(node).SetResolvedType(type);
+	SetType(node, type);
 }
 
 void SemanticAnalyzer::Visit(const ArrayLiteralExpr& node)
@@ -852,17 +856,17 @@ void SemanticAnalyzer::Visit(const ArrayLiteralExpr& node)
 	if (elements.empty())
 	{
 		AssertIsArrayTypeKnown(m_expectedType != nullptr, node.GetRange());
-		const_cast<ArrayLiteralExpr&>(node).SetResolvedType(m_expectedType);
+		SetType(node, m_expectedType);
 		return;
 	}
 
 	elements[0]->Accept(*this);
-	auto elementType = elements[0]->GetResolvedType();
+	auto elementType = GetType(*elements[0]);
 
 	for (size_t i = 1; i < elements.size(); ++i)
 	{
 		elements[i]->Accept(*this);
-		auto currentType = elements[i]->GetResolvedType();
+		auto currentType = GetType(*elements[i]);
 
 		AssertIsArrayElementTypesMatch(
 			elementType->GetName() == currentType->GetName(),
@@ -872,7 +876,7 @@ void SemanticAnalyzer::Visit(const ArrayLiteralExpr& node)
 	}
 
 	auto arrayType = std::make_shared<ArrayTypeInfo>(elementType);
-	const_cast<ArrayLiteralExpr&>(node).SetResolvedType(arrayType);
+	SetType(node, arrayType);
 }
 
 void SemanticAnalyzer::Visit(const StructDeclStmt& /*node*/)
@@ -889,62 +893,73 @@ void SemanticAnalyzer::Visit(const EnumDeclStmt& /*node*/)
 
 void SemanticAnalyzer::Visit(const WhenStmt& node)
 {
-    std::shared_ptr<TypeInfo> subjectType = nullptr;
-    std::shared_ptr<EnumTypeInfo> enumType = nullptr;
+	std::shared_ptr<TypeInfo> subjectType = nullptr;
+	std::shared_ptr<EnumTypeInfo> enumType = nullptr;
 
-    if (node.GetSubject())
-    {
-        node.GetSubject()->Accept(*this);
-        subjectType = node.GetSubject()->GetResolvedType();
-        enumType = std::dynamic_pointer_cast<EnumTypeInfo>(subjectType);
-    }
+	if (node.GetSubject())
+	{
+		node.GetSubject()->Accept(*this);
+		subjectType = GetType(*node.GetSubject());
+		enumType = std::dynamic_pointer_cast<EnumTypeInfo>(subjectType);
+	}
 
-    std::unordered_set<std::string> coveredFields;
+	std::unordered_set<std::string> coveredFields;
 
-    for (const auto& entry : node.GetEntries())
-    {
-        for (const auto& cond : entry.conditions)
-        {
-            const auto savedExpected = m_expectedType;
-            m_expectedType = subjectType ? subjectType : ScalarTypeInfo::Make(BaseType::Bool);
+	for (const auto& entry : node.GetEntries())
+	{
+		for (const auto& cond : entry.conditions)
+		{
+			const auto savedExpected = m_expectedType;
+			m_expectedType = subjectType ? subjectType : ScalarTypeInfo::Make(BaseType::Bool);
 
-            cond->Accept(*this);
+			cond->Accept(*this);
 
-            m_expectedType = savedExpected;
+			m_expectedType = savedExpected;
 
-            AssertIsExactTypeMatch(
-                subjectType ? subjectType : ScalarTypeInfo::Make(BaseType::Bool),
-                cond->GetResolvedType(),
-                cond->GetRange());
+			AssertIsExactTypeMatch(
+				subjectType ? subjectType : ScalarTypeInfo::Make(BaseType::Bool),
+				GetType(*cond),
+				cond->GetRange());
 
-            if (enumType)
-            {
-                if (const auto* memberAccess = dynamic_cast<const MemberAccessExpr*>(cond.get()))
-                {
-                    coveredFields.insert(memberAccess->GetField());
-                }
-            }
-        }
+			if (enumType)
+			{
+				if (const auto* memberAccess = dynamic_cast<const MemberAccessExpr*>(cond.get()))
+				{
+					coveredFields.insert(memberAccess->GetField());
+				}
+			}
+		}
 
-        entry.body->Accept(*this);
-    }
+		entry.body->Accept(*this);
+	}
 
-    if (node.GetElseBody())
-    {
-        node.GetElseBody()->Accept(*this);
-    }
-    else if (enumType)
-    {
-        for (const auto& field : enumType->GetFields())
-        {
-            if (!coveredFields.contains(field))
-            {
-                m_engine->Report(DiagnosticData{
-                    .phase = CompilerPhase::Semantic,
-                    .message = "Пропущена ветка для поля '" + field + "' перечисления '" + enumType->GetName() + "'. Добавьте её или ветку else.",
-                    .line = node.GetRange().start.line,
-                    .pos = node.GetRange().start.pos});
-            }
-        }
-    }
+	if (node.GetElseBody())
+	{
+		node.GetElseBody()->Accept(*this);
+	}
+	else if (enumType)
+	{
+		for (const auto& field : enumType->GetFields())
+		{
+			if (!coveredFields.contains(field))
+			{
+				m_engine->Report(DiagnosticData{
+					.phase = CompilerPhase::Semantic,
+					.message = "Пропущена ветка для поля '" + field + "' перечисления '" + enumType->GetName() + "'. Добавьте её или ветку else.",
+					.line = node.GetRange().start.line,
+					.pos = node.GetRange().start.pos});
+			}
+		}
+	}
+}
+
+std::shared_ptr<TypeInfo> SemanticAnalyzer::GetType(const AstNode& node) const
+{
+	auto it = m_annotations.resolvedTypes.find(&node);
+	return it != m_annotations.resolvedTypes.end() ? it->second : nullptr;
+}
+
+void SemanticAnalyzer::SetType(const AstNode& node, std::shared_ptr<TypeInfo> type)
+{
+	m_annotations.resolvedTypes[&node] = std::move(type);
 }

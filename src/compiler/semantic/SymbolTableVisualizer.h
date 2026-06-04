@@ -1,7 +1,7 @@
 #pragma once
 
 #include "src/compiler/ast/AstNode.h"
-#include "src/compiler/sema/SymbolTable.h"
+#include "src/compiler/semantic/SymbolTable.h"
 #include <unordered_map>
 
 class SymbolTableVisualizer

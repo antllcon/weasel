@@ -21,16 +21,6 @@ SourceRange RepStmt::GetRange() const
 	return m_range;
 }
 
-void RepStmt::SetLoweredBody(std::unique_ptr<Stmt> lowered)
-{
-	m_loweredBody = std::move(lowered);
-}
-
-Stmt* RepStmt::GetLoweredBody() const
-{
-	return m_loweredBody.get();
-}
-
 const std::vector<std::string>& RepStmt::GetIterators() const
 {
 	return m_iterators;

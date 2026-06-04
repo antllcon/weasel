@@ -1,8 +1,8 @@
 #pragma once
 #include "src/compiler/ast/AstNode.h"
 #include "src/compiler/ast/IAstVisitor.h"
-#include "src/compiler/sema/SemanticAnalyzer.h"
-#include "src/compiler/sema/SymbolTable.h"
+#include "src/compiler/semantic/SemanticAnalyzer.h"
+#include "src/compiler/semantic/SymbolTable.h"
 #include "src/compiler/vm/chunk/Chunk.h"
 #include <cstdint>
 #include <string>
@@ -13,6 +13,7 @@ class CodeGenerator final : public IAstVisitor
 {
 public:
 	explicit CodeGenerator(
+		AstAnnotations annotations,
 		std::unordered_map<const AstNode*, SymbolInfo> symbols,
 		std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators,
 		std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions);
@@ -54,9 +55,11 @@ private:
 		SourceRange range;
 	};
 
+	std::shared_ptr<TypeInfo> GetType(const AstNode& node) const;
 	void EmitLogicalNot();
 	void EmitConstant(Value value);
 
+	AstAnnotations m_annotations;
 	std::unordered_map<const AstNode*, SymbolInfo> m_symbols;
 	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> m_repIterators;
 	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> m_functions;

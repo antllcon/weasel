@@ -14,18 +14,15 @@ void <- sort()
                         data[j] = data[j + 1]
                         data[j + 1] = temp
                     }
-                    else -> {
-                        print("Уже отсортировано")
-                    }
                 }
             }
         }
 
-    print("Sorted array:")
+    println("Sorted array:")
 
     rep (k in 0 .. arraySize)
     {
-        print(data[k])
+        print(data[k], "")
     }
 }
 

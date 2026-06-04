@@ -1,8 +1,8 @@
 #pragma once
 #include "src/compiler/ast/AstNode.h"
 #include "src/compiler/ast/IAstVisitor.h"
-#include "src/compiler/sema/SemanticAnalyzer.h"
-#include "src/compiler/sema/SymbolTable.h"
+#include "src/compiler/semantic/SemanticAnalyzer.h"
+#include "src/compiler/semantic/SymbolTable.h"
 #include <cstdint>
 #include <sstream>
 #include <string>
@@ -13,6 +13,7 @@ class NasmCodeGenerator final : public IAstVisitor
 {
 public:
 	explicit NasmCodeGenerator(
+	AstAnnotations annotations,
 		std::unordered_map<const AstNode*, SymbolInfo> symbols,
 		std::unordered_map<const AstNode*, uint32_t> varDeclSlots,
 		std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators,
@@ -62,6 +63,7 @@ private:
 	std::ostringstream m_out;
 	uint32_t m_labelCounter = 0;
 
+	AstAnnotations m_annotations;
 	std::unordered_map<const AstNode*, SymbolInfo> m_symbols;
 	std::unordered_map<const AstNode*, uint32_t> m_varDeclSlots;
 	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> m_repIterators;

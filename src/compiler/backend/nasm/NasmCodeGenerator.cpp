@@ -5,24 +5,17 @@
 #include "src/compiler/ast/BinaryExpr.h"
 #include "src/compiler/ast/BlockStmt.h"
 #include "src/compiler/ast/BoolExpr.h"
-#include "src/compiler/ast/DoWhileStmt.h"
-#include "src/compiler/ast/EnumDeclStmt.h"
 #include "src/compiler/ast/ExprStmt.h"
 #include "src/compiler/ast/FunctionCallExpr.h"
 #include "src/compiler/ast/FunctionDeclStmt.h"
 #include "src/compiler/ast/IdentifierExpr.h"
 #include "src/compiler/ast/IfStmt.h"
-#include "src/compiler/ast/IndexExpr.h"
-#include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
-#include "src/compiler/ast/StringExpr.h"
-#include "src/compiler/ast/StructDeclStmt.h"
 #include "src/compiler/ast/UnaryExpr.h"
-#include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
 
 #include <stdexcept>
@@ -39,11 +32,13 @@ uint32_t AlignTo16(uint32_t size)
 } // namespace
 
 NasmCodeGenerator::NasmCodeGenerator(
+	AstAnnotations annotations,
 	std::unordered_map<const AstNode*, SymbolInfo> symbols,
 	std::unordered_map<const AstNode*, uint32_t> varDeclSlots,
 	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators,
 	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions)
-	: m_symbols(std::move(symbols))
+	: m_annotations(annotations)
+	, m_symbols(std::move(symbols))
 	, m_varDeclSlots(std::move(varDeclSlots))
 	, m_repIterators(std::move(repIterators))
 	, m_functions(std::move(functions))

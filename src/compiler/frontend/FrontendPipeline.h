@@ -1,8 +1,8 @@
 #pragma once
 
 #include "src/compiler/ast/AstNode.h"
-#include "src/compiler/sema/SemanticAnalyzer.h"
-#include "src/compiler/sema/SymbolTable.h"
+#include "src/compiler/semantic/SemanticAnalyzer.h"
+#include "src/compiler/semantic/SymbolTable.h"
 #include "src/diagnostics/DiagnosticEngine.h"
 #include "src/grammar/context/LanguageContext.h"
 
@@ -18,6 +18,7 @@ namespace FrontendPipeline
 struct FrontendResult
 {
 	std::unique_ptr<AstNode> ast;
+	AstAnnotations annotations;
 	std::unordered_map<const AstNode*, SymbolInfo> symbols;
 	std::unordered_map<const AstNode*, uint32_t> varDeclSlots;
 	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators;

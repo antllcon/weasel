@@ -24,7 +24,7 @@
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/VarDeclStmt.h"
 #include "src/compiler/ast/WhenStmt.h"
-#include "src/compiler/sema/SymbolTable.h"
+#include "src/compiler/semantic/SymbolTable.h"
 #include "src/compiler/stdlib/NativeRegistry.h"
 #include "src/compiler/vm/value/Value.h"
 #include "src/diagnostics/CompilationException.h"
@@ -34,6 +34,15 @@
 
 namespace
 {
+
+void AssertIsTypeResolved(bool found)
+{
+	if (!found)
+	{
+		throw std::runtime_error("Тип узла не найден в аннотациях семантического анализа");
+	}
+}
+
 void AssertIsIdentifierResolved(bool found, const std::string& name, const SourceRange& range)
 {
 	if (!found)
@@ -169,10 +178,12 @@ std::string ExtractBaseTypeName(const TypeInfo* typeInfo)
 } // namespace
 
 CodeGenerator::CodeGenerator(
+	AstAnnotations annotations,
 	std::unordered_map<const AstNode*, SymbolInfo> symbols,
 	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators,
 	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions)
-	: m_symbols(std::move(symbols))
+	: m_annotations(std::move(annotations))
+	, m_symbols(std::move(symbols))
 	, m_repIterators(std::move(repIterators))
 	, m_functions(std::move(functions))
 {
@@ -266,7 +277,7 @@ void CodeGenerator::Visit(const BinaryExpr& node)
 		node.GetRight().Accept(*this);
 	}
 
-	const auto opCode = GetBinaryOpCode(op, node.GetLeft().GetResolvedType().get());
+	const auto opCode = GetBinaryOpCode(op, GetType(node.GetLeft()).get());
 	m_chunk.WriteOpCode(opCode, m_currentLine);
 
 	if (op == BinaryOpKind::NotEq || op == BinaryOpKind::LessEq || op == BinaryOpKind::GreaterEq)
@@ -286,7 +297,7 @@ void CodeGenerator::Visit(const UnaryExpr& node)
 
 	if (node.GetOp() == UnaryOpKind::Minus)
 	{
-		const auto type = node.GetOperand().GetResolvedType();
+		const auto type = GetType(node.GetOperand());
 		const auto* scalar = dynamic_cast<const ScalarTypeInfo*>(type.get());
 
 		if (scalar && scalar->GetBaseType() == BaseType::Real)
@@ -324,7 +335,7 @@ void CodeGenerator::Visit(const IdentifierExpr& node)
 }
 void CodeGenerator::Visit(const NumExpr& node)
 {
-	const Value val = ParseNumLiteral(node.GetValue(), node.GetResolvedType().get(), node.IsFloat());
+	const Value val = ParseNumLiteral(node.GetValue(), GetType(node).get(), node.IsFloat());
 	EmitConstant(val);
 }
 
@@ -364,7 +375,7 @@ void CodeGenerator::Visit(const FunctionCallExpr& node)
 	{
 		node.GetArgs()[0]->Accept(*this);
 
-		const std::string srcBase = ExtractBaseTypeName(node.GetArgs()[0]->GetResolvedType().get());
+		const std::string srcBase = ExtractBaseTypeName(GetType(*node.GetArgs()[0]).get());
 		const std::string targetBase = node.GetName();
 
 		if (srcBase != targetBase)
@@ -394,7 +405,7 @@ void CodeGenerator::Visit(const FunctionCallExpr& node)
 		{
 			node.GetArgs()[i]->Accept(*this);
 
-			const std::string nativeName = NativeRegistry::ResolvePrintNative(node.GetArgs()[i]->GetResolvedType().get());
+			const std::string nativeName = NativeRegistry::ResolvePrintNative(GetType(*node.GetArgs()[i]).get());
 			if (const auto* native = NativeRegistry::FindByName(nativeName))
 			{
 				EmitNativeCall(m_chunk, native->id, 1, m_currentLine);
@@ -452,7 +463,7 @@ void CodeGenerator::Visit(const IndexExpr& node)
 
 void CodeGenerator::Visit(const MemberAccessExpr& node)
 {
-	if (const auto* enumType = dynamic_cast<const EnumTypeInfo*>(node.GetResolvedType().get()))
+	if (const auto* enumType = dynamic_cast<const EnumTypeInfo*>(GetType(node).get()))
 	{
 		const auto& fields = enumType->GetFields();
 		auto it = std::ranges::find(fields, node.GetField());
@@ -534,8 +545,7 @@ void CodeGenerator::Visit(const RepStmt& node)
 	m_chunk.WriteUint32(iterSlot, m_currentLine);
 
 	node.GetRanges()[1]->Accept(*this);
-
-	const auto iterType = node.GetRanges()[0]->GetResolvedType();
+	const auto iterType = GetType(*node.GetRanges()[0]);
 	m_chunk.WriteOpCode(GetBinaryOpCode(BinaryOpKind::Less, iterType.get()), m_currentLine);
 
 	m_chunk.WriteOpCode(OpCode::JumpIfFalse, m_currentLine);
@@ -688,7 +698,7 @@ void CodeGenerator::Visit(const WhenStmt& node)
 			{
 				m_chunk.WriteOpCode(OpCode::Dup, m_currentLine);
 				entry.conditions[i]->Accept(*this);
-				const auto opCode = GetBinaryOpCode(BinaryOpKind::Eq, node.GetSubject()->GetResolvedType().get());
+				const auto opCode = GetBinaryOpCode(BinaryOpKind::Eq, GetType(node).get());
 				m_chunk.WriteOpCode(opCode, m_currentLine);
 			}
 			else
@@ -750,6 +760,13 @@ void CodeGenerator::Visit(const WhenStmt& node)
 	{
 		m_chunk.PatchUint32(jump, currentSize);
 	}
+}
+
+std::shared_ptr<TypeInfo> CodeGenerator::GetType(const AstNode& node) const
+{
+	auto it = m_annotations.resolvedTypes.find(&node);
+	AssertIsTypeResolved(it != m_annotations.resolvedTypes.end());
+	return it->second;
 }
 
 void CodeGenerator::EmitLogicalNot()

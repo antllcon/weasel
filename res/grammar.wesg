@@ -35,6 +35,7 @@ FuncDecl -> Type <- id ( ) { StmtList }
 ParamList -> ParamList , Param
 ParamList -> Param
 
+Param -> Modifier Type id
 Param -> Type id
 
 StructDecl -> struct id [ FieldList ]

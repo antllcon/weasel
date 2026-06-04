@@ -18,7 +18,7 @@ public:
 	void RestoreSlot(uint32_t slot);
 	[[nodiscard]] uint32_t GetMaxSlots() const;
 
-	bool Declare(const std::string& name, std::shared_ptr<TypeInfo> type, bool isMutable, uint32_t slot, bool isConst = false, const Expr* constExpr = nullptr);
+	bool Declare(const std::string& name, std::shared_ptr<TypeInfo> type, bool isMutable, uint32_t slot, bool isConst = false, const Expr* constExpr = nullptr, bool isConstRef = false);
 	[[nodiscard]] std::optional<SymbolInfo> Resolve(const std::string& name) const;
 
 private:

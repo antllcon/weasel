@@ -1,0 +1,296 @@
+# ============================================================
+# Тесты параметров функций: val, var, без модификатора
+# ============================================================
+#
+# Синтаксис:
+#   Type param          — скаляры: копия (read-only локально)
+#                         ref-типы: const-reference (нельзя менять)
+#   val Type param      — явная константная ссылка / копия
+#   var Type param      — явная mutable-ссылка (изменения видны caller)
+#
+# ============================================================
+
+struct Point
+[
+    var real x
+    var real y
+]
+
+struct Counter
+[
+    var int value
+    var int step
+]
+
+# ============================================================
+# СКАЛЯРЫ — всегда по значению, caller никогда не видит изменений
+# ============================================================
+
+# Без модификатора: копия, локально read-only
+int <- doubleInt(int x)
+{
+    return x * 2
+}
+
+# val: явно — то же самое
+int <- tripleVal(val int x)
+{
+    return x * 3
+}
+
+# var: копия, но можно переприсвоить локально
+int <- clamp(var int x, int lo, int hi)
+{
+    run (x < lo) { x = lo }
+    run (x > hi) { x = hi }
+    return x
+}
+
+void <- testScalars()
+{
+    val int n = 10
+    println(doubleInt(n))       # 20
+    println(tripleVal(n))       # 30
+    println(clamp(25, 0, 20))   # 20
+    println(n)                  # 10 — не изменилось!
+}
+
+# ============================================================
+# МАССИВЫ — val: нельзя менять элементы, var: можно менять (видно caller)
+# ============================================================
+
+# val: const-ref, только чтение
+int <- sumArray(val array[int] nums)
+{
+    var int total = 0
+    repeat (i in 0 .. nums.size)
+    {
+        total = total + nums[i]
+    }
+    return total
+}
+
+int <- maxArray(val array[int] nums)
+{
+    var int m = nums[0]
+    repeat (i in 0 .. nums.size)
+    {
+        when
+        {
+            nums[i] > m -> m = nums[i]
+        }
+    }
+    return m
+}
+
+# var: mutable-ref — изменения видны caller
+void <- fillArray(var array[int] arr, int value)
+{
+    repeat (i in 0 .. arr.size)
+    {
+        arr[i] = value
+    }
+}
+
+void <- reverseArray(var array[int] arr)
+{
+    var uint left = 0
+    var uint right = arr.size - 1
+    run (left < right)
+    {
+        val int tmp = arr[left]
+        arr[left] = arr[right]
+        arr[right] = tmp
+        left = left + 1
+        right = right - 1
+    }
+}
+
+void <- scaleArray(var array[real] arr, real factor)
+{
+    repeat (i in 0 .. arr.size)
+    {
+        arr[i] = arr[i] * factor
+    }
+}
+
+# Без модификатора — то же что var: mutable-ref (обратная совместимость)
+void <- zeroFirst(array[int] arr)
+{
+    arr[0] = 0
+}
+
+void <- testArrays()
+{
+    var array[int] data = [3, 1, 4, 1, 5, 9, 2, 6]
+
+    println(sumArray(data))        # 31
+    println(maxArray(data))        # 9
+
+    fillArray(data, 7)
+    println(data[0])               # 7 — изменилось!
+    println(data[3])               # 7
+
+    var array[int] nums = [1, 2, 3, 4, 5]
+    reverseArray(nums)
+    println(nums[0])               # 5
+    println(nums[4])               # 1
+
+    var array[real] floats = [1.0, 2.0, 3.0]
+    scaleArray(floats, 10.0)
+    println(floats[0])             # 10.0
+    println(floats[2])             # 30.0
+}
+
+# ============================================================
+# СТРУКТУРЫ — без модификатора: копия (caller не видит изменений)
+#              val: const-ref (нельзя менять поля)
+#              var: mutable-ref (изменения видны caller)
+# ============================================================
+
+# Без модификатора: функция получает КОПИЮ Point
+# Любые изменения p.x, p.y не видны caller
+real <- distanceFromOrigin(Point p)
+{
+    return p.x * p.x + p.y * p.y
+}
+
+real <- manhattan(Point a, Point b)
+{
+    val real dx = a.x - b.x
+    val real dy = a.y - b.y
+    run (dx < 0.0) { dx = dx * -1.0 }
+    run (dy < 0.0) { dy = dy * -1.0 }
+    return dx + dy
+}
+
+# val: const-ref — нельзя менять поля, не копирует
+void <- printPoint(val Point p)
+{
+    print("(")
+    print(p.x)
+    print(", ")
+    print(p.y)
+    println(")")
+    # p.x = 99.0   # ОШИБКА: val param — нельзя менять поля
+}
+
+# var: mutable-ref — изменения ВИДНЫ caller
+void <- translatePoint(var Point p, real dx, real dy)
+{
+    p.x = p.x + dx
+    p.y = p.y + dy
+}
+
+void <- normalizePoint(var Point p)
+{
+    val real len = distanceFromOrigin(p)
+    run (len > 0.0)
+    {
+        p.x = p.x / len
+        p.y = p.y / len
+    }
+}
+
+# Без модификатора: Counter передаётся по ЗНАЧЕНИЮ — копия
+# Можно "использовать" как счётчик внутри, не трогая оригинал
+int <- countSteps(Counter c, int target)
+{
+    var int steps = 0
+    run (c.value < target)
+    {
+        c.value = c.value + c.step
+        steps = steps + 1
+    }
+    return steps
+}
+
+# var: мутирует оригинал
+void <- advance(var Counter c)
+{
+    c.value = c.value + c.step
+}
+
+void <- testStructs()
+{
+    var Point origin = Point { x = 0.0, y = 0.0 }
+    var Point p = Point { x = 3.0, y = 4.0 }
+
+    println(distanceFromOrigin(p))     # 25.0 (3*3 + 4*4)
+    println(manhattan(origin, p))      # 7.0
+
+    printPoint(p)                      # (3.0, 4.0)
+
+    translatePoint(p, 1.0, -1.0)
+    printPoint(p)                      # (4.0, 3.0) — изменилось!
+
+    var Counter c = Counter { value = 0, step = 3 }
+    println(countSteps(c, 10))         # 4 (0→3→6→9→12, нужно 4 шага)
+    println(c.value)                   # 0 — не изменилось! передали копию
+
+    advance(c)
+    println(c.value)                   # 3 — изменилось! var param
+}
+
+# ============================================================
+# СМЕШАННЫЕ СЛУЧАИ
+# ============================================================
+
+# Читает val массив, возвращает новый массив — чистая функция
+array[int] <- mapDouble(val array[int] src)
+{
+    var array[int] result = array[int](src.size)
+    repeat (i in 0 .. src.size)
+    {
+        result[i] = src[i] * 2
+    }
+    return result
+}
+
+# Модифицирует массив на месте (var) — in-place операция
+void <- clampArray(var array[int] arr, int lo, int hi)
+{
+    repeat (i in 0 .. arr.size)
+    {
+        when { arr[i] < lo -> arr[i] = lo }
+        when { arr[i] > hi -> arr[i] = hi }
+    }
+}
+
+# Принимает два массива: один читает, другой пишет
+void <- copyArray(val array[int] src, var array[int] dst)
+{
+    repeat (i in 0 .. src.size)
+    {
+        dst[i] = src[i]
+    }
+}
+
+void <- testMixed()
+{
+    val array[int] original = [1, 10, 100, -5, 50]
+
+    val array[int] doubled = mapDouble(original)
+    println(doubled[0])   # 2
+    println(doubled[2])   # 200
+    println(original[0])  # 1 — не тронут
+
+    var array[int] work = [1, 10, 100, -5, 50]
+    clampArray(work, 0, 20)
+    println(work[0])   # 1
+    println(work[1])   # 10
+    println(work[2])   # 20 (был 100, зажат)
+    println(work[3])   # 0  (был -5, зажат)
+
+    var array[int] copy = array[int](5)
+    copyArray(original, copy)
+    println(copy[2])   # 100
+}
+
+void <- main()
+{
+    testScalars()
+    testArrays()
+    testStructs()
+    testMixed()
+}

@@ -1,7 +1,9 @@
 #pragma once
 #include "BlockStmt.h"
 #include "Stmt.h"
+#include "VarDeclStmt.h"
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -9,6 +11,7 @@ struct Param
 {
 	std::string typeName;
 	std::string name;
+	std::optional<VarModifier> modifier;
 };
 
 class FunctionDeclStmt final : public Stmt

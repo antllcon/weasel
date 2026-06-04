@@ -2,18 +2,27 @@
 #include "src/compiler/ast/AstNode.h"
 #include "src/compiler/ast/ClassicForStmt.h"
 #include "src/compiler/ast/TypeInfo.h"
+#include "src/compiler/ast/VarDeclStmt.h"
 #include "src/compiler/semantic/AstAnnotations.h"
 #include "src/compiler/semantic/SymbolTable.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+struct ParamInfo
+{
+	std::string name;
+	std::shared_ptr<TypeInfo> type;
+	std::optional<VarModifier> modifier;
+};
+
 struct FunctionInfo
 {
 	std::shared_ptr<TypeInfo> returnType;
-	std::vector<std::pair<std::string, std::shared_ptr<TypeInfo>>> params;
+	std::vector<ParamInfo> params;
 	uint32_t maxSlots = 0;
 };
 

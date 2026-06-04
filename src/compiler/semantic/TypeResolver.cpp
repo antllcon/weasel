@@ -8,11 +8,32 @@ void TypeResolver::RegisterEnum(const std::string& name, std::shared_ptr<EnumTyp
 	m_enums[name] = std::move(enumType);
 }
 
+void TypeResolver::RegisterStruct(const std::string& name, std::shared_ptr<StructTypeInfo> structType)
+{
+	m_structs[name] = std::move(structType);
+}
+
+std::shared_ptr<StructTypeInfo> TypeResolver::GetStruct(const std::string& name) const
+{
+	const auto it = m_structs.find(name);
+	return it != m_structs.end() ? it->second : nullptr;
+}
+
+bool TypeResolver::IsStruct(const std::string& name) const
+{
+	return m_structs.contains(name);
+}
+
 std::shared_ptr<TypeInfo> TypeResolver::Resolve(const std::string& typeName) const
 {
 	if (m_enums.contains(typeName))
 	{
 		return m_enums.at(typeName);
+	}
+
+	if (m_structs.contains(typeName))
+	{
+		return m_structs.at(typeName);
 	}
 
 	if (typeName.starts_with(LanguageTokens::KwArray) && typeName.find('[') != std::string::npos)

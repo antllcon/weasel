@@ -27,7 +27,10 @@
 #include "src/compiler/ast/ScalarTypeInfo.h"
 #include "src/compiler/ast/StringExpr.h"
 #include "src/compiler/ast/TypeInfo.h"
+#include "src/compiler/ast/StructDeclStmt.h"
+#include "src/compiler/ast/StructTypeInfo.h"
 #include "src/compiler/ast/UnaryExpr.h"
+#include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
 #include "src/compiler/ast/WhenStmt.h"
 #include "src/compiler/core/LanguageTokens.h"
@@ -88,6 +91,28 @@ void AssertIsCompileTimeConstant(const Expr* expr, const SourceRange& range)
 			.line = range.start.line,
 			.pos = range.start.pos});
 	}
+}
+
+void AssertIsNotConstRef(const SymbolInfo& info, const std::string& name, const SourceRange& range)
+{
+	if (info.isConstRef)
+	{
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Нельзя изменить содержимое параметра, объявленного как val: " + name,
+			.line = range.start.line,
+			.pos = range.start.pos});
+	}
+}
+
+bool IsMutableParam(const std::optional<VarModifier>& modifier)
+{
+	return modifier == VarModifier::Var;
+}
+
+bool IsConstRefParam(const std::optional<VarModifier>& modifier)
+{
+	return modifier == VarModifier::Val;
 }
 
 void AssertIsLhsValidForAssignment(bool isValid, const SourceRange& range)
@@ -333,6 +358,14 @@ void SemanticAnalyzer::CollectTypes(const AstNode& root)
 			auto typeInfo = std::make_shared<EnumTypeInfo>(enumDecl->GetName(), enumDecl->GetValues());
 			m_typeResolver.RegisterEnum(enumDecl->GetName(), typeInfo);
 		}
+		else if (const auto* structDecl = dynamic_cast<const StructDeclStmt*>(decl.get()))
+		{
+			m_typeResolver.RegisterStruct(structDecl->GetName(), std::make_shared<StructTypeInfo>(structDecl->GetName(), structDecl->GetFields()));
+		}
+		else if (const auto* unionDecl = dynamic_cast<const UnionDeclStmt*>(decl.get()))
+		{
+			m_typeResolver.RegisterStruct(unionDecl->GetName(), std::make_shared<StructTypeInfo>(unionDecl->GetName(), unionDecl->GetFields()));
+		}
 	}
 }
 
@@ -342,7 +375,10 @@ void SemanticAnalyzer::CollectFunctions(const AstNode& root)
 	{
 		FunctionInfo info;
 		info.returnType = native.returnType;
-		info.params = native.params;
+		for (const auto& [name, type] : native.params)
+		{
+			info.params.push_back(ParamInfo{name, type, std::nullopt});
+		}
 		m_functions[native.name] = std::move(info);
 	}
 
@@ -365,7 +401,7 @@ void SemanticAnalyzer::CollectFunctions(const AstNode& root)
 
 		for (const auto& param : fn->GetParams())
 		{
-			info.params.emplace_back(param.name, m_typeResolver.Resolve(param.typeName));
+			info.params.push_back(ParamInfo{param.name, m_typeResolver.Resolve(param.typeName), param.modifier});
 		}
 
 		m_functions[fn->GetName()] = std::move(info);
@@ -455,7 +491,9 @@ void SemanticAnalyzer::Visit(const FunctionDeclStmt& node)
 	for (const auto& param : node.GetParams())
 	{
 		const uint32_t slot = m_scopeManager.AllocateSlot();
-		m_scopeManager.Declare(param.name, m_typeResolver.Resolve(param.typeName), false, slot);
+		const bool isMutable = IsMutableParam(param.modifier);
+		const bool isConstRef = IsConstRefParam(param.modifier);
+		m_scopeManager.Declare(param.name, m_typeResolver.Resolve(param.typeName), isMutable, slot, false, nullptr, isConstRef);
 	}
 	node.GetBody().Accept(*this);
 	m_scopeManager.LeaveScope();
@@ -542,6 +580,19 @@ void SemanticAnalyzer::Visit(const AssignStmt& node)
 		if (info)
 		{
 			AssertIsMutable(*info, ident.GetName(), ident.GetRange());
+		}
+	}
+
+	if (isIndexExpr)
+	{
+		const auto& indexExpr = static_cast<const IndexExpr&>(node.GetLhs());
+		if (const auto* id = dynamic_cast<const IdentifierExpr*>(&indexExpr.GetReceiver()))
+		{
+			const auto info = m_scopeManager.Resolve(id->GetName());
+			if (info)
+			{
+				AssertIsNotConstRef(*info, id->GetName(), id->GetRange());
+			}
 		}
 	}
 
@@ -838,14 +889,14 @@ void SemanticAnalyzer::Visit(const FunctionCallExpr& node)
 	for (size_t i = 0; i < fn.params.size(); ++i)
 	{
 		const auto savedExpected = m_expectedType;
-		m_expectedType = fn.params[i].second;
+		m_expectedType = fn.params[i].type;
 
 		node.GetArgs()[i]->Accept(*this);
 
 		m_expectedType = savedExpected;
 
 		AssertIsExactTypeMatch(
-			fn.params[i].second,
+			fn.params[i].type,
 			GetType(*node.GetArgs()[i]),
 			node.GetArgs()[i]->GetRange());
 	}

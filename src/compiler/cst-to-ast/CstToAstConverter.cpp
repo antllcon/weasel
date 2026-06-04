@@ -625,9 +625,16 @@ void CollectDecls(const CstNode& node, std::vector<const CstNode*>& decls)
 
 Param ConvertParam(const CstNode& node)
 {
+	if (node.children.size() == 3)
+	{
+		const VarModifier modifier = ParseModifier(*node.children[0]);
+		const std::string typeName = ParseType(*node.children[1]);
+		const std::string name = node.children[2]->value;
+		return Param{typeName, name, modifier};
+	}
 	const std::string typeName = ParseType(*node.children[0]);
 	const std::string name = node.children[1]->value;
-	return Param{typeName, name};
+	return Param{typeName, name, std::nullopt};
 }
 
 void CollectParams(const CstNode& node, std::vector<Param>& params)

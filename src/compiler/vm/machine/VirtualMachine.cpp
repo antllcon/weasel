@@ -409,6 +409,20 @@ void ExecuteAllocateArrayInstruction(ExecutionContext& context)
 	Push(context, Value(reinterpret_cast<uint64_t>(object)));
 }
 
+void ExecuteCopyObjectInstruction(ExecutionContext& context)
+{
+	AssertIsStackNotEmpty(context);
+	const auto* source = reinterpret_cast<const HeapObject*>(context.stack[context.stackTop - 1].AsRaw());
+	const uint32_t fieldCount = source->GetSize();
+	auto* copy = new HeapObject(fieldCount);
+	context.tracker.Track(copy);
+	for (uint32_t i = 0; i < fieldCount; ++i)
+	{
+		copy->SetField(i, source->GetField(i));
+	}
+	context.stack[context.stackTop - 1] = Value(reinterpret_cast<uint64_t>(copy));
+}
+
 void ExecuteLoadElementInstruction(ExecutionContext& context)
 {
 	const uint32_t index = Pop(context).As<uint32_t>();
@@ -724,6 +738,10 @@ void Run(ExecutionContext& context)
 
 		case OpCode::LoadString:
 			ExecuteLoadStringInstruction(context);
+			break;
+
+		case OpCode::CopyObject:
+			ExecuteCopyObjectInstruction(context);
 			break;
 
 		case OpCode::Panic:

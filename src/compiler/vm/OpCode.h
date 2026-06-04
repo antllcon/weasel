@@ -50,5 +50,6 @@ enum class OpCode : uint8_t
 	CallClosure,
 	CallNative,
 	LoadString,
+	CopyObject,
 	Panic
 };

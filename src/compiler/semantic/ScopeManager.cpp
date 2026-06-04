@@ -39,9 +39,9 @@ uint32_t ScopeManager::GetMaxSlots() const
 	return m_maxSlot;
 }
 
-bool ScopeManager::Declare(const std::string& name, std::shared_ptr<TypeInfo> type, bool isMutable, uint32_t slot, bool isConst, const Expr* constExpr)
+bool ScopeManager::Declare(const std::string& name, std::shared_ptr<TypeInfo> type, bool isMutable, uint32_t slot, bool isConst, const Expr* constExpr, bool isConstRef)
 {
-	return m_table.Declare(name, std::move(type), isMutable, slot, isConst, constExpr);
+	return m_table.Declare(name, std::move(type), isMutable, slot, isConst, constExpr, isConstRef);
 }
 
 std::optional<SymbolInfo> ScopeManager::Resolve(const std::string& name) const

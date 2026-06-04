@@ -23,6 +23,7 @@
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
 #include "src/compiler/ast/ScalarTypeInfo.h"
+#include "src/compiler/ast/StructTypeInfo.h"
 #include "src/compiler/ast/StringExpr.h"
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/VarDeclStmt.h"
@@ -202,6 +203,11 @@ std::string ExtractBaseTypeName(const TypeInfo* typeInfo)
 	if (!scalar) return "int";
 	return scalar->GetName();
 }
+
+bool IsStructParam(const TypeInfo& type)
+{
+	return dynamic_cast<const StructTypeInfo*>(&type) != nullptr;
+}
 } // namespace
 
 CodeGenerator::CodeGenerator(CodegenContext context)
@@ -271,9 +277,20 @@ void CodeGenerator::EmitPrintLn(const FunctionCallExpr& node)
 
 void CodeGenerator::EmitUserFunctionCall(const FunctionCallExpr& node)
 {
-	for (const auto& arg : node.GetArgs())
+	const auto funcIt = m_context.functions.find(node.GetName());
+
+	for (size_t i = 0; i < node.GetArgs().size(); ++i)
 	{
-		arg->Accept(*this);
+		node.GetArgs()[i]->Accept(*this);
+
+		if (funcIt != m_context.functions.end() && i < funcIt->second.params.size())
+		{
+			const auto& param = funcIt->second.params[i];
+			if (!param.modifier.has_value() && IsStructParam(*param.type))
+			{
+				m_chunk.WriteOpCode(OpCode::CopyObject, m_currentLine);
+			}
+		}
 	}
 
 	const auto argCount = static_cast<uint32_t>(node.GetArgs().size());
@@ -319,12 +336,10 @@ void CodeGenerator::Visit(const ProgramNode& node)
 
 void CodeGenerator::Visit(const StructDeclStmt& /*node*/)
 {
-	throw std::runtime_error("Генерация кода для StructDeclStmt не реализована");
 }
 
 void CodeGenerator::Visit(const UnionDeclStmt& /*node*/)
 {
-	throw std::runtime_error("Генерация кода для UnionDeclStmt не реализована");
 }
 
 void CodeGenerator::Visit(const EnumDeclStmt& /*node*/)

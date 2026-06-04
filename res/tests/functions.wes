@@ -2,136 +2,127 @@
 # Полезные функции — реальные алгоритмы с разными видами передачи
 # ============================================================
 
-#struct Matrix
-#[
-#    var array[real] data
-#    var uint rows
-#    var uint cols
-#]
+struct Matrix
+[
+    var array[real] data
+    var uint rows
+    var uint cols
+]
 
-#struct Stats
-#[
-#    var real min
-#    var real max
-#    var real sum
-#    var uint count
-#]
+struct Stats
+[
+    var real min
+    var real max
+    var real sum
+    var uint count
+]
 
 # ============================================================
 # УТИЛИТЫ ДЛЯ МАССИВОВ
 # ============================================================
 
 # Бинарный поиск — val: только читает
-#int <- binarySearch(val array[int] arr, int target)
-#{
-#    var uint lo = 0
-#    var uint hi = arr.size
-#    run (lo < hi)
-#    {
-#        val uint mid = lo + (hi - lo) / 2
-#        when
-#        {
-#            arr[mid] == target -> return mid.int()
-#            arr[mid] < target  -> lo = mid + 1
-#            else -> hi = mid
-#        }
-#    }
-#    return -1
-#}
+int <- binarySearch(val array[int] arr, int target)
+{
+    var uint lo = 0
+    var uint hi = arr.size
+    run (lo < hi)
+    {
+        val uint mid = lo + (hi - lo) / 2
+        when
+        {
+            arr[mid] == target -> return mid.int()
+            arr[mid] < target  -> lo = mid + 1
+            else               -> hi = mid
+        }
+    }
+    return -1
+}
 
 # Пузырьковая сортировка — var: изменяет массив
-#void <- bubbleSort(var array[int] arr)
-#{
-#    val uint n = arr.size
-#    repeat (int i = 0; i < n.int(); i = i + 1)
-#    {
-#        repeat (int j = 0; j < n.int() - i - 1; j = j + 1)
-#        {
-#            when
-#            {
-#                arr[j] > arr[j + 1] ->
-#                {
-#                    val int tmp = arr[j]
-#                    arr[j] = arr[j + 1]
-#                    arr[j + 1] = tmp
-#                }
-#            }
-#        }
-#    }
-#}
+void <- bubbleSort(var array[int] arr)
+{
+    val uint n = arr.size
+    repeat (int i = 0; i < n.int(); i = i + 1)
+    {
+        repeat (int j = 0; j < n.int() - i - 1; j = j + 1)
+        {
+            when
+            {
+                arr[j] > arr[j + 1] ->
+                {
+                    val int tmp = arr[j]
+                    arr[j] = arr[j + 1]
+                    arr[j + 1] = tmp
+                }
+            }
+        }
+    }
+}
 
 # Подсчёт статистики — val: только читает
-#Stats <- computeStats(val array[real] data)
-#{
-#    var Stats s = Stats
-#    {
-#        min   = data[0]
-#        max   = data[0]
-#        sum   = 0.0
-#        count = data.size
-#    }
-#    repeat (i in 0 .. data.size)
-#    {
-#        when { data[i] < s.min -> s.min = data[i] }
-#        when { data[i] > s.max -> s.max = data[i] }
-#        s.sum = s.sum + data[i]
-#    }
-#    return s
-#}
+Stats <- computeStats(val array[real] data)
+{
+    var Stats s = Stats
+    {
+        min   = data[0]
+        max   = data[0]
+        sum   = 0.0
+        count = data.size
+    }
+    repeat (i in 0 .. data.size)
+    {
+        when { data[i] < s.min -> s.min = data[i] }
+        when { data[i] > s.max -> s.max = data[i] }
+        s.sum = s.sum + data[i]
+    }
+    return s
+}
 
 # Скользящее среднее — val читает src, var пишет в dst
-#void <- movingAverage(val array[real] src, var array[real] dst, int window)
-#{
-#    val uint n = src.size
-#    repeat (i in 0 .. n)
-#    {
-#        var real acc = 0.0
-#        var int count = 0
-#        repeat (int k = i.int() - window + 1; k <= i.int(); k = k + 1)
-#        {
-#            when
-#            {
-#                k >= 0 ->
-#                {
-#                    acc = acc + src[k.uint()]
-#                    count = count + 1
-#                }
-#            }
-#        }
-#        dst[i] = acc / count.real()
-#    }
-#}
+void <- movingAverage(val array[real] src, var array[real] dst, int window)
+{
+    val uint n = src.size
+    repeat (i in 0 .. n)
+    {
+        var real acc = 0.0
+        var int count = 0
+        repeat (int k = i.int() - window + 1; k <= i.int(); k = k + 1)
+        {
+            when
+            {
+                k >= 0 ->
+                {
+                    acc = acc + src[k.uint()]
+                    count = count + 1
+                }
+            }
+        }
+        dst[i] = acc / count.real()
+    }
+}
 
-#void <- testArrayUtils()
-#{
-#    var array[int] nums = [1, 3, 5, 7, 9, 11, 13]
-#    println(binarySearch(nums, 7))    # 3
-#    println(binarySearch(nums, 4))    # -1
-#
-#    var array[int] unsorted = [64, 34, 25, 12, 22, 11, 90]
-#    bubbleSort(unsorted)
-#    println(unsorted[0])   # 11
-#    println(unsorted[6])   # 90
-#
-#    var array[real] prices = [1.5, 3.2, 2.8, 4.1, 3.9]
-#    val Stats s = computeStats(prices)
-#    println(s.min)         # 1.5
-#    println(s.max)         # 4.1
-#    println(s.count)       # 5
-#}
+void <- testArrayUtils()
+{
+    var array[int] nums = [1, 3, 5, 7, 9, 11, 13]
+    println(binarySearch(nums, 7))    # 3
+    println(binarySearch(nums, 4))    # -1
+
+    var array[int] unsorted = [64, 34, 25, 12, 22, 11, 90]
+    bubbleSort(unsorted)
+    println(unsorted[0])   # 11
+    println(unsorted[6])   # 90
+
+    var array[real] prices = [1.5, 3.2, 2.8, 4.1, 3.9]
+    val Stats s = computeStats(prices)
+    println(s.min)         # 1.5
+    println(s.max)         # 4.1
+    println(s.count)       # 5
+}
 
 # ============================================================
 # СТРОКИ И ЧИСЛА
 # ============================================================
-
-void <- main()
-{
-    # testArrayUtils()
-    testMath()
-    testQuickSort()
-    testHighOrder()
-    testChaining()
-}
 
 # Возвращает абсолютное значение — скаляр всегда по значению
 real <- abs(real x)
@@ -197,7 +188,8 @@ int <- partition(var array[int] arr, int lo, int hi)
     {
         when
         {
-            arr[j] <= pivot -> {
+            arr[j] <= pivot ->
+            {
                 i = i + 1
                 val int tmp = arr[i]
                 arr[i] = arr[j]
@@ -215,7 +207,8 @@ void <- quickSort(var array[int] arr, int lo, int hi)
 {
     when
     {
-        lo < hi -> {
+        lo < hi ->
+        {
             val int pi = partition(arr, lo, hi)
             quickSort(arr, lo, pi - 1)
             quickSort(arr, pi + 1, hi)
@@ -264,7 +257,8 @@ void <- buildHistogram(val array[int] data, var array[int] buckets, int bucketSi
         val int bucket = data[i] / bucketSize
         when
         {
-            bucket >= 0 and bucket < buckets.size.int() -> buckets[bucket] = buckets[bucket] + 1
+            bucket >= 0 and bucket < buckets.size.int() ->
+                buckets[bucket] = buckets[bucket] + 1
         }
     }
 }
@@ -292,10 +286,7 @@ array[int] <- filter(val array[int] src, int threshold)
     var int count = 0
     repeat (i in 0 .. src.size)
     {
-        when
-        {
-            src[i] >= threshold -> count = count + 1
-        }
+        when { src[i] >= threshold -> count = count + 1 }
     }
     var array[int] result = array[int](count.uint())
     var int idx = 0
@@ -303,7 +294,8 @@ array[int] <- filter(val array[int] src, int threshold)
     {
         when
         {
-            src[i] >= threshold -> {
+            src[i] >= threshold ->
+            {
                 result[idx] = src[i]
                 idx = idx + 1
             }
@@ -336,16 +328,18 @@ void <- testChaining()
     println(squared[1])    # 64 (8*8)
 
     # sum итогового
-    println(sumArray(squared))
+    println(sumArray(squared))   # 25 + 64 + 49 + 36 = 174
 }
 
-int <- sumArray(val array[int] nums)
+# ============================================================
+# MAIN
+# ============================================================
+
+void <- main()
 {
-    var int total = 0
-    repeat (i in 0 .. nums.size)
-    {
-        total = total + nums[i]
-    }
-    return total
+    testArrayUtils()
+    testMath()
+    testQuickSort()
+    testHighOrder()
+    testChaining()
 }
-

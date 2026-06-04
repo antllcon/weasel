@@ -298,18 +298,20 @@ bool IsPrimitiveType(const std::string& name)
 }
 } // namespace
 
-SemanticAnalyzer::SemaResult SemanticAnalyzer::Analyze(const AstNode& root, DiagnosticEngine& engine)
+CodegenContext SemanticAnalyzer::Analyze(const AstNode& root, DiagnosticEngine& engine)
 {
 	m_engine = &engine;
 	CollectTypes(root);
 	CollectFunctions(root);
 	root.Accept(*this);
-	return SemaResult{
+
+	return CodegenContext{
 		std::move(m_annotations),
 		std::move(m_resolvedSymbols),
 		std::move(m_varDeclSlots),
 		std::move(m_resolvedIterators),
-		std::move(m_functions)};
+		std::move(m_functions)
+	};
 }
 
 void SemanticAnalyzer::CollectTypes(const AstNode& root)
@@ -411,10 +413,10 @@ void SemanticAnalyzer::Visit(const MemberAccessExpr& node)
 			}
 
 			m_engine->Report(DiagnosticData{
-			   .phase = CompilerPhase::Semantic,
-			   .message = "У перечисления '" + id->GetName() + "' нет поля '" + node.GetField() + "'",
-			   .line = node.GetRange().start.line,
-			   .pos = node.GetRange().start.pos});
+				.phase = CompilerPhase::Semantic,
+				.message = "У перечисления '" + id->GetName() + "' нет поля '" + node.GetField() + "'",
+				.line = node.GetRange().start.line,
+				.pos = node.GetRange().start.pos});
 			return;
 		}
 	}
@@ -475,10 +477,10 @@ void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 	if (node.GetTypeName().empty())
 	{
 		m_engine->Report(DiagnosticData{
-		   .phase = CompilerPhase::Semantic,
-		   .message = "Явное указание типа переменной обязательно: " + node.GetName(),
-		   .line = node.GetRange().start.line,
-		   .pos = node.GetRange().start.pos});
+			.phase = CompilerPhase::Semantic,
+			.message = "Явное указание типа переменной обязательно: " + node.GetName(),
+			.line = node.GetRange().start.line,
+			.pos = node.GetRange().start.pos});
 		return;
 	}
 
@@ -660,10 +662,10 @@ void SemanticAnalyzer::Visit(const IdentifierExpr& node)
 	if (!result)
 	{
 		m_engine->Report(DiagnosticData{
-		   .phase = CompilerPhase::Semantic,
-		   .message = "Использование необъявленной переменной: " + node.GetName(),
-		   .line = node.GetRange().start.line,
-		   .pos = node.GetRange().start.pos});
+			.phase = CompilerPhase::Semantic,
+			.message = "Использование необъявленной переменной: " + node.GetName(),
+			.line = node.GetRange().start.line,
+			.pos = node.GetRange().start.pos});
 		return;
 	}
 	SetType(node, result->type);

@@ -5,6 +5,7 @@
 #include "src/compiler/ast/AstNode.h"
 #include "src/compiler/ast/IAstVisitor.h"
 #include "src/diagnostics/DiagnosticEngine.h"
+#include "src/compiler/codegen/CodegenContext.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -13,24 +14,7 @@
 class SemanticAnalyzer : public IAstVisitor
 {
 public:
-	struct FunctionInfo
-	{
-		std::shared_ptr<TypeInfo> returnType;
-		std::vector<std::pair<std::string, std::shared_ptr<TypeInfo>>> params;
-		uint32_t maxSlots = 0;
-	};
-
-	struct SemaResult
-	{
-		AstAnnotations annotations;
-		std::unordered_map<const AstNode*, SymbolInfo> symbols;
-		std::unordered_map<const AstNode*, uint32_t> varDeclSlots;
-		std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators;
-		std::unordered_map<std::string, FunctionInfo> functions;
-	};
-
-	[[nodiscard]] SemaResult Analyze(const AstNode& root, DiagnosticEngine& engine);
-
+	[[nodiscard]] CodegenContext Analyze(const AstNode& root, DiagnosticEngine& engine);
 private:
 	void CollectTypes(const AstNode& root);
 	void CollectFunctions(const AstNode& root);

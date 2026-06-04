@@ -27,21 +27,12 @@ constexpr int MaxRegArgs = 6;
 
 uint32_t AlignTo16(uint32_t size)
 {
-	return (size + 15) & ~15u;
+	return size + 15 & ~15u;
 }
 } // namespace
 
-NasmCodeGenerator::NasmCodeGenerator(
-	AstAnnotations annotations,
-	std::unordered_map<const AstNode*, SymbolInfo> symbols,
-	std::unordered_map<const AstNode*, uint32_t> varDeclSlots,
-	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators,
-	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions)
-	: m_annotations(annotations)
-	, m_symbols(std::move(symbols))
-	, m_varDeclSlots(std::move(varDeclSlots))
-	, m_repIterators(std::move(repIterators))
-	, m_functions(std::move(functions))
+NasmCodeGenerator::NasmCodeGenerator(const CodegenContext& context)
+	: m_context(context)
 {
 }
 
@@ -86,7 +77,7 @@ void NasmCodeGenerator::EmitExprToRax(const Expr& expr)
 
 void NasmCodeGenerator::EnterFunction(const FunctionDeclStmt& node)
 {
-	const uint32_t maxSlots = m_functions.at(node.GetName()).maxSlots;
+	const uint32_t maxSlots = m_context.functions.at(node.GetName()).maxSlots;
 	const uint32_t frameSize = AlignTo16(maxSlots * 8 + 8);
 
 	Emit("push rbp");
@@ -159,8 +150,8 @@ void NasmCodeGenerator::Visit(const BlockStmt& node)
 
 void NasmCodeGenerator::Visit(const VarDeclStmt& node)
 {
-	const auto slotIt = m_varDeclSlots.find(&node);
-	if (slotIt == m_varDeclSlots.end())
+	const auto slotIt = m_context.varDeclSlots.find(&node);
+	if (slotIt == m_context.varDeclSlots.end())
 	{
 		throw std::runtime_error("NASM: слот переменной не найден: " + node.GetName());
 	}
@@ -186,8 +177,8 @@ void NasmCodeGenerator::Visit(const AssignStmt& node)
 	}
 	EmitExprToRax(node.GetRhs());
 
-	const auto it = m_symbols.find(lhs);
-	if (it == m_symbols.end())
+	const auto it = m_context.symbols.find(lhs);
+	if (it == m_context.symbols.end())
 	{
 		throw std::runtime_error("NASM: переменная не найдена при присваивании: " + lhs->GetName());
 	}
@@ -264,8 +255,8 @@ void NasmCodeGenerator::Visit(const RunStmt& node)
 
 void NasmCodeGenerator::Visit(const RepStmt& node)
 {
-	const auto repIt = m_repIterators.find(&node);
-	if (repIt == m_repIterators.end())
+	const auto repIt = m_context.repIterators.find(&node);
+	if (repIt == m_context.repIterators.end())
 	{
 		throw std::runtime_error("NASM: итератор цикла не найден: " + node.GetIterators()[0]);
 	}
@@ -421,8 +412,8 @@ void NasmCodeGenerator::Visit(const BoolExpr& node)
 
 void NasmCodeGenerator::Visit(const IdentifierExpr& node)
 {
-	const auto it = m_symbols.find(&node);
-	if (it == m_symbols.end())
+	const auto it = m_context.symbols.find(&node);
+	if (it == m_context.symbols.end())
 	{
 		throw std::runtime_error("NASM: переменная не найдена: " + node.GetName());
 	}

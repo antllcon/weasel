@@ -129,7 +129,7 @@ Value ParseNumLiteral(const std::string& text, const TypeInfo* typeInfo, bool is
 	if (const auto* scalar = dynamic_cast<const ScalarTypeInfo*>(typeInfo))
 	{
 		if (scalar->GetBaseType() == BaseType::Real) return Value(std::stod(text));
-		if (scalar->GetBaseType() == BaseType::Uint) return Value(static_cast<uint64_t>(std::stoull(text)));
+		if (scalar->GetBaseType() == BaseType::Uint) return Value(	static_cast<uint64_t>(std::stoull(text)));
 		return Value(static_cast<int64_t>(std::stoll(text)));
 	}
 
@@ -201,15 +201,8 @@ std::string ExtractBaseTypeName(const TypeInfo* typeInfo)
 }
 } // namespace
 
-CodeGenerator::CodeGenerator(
-	AstAnnotations annotations,
-	std::unordered_map<const AstNode*, SymbolInfo> symbols,
-	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators,
-	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions)
-	: m_annotations(std::move(annotations))
-	, m_symbols(std::move(symbols))
-	, m_repIterators(std::move(repIterators))
-	, m_functions(std::move(functions))
+CodeGenerator::CodeGenerator(CodegenContext context)
+	: m_context(std::move(context))
 {
 }
 
@@ -306,7 +299,7 @@ Chunk CodeGenerator::Generate(const AstNode& root)
 
 	for (const auto& call : m_unresolvedCalls)
 	{
-		AssertIsFunctionOffsetResolved(m_functionOffsets.contains(call.funcName), call.funcName, call.range);
+		AssertIsFunctionOffsetResolved(m_context.functions.contains(call.funcName), call.funcName, call.range);
 		m_chunk.PatchUint32(call.patchOffset, m_functionOffsets[call.funcName]);
 	}
 
@@ -424,8 +417,8 @@ void CodeGenerator::Visit(const UnaryExpr& node)
 
 void CodeGenerator::Visit(const IdentifierExpr& node)
 {
-	const auto it = m_symbols.find(&node);
-	AssertIsIdentifierResolved(it != m_symbols.end(), node.GetName(), node.GetRange());
+	const auto it = m_context.symbols.find(&node);
+	AssertIsIdentifierResolved(it != m_context.symbols.end(), node.GetName(), node.GetRange());
 
 	if (it->second.isCompileTimeConst)
 	{
@@ -569,8 +562,8 @@ void CodeGenerator::Visit(const RunStmt& node)
 
 void CodeGenerator::Visit(const RepStmt& node)
 {
-	const auto repIt = m_repIterators.find(&node);
-	AssertIsIdentifierResolved(repIt != m_repIterators.end(), node.GetIterators()[0], node.GetRange());
+	const auto repIt = m_context.repIterators.find(&node);
+	AssertIsIdentifierResolved(repIt != m_context.repIterators.end(), node.GetIterators()[0], node.GetRange());
 	const uint32_t iterSlot = repIt->second[0].stackSlot;
 
 	node.GetRanges()[0]->Accept(*this);
@@ -628,8 +621,8 @@ void CodeGenerator::Visit(const AssignStmt& node)
 	if (const auto* id = dynamic_cast<const IdentifierExpr*>(&node.GetLhs()))
 	{
 		node.GetRhs().Accept(*this);
-		const auto it = m_symbols.find(id);
-		AssertIsIdentifierResolved(it != m_symbols.end(), id->GetName(), node.GetRange());
+		const auto it = m_context.symbols.find(id);
+		AssertIsIdentifierResolved(it != m_context.symbols.end(), id->GetName(), node.GetRange());
 
 		m_chunk.WriteOpCode(OpCode::StoreLocal, m_currentLine);
 		m_chunk.WriteUint32(it->second.stackSlot, m_currentLine);
@@ -800,8 +793,8 @@ void CodeGenerator::Visit(const WhenStmt& node)
 
 std::shared_ptr<TypeInfo> CodeGenerator::GetType(const AstNode& node) const
 {
-	auto it = m_annotations.resolvedTypes.find(&node);
-	AssertIsTypeResolved(it != m_annotations.resolvedTypes.end());
+	auto it = m_context.annotations.resolvedTypes.find(&node);
+	AssertIsTypeResolved(it != m_context.annotations.resolvedTypes.end());
 	return it->second;
 }
 

@@ -17,7 +17,6 @@ using SourceCode = std::string;
 using TokenStream = std::vector<Token>;
 using CstTree = std::unique_ptr<CstNode>;
 using AstTree = std::unique_ptr<AstNode>;
-using SemaResult = SemanticAnalyzer::SemaResult;
 
 namespace
 {
@@ -85,13 +84,13 @@ AstTree RunAstConversionPhase(const CstTree& cstRoot, const std::filesystem::pat
 	return astRoot;
 }
 
-SemaResult RunSemanticPhase(AstNode& astRoot, DiagnosticEngine& engine)
+CodegenContext RunSemanticPhase(AstNode& astRoot, DiagnosticEngine& engine)
 {
 	// ScopedTimer t("Семантический анализ");
 	SemanticAnalyzer sema;
-	auto result = sema.Analyze(astRoot, engine);
-	SymbolTableVisualizer::Visualize(result.symbols);
-	return result;
+	auto codegenCtx = sema.Analyze(astRoot, engine);
+	SymbolTableVisualizer::Visualize(codegenCtx.symbols);
+	return codegenCtx;
 }
 } // namespace
 
@@ -110,10 +109,6 @@ std::optional<FrontendResult> Run(const std::filesystem::path& sourceFile, const
 
 	return FrontendResult{
 		std::move(astRoot),
-		std::move(semaResult.annotations),
-		std::move(semaResult.symbols),
-		std::move(semaResult.varDeclSlots),
-		std::move(semaResult.repIterators),
-		std::move(semaResult.functions)};
+		std::move(semaResult)};
 }
 } // namespace FrontendPipeline

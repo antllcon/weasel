@@ -1,4 +1,4 @@
-#include "compiler/pipline/CompilerPipeline.h"
+#include "compiler/pipeline/CompilerPipeline.h"
 #include "grammar/context/LanguageContextBuilder.h"
 #include "utils/console/CommandLineParser.h"
 #include "utils/console/ConsoleEncoding.h"

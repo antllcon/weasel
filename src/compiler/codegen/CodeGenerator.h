@@ -2,21 +2,15 @@
 #include "src/compiler/ast/AstNode.h"
 #include "src/compiler/ast/IAstVisitor.h"
 #include "src/compiler/semantic/SemanticAnalyzer.h"
-#include "src/compiler/semantic/SymbolTable.h"
 #include "src/compiler/vm/chunk/Chunk.h"
 #include <cstdint>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 class CodeGenerator final : public IAstVisitor
 {
 public:
-	explicit CodeGenerator(
-		AstAnnotations annotations,
-		std::unordered_map<const AstNode*, SymbolInfo> symbols,
-		std::unordered_map<const AstNode*, std::vector<SymbolInfo>> repIterators,
-		std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> functions);
+	explicit CodeGenerator(CodegenContext context);
 
 	void EmitCast(const FunctionCallExpr& node);
 	void EmitPrint(const FunctionCallExpr& node);
@@ -65,10 +59,7 @@ private:
 	void EmitConstant(Value value);
 	void EmitPrintCore(const FunctionCallExpr& node);
 
-	AstAnnotations m_annotations;
-	std::unordered_map<const AstNode*, SymbolInfo> m_symbols;
-	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> m_repIterators;
-	std::unordered_map<std::string, SemanticAnalyzer::FunctionInfo> m_functions;
+	CodegenContext m_context;
 	std::unordered_map<std::string, uint32_t> m_functionOffsets;
 	std::vector<UnresolvedCall> m_unresolvedCalls;
 	Chunk m_chunk;

@@ -325,7 +325,7 @@ void SemanticAnalyzer::CollectTypes(const AstNode& root)
 		if (const auto* enumDecl = dynamic_cast<const EnumDeclStmt*>(decl.get()))
 		{
 			auto typeInfo = std::make_shared<EnumTypeInfo>(enumDecl->GetName(), enumDecl->GetValues());
-			m_enums[enumDecl->GetName()] = typeInfo;
+			m_typeResolver.RegisterEnum(enumDecl->GetName(), typeInfo);
 		}
 	}
 }
@@ -355,33 +355,15 @@ void SemanticAnalyzer::CollectFunctions(const AstNode& root)
 		}
 
 		FunctionInfo info;
-		info.returnType = ParseTypeString(fn->GetReturnTypeName());
+		info.returnType = m_typeResolver.Resolve(fn->GetReturnTypeName());
 
 		for (const auto& param : fn->GetParams())
 		{
-			info.params.emplace_back(param.name, ParseTypeString(param.typeName));
+			info.params.emplace_back(param.name, m_typeResolver.Resolve(param.typeName));
 		}
 
 		m_functions[fn->GetName()] = std::move(info);
 	}
-}
-
-std::shared_ptr<TypeInfo> SemanticAnalyzer::ParseTypeString(const std::string& typeName)
-{
-	if (m_enums.contains(typeName))
-	{
-		return m_enums[typeName];
-	}
-
-	if (typeName.starts_with(LanguageTokens::KwArray) && typeName.find('[') != std::string::npos)
-	{
-		const size_t start = typeName.find('[') + 1;
-		const size_t end = typeName.find_last_of(']');
-		const std::string inner = typeName.substr(start, end - start);
-		return std::make_shared<ArrayTypeInfo>(ParseTypeString(inner));
-	}
-
-	return ScalarTypeInfo::FromString(typeName);
 }
 
 void SemanticAnalyzer::Visit(const ArrayAllocExpr& node)
@@ -389,7 +371,7 @@ void SemanticAnalyzer::Visit(const ArrayAllocExpr& node)
 	node.GetSize().Accept(*this);
 	AssertIsIntegerType(GetType(node.GetSize()), "Размер массива должен быть целым числом", node.GetSize().GetRange());
 
-	auto elementType = ParseTypeString(node.GetElementTypeName());
+	auto elementType = m_typeResolver.Resolve(node.GetElementTypeName());
 	SetType(node, std::make_shared<ArrayTypeInfo>(elementType));
 }
 
@@ -416,9 +398,9 @@ void SemanticAnalyzer::Visit(const MemberAccessExpr& node)
 {
 	if (const auto* id = dynamic_cast<const IdentifierExpr*>(&node.GetReceiver()))
 	{
-		if (m_enums.contains(id->GetName()))
+		if (m_typeResolver.IsEnum(id->GetName()))
 		{
-			auto enumType = m_enums[id->GetName()];
+			auto enumType = m_typeResolver.GetEnum(id->GetName());
 			const auto& fields = enumType->GetFields();
 
 			auto it = std::ranges::find(fields, node.GetField());
@@ -429,10 +411,10 @@ void SemanticAnalyzer::Visit(const MemberAccessExpr& node)
 			}
 
 			m_engine->Report(DiagnosticData{
-				.phase = CompilerPhase::Semantic,
-				.message = "У перечисления '" + id->GetName() + "' нет поля '" + node.GetField() + "'",
-				.line = node.GetRange().start.line,
-				.pos = node.GetRange().start.pos});
+			   .phase = CompilerPhase::Semantic,
+			   .message = "У перечисления '" + id->GetName() + "' нет поля '" + node.GetField() + "'",
+			   .line = node.GetRange().start.line,
+			   .pos = node.GetRange().start.pos});
 			return;
 		}
 	}
@@ -460,34 +442,32 @@ void SemanticAnalyzer::Visit(const ProgramNode& node)
 
 void SemanticAnalyzer::Visit(const FunctionDeclStmt& node)
 {
-	m_nextSlot = 0;
-	m_maxSlot = 0;
+	m_scopeManager.ResetSlots();
 	m_currentReturnType = m_functions[node.GetName()].returnType;
 
-	m_table.EnterScope();
+	m_scopeManager.EnterScope();
 	for (const auto& param : node.GetParams())
 	{
-		const uint32_t slot = m_nextSlot++;
-		m_maxSlot = std::max(m_maxSlot, m_nextSlot);
-		m_table.Declare(param.name, ParseTypeString(param.typeName), false, slot);
+		const uint32_t slot = m_scopeManager.AllocateSlot();
+		m_scopeManager.Declare(param.name, m_typeResolver.Resolve(param.typeName), false, slot);
 	}
 	node.GetBody().Accept(*this);
-	m_table.LeaveScope();
+	m_scopeManager.LeaveScope();
 
-	m_functions[node.GetName()].maxSlots = m_maxSlot;
+	m_functions[node.GetName()].maxSlots = m_scopeManager.GetMaxSlots();
 	m_currentReturnType = nullptr;
 }
 
 void SemanticAnalyzer::Visit(const BlockStmt& node)
 {
-	m_table.EnterScope();
-	const uint32_t savedSlot = m_nextSlot;
+	m_scopeManager.EnterScope();
+	const uint32_t savedSlot = m_scopeManager.GetCurrentSlot();
 	for (const auto& stmt : node.GetStmts())
 	{
 		stmt->Accept(*this);
 	}
-	m_nextSlot = savedSlot;
-	m_table.LeaveScope();
+	m_scopeManager.RestoreSlot(savedSlot);
+	m_scopeManager.LeaveScope();
 }
 
 void SemanticAnalyzer::Visit(const VarDeclStmt& node)
@@ -495,14 +475,14 @@ void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 	if (node.GetTypeName().empty())
 	{
 		m_engine->Report(DiagnosticData{
-			.phase = CompilerPhase::Semantic,
-			.message = "Явное указание типа переменной обязательно: " + node.GetName(),
-			.line = node.GetRange().start.line,
-			.pos = node.GetRange().start.pos});
+		   .phase = CompilerPhase::Semantic,
+		   .message = "Явное указание типа переменной обязательно: " + node.GetName(),
+		   .line = node.GetRange().start.line,
+		   .pos = node.GetRange().start.pos});
 		return;
 	}
 
-	auto type = ParseTypeString(node.GetTypeName());
+	auto type = m_typeResolver.Resolve(node.GetTypeName());
 	AssertIsNotVoidType(type, node.GetName(), node.GetRange().start.line, node.GetRange().start.pos);
 
 	const bool hasInit = node.GetInit() != nullptr;
@@ -528,12 +508,11 @@ void SemanticAnalyzer::Visit(const VarDeclStmt& node)
 	}
 	else
 	{
-		slot = m_nextSlot++;
-		m_maxSlot = std::max(m_maxSlot, m_nextSlot);
+		slot = m_scopeManager.AllocateSlot();
 		m_varDeclSlots[&node] = slot;
 	}
 
-	const bool isNew = m_table.Declare(node.GetName(), type, isMutable, slot, isConst, node.GetInit());
+	const bool isNew = m_scopeManager.Declare(node.GetName(), type, isMutable, slot, isConst, node.GetInit());
 	AssertIsVariableNotRedeclared(isNew, node.GetName());
 }
 
@@ -553,7 +532,7 @@ void SemanticAnalyzer::Visit(const AssignStmt& node)
 	if (isIdentifier)
 	{
 		const auto& ident = static_cast<const IdentifierExpr&>(node.GetLhs());
-		auto info = m_table.Resolve(ident.GetName());
+		auto info = m_scopeManager.Resolve(ident.GetName());
 		if (info)
 		{
 			AssertIsMutable(*info, ident.GetName(), ident.GetRange());
@@ -594,8 +573,8 @@ void SemanticAnalyzer::Visit(const IfStmt& node)
 
 void SemanticAnalyzer::Visit(const RepStmt& node)
 {
-	m_table.EnterScope();
-	const uint32_t savedSlot = m_nextSlot;
+	m_scopeManager.EnterScope();
+	const uint32_t savedSlot = m_scopeManager.GetCurrentSlot();
 
 	std::vector<SymbolInfo> iterInfos;
 	const auto& iters = node.GetIterators();
@@ -619,10 +598,9 @@ void SemanticAnalyzer::Visit(const RepStmt& node)
 
 		AssertIsExactTypeMatch(iterType, GetType(*ranges[startIdx]), ranges[startIdx]->GetRange());
 
-		const uint32_t slot = m_nextSlot++;
-		m_maxSlot = std::max(m_maxSlot, m_nextSlot);
+		const uint32_t slot = m_scopeManager.AllocateSlot();
 
-		const bool isNew = m_table.Declare(iters[i], iterType, false, slot, false, nullptr);
+		const bool isNew = m_scopeManager.Declare(iters[i], iterType, false, slot, false, nullptr);
 		AssertIsVariableNotRedeclared(isNew, iters[i]);
 
 		iterInfos.push_back(SymbolInfo{iterType, slot, false, false, nullptr});
@@ -632,8 +610,8 @@ void SemanticAnalyzer::Visit(const RepStmt& node)
 
 	node.GetOriginalBody().Accept(*this);
 
-	m_nextSlot = savedSlot;
-	m_table.LeaveScope();
+	m_scopeManager.RestoreSlot(savedSlot);
+	m_scopeManager.LeaveScope();
 }
 
 void SemanticAnalyzer::Visit(const RunStmt& node)
@@ -678,14 +656,14 @@ void SemanticAnalyzer::Visit(const ExprStmt& node)
 
 void SemanticAnalyzer::Visit(const IdentifierExpr& node)
 {
-	auto result = m_table.Resolve(node.GetName());
+	auto result = m_scopeManager.Resolve(node.GetName());
 	if (!result)
 	{
 		m_engine->Report(DiagnosticData{
-			.phase = CompilerPhase::Semantic,
-			.message = "Использование необъявленной переменной: " + node.GetName(),
-			.line = node.GetRange().start.line,
-			.pos = node.GetRange().start.pos});
+		   .phase = CompilerPhase::Semantic,
+		   .message = "Использование необъявленной переменной: " + node.GetName(),
+		   .line = node.GetRange().start.line,
+		   .pos = node.GetRange().start.pos});
 		return;
 	}
 	SetType(node, result->type);
@@ -774,7 +752,7 @@ void SemanticAnalyzer::Visit(const FunctionCallExpr& node)
 		m_expectedType = nullptr;
 		node.GetArgs()[0]->Accept(*this);
 		m_expectedType = savedExpected;
-		SetType(node, ParseTypeString(node.GetName()));
+		SetType(node, m_typeResolver.Resolve(node.GetName()));
 		return;
 	}
 

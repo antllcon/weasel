@@ -1,10 +1,10 @@
 #pragma once
-#include "SymbolTable.h"
+#include "AstAnnotations.h"
+#include "ScopeManager.h"
+#include "TypeResolver.h"
 #include "src/compiler/ast/AstNode.h"
-#include "src/compiler/ast/EnumTypeInfo.h"
 #include "src/compiler/ast/IAstVisitor.h"
 #include "src/diagnostics/DiagnosticEngine.h"
-#include "AstAnnotations.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -34,7 +34,10 @@ public:
 private:
 	void CollectTypes(const AstNode& root);
 	void CollectFunctions(const AstNode& root);
-	std::shared_ptr<TypeInfo> ParseTypeString(const std::string& typeName);
+
+	[[nodiscard]] std::shared_ptr<TypeInfo> GetType(const AstNode& node) const;
+	void SetType(const AstNode& node, std::shared_ptr<TypeInfo> type);
+
 	void Visit(const ProgramNode& node) override;
 	void Visit(const FunctionDeclStmt& node) override;
 	void Visit(const BlockStmt& node) override;
@@ -62,15 +65,9 @@ private:
 	void Visit(const EnumDeclStmt& node) override;
 	void Visit(const WhenStmt& node) override;
 
-	std::shared_ptr<TypeInfo> GetType(const AstNode& node) const;
-	void SetType(const AstNode& node, std::shared_ptr<TypeInfo> type);
-
-private:
-	SymbolTable m_table;
+	TypeResolver m_typeResolver;
+	ScopeManager m_scopeManager;
 	DiagnosticEngine* m_engine = nullptr;
-	uint32_t m_nextSlot = 0;
-	uint32_t m_maxSlot = 0;
-	std::unordered_map<std::string, std::shared_ptr<EnumTypeInfo>> m_enums;
 
 	AstAnnotations m_annotations;
 	std::unordered_map<const AstNode*, SymbolInfo> m_resolvedSymbols;

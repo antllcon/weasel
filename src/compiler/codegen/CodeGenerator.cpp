@@ -16,7 +16,9 @@
 #include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
+#include "src/compiler/ast/BreakStmt.h"
 #include "src/compiler/ast/ClassicForStmt.h"
+#include "src/compiler/ast/ContinueStmt.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
@@ -536,11 +538,26 @@ void CodeGenerator::Visit(const DoWhileStmt& node)
 {
 	const uint32_t startIp = m_chunk.GetCodeSize();
 
+	m_loopStack.push_back(LoopContext{m_localCount, 0, false, 0, {}, {}});
+
 	node.GetBody().Accept(*this);
+
+	const uint32_t conditionIp = m_chunk.GetCodeSize();
+
 	node.GetCondition().Accept(*this);
 
 	m_chunk.WriteOpCode(OpCode::JumpIfTrue, m_currentLine);
 	m_chunk.WriteUint32(startIp, m_currentLine);
+
+	const uint32_t breakIp = m_chunk.GetCodeSize();
+
+	LoopContext ctx = std::move(m_loopStack.back());
+	m_loopStack.pop_back();
+
+	for (uint32_t patch : ctx.breakPatches)
+		m_chunk.PatchUint32(patch, breakIp);
+	for (uint32_t patch : ctx.continuePatches)
+		m_chunk.PatchUint32(patch, conditionIp);
 }
 
 void CodeGenerator::Visit(const RunStmt& node)
@@ -553,12 +570,52 @@ void CodeGenerator::Visit(const RunStmt& node)
 	const uint32_t patchEnd = m_chunk.GetCodeSize();
 	m_chunk.WriteUint32(0, m_currentLine);
 
+	m_loopStack.push_back(LoopContext{m_localCount, checkIp, true, 0, {}, {}});
+
 	node.GetBody().Accept(*this);
+
+	LoopContext ctx = std::move(m_loopStack.back());
+	m_loopStack.pop_back();
 
 	m_chunk.WriteOpCode(OpCode::Jump, m_currentLine);
 	m_chunk.WriteUint32(checkIp, m_currentLine);
 
-	m_chunk.PatchUint32(patchEnd, m_chunk.GetCodeSize());
+	const uint32_t endIp = m_chunk.GetCodeSize();
+	m_chunk.PatchUint32(patchEnd, endIp);
+
+	for (uint32_t patch : ctx.breakPatches)
+		m_chunk.PatchUint32(patch, endIp);
+}
+
+void CodeGenerator::Visit(const BreakStmt& /*node*/)
+{
+	auto& ctx = m_loopStack.back();
+	const uint32_t bodyLocals = m_localCount - ctx.localCountAtLoopEntry;
+	for (uint32_t i = 0; i < bodyLocals; ++i)
+		m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+	for (uint32_t i = 0; i < ctx.breakPopsNeeded; ++i)
+		m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+	m_chunk.WriteOpCode(OpCode::Jump, m_currentLine);
+	ctx.breakPatches.push_back(m_chunk.GetCodeSize());
+	m_chunk.WriteUint32(0, m_currentLine);
+}
+
+void CodeGenerator::Visit(const ContinueStmt& /*node*/)
+{
+	auto& ctx = m_loopStack.back();
+	const uint32_t bodyLocals = m_localCount - ctx.localCountAtLoopEntry;
+	for (uint32_t i = 0; i < bodyLocals; ++i)
+		m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+	m_chunk.WriteOpCode(OpCode::Jump, m_currentLine);
+	if (ctx.continueTargetKnown)
+	{
+		m_chunk.WriteUint32(ctx.continueTarget, m_currentLine);
+	}
+	else
+	{
+		ctx.continuePatches.push_back(m_chunk.GetCodeSize());
+		m_chunk.WriteUint32(0, m_currentLine);
+	}
 }
 
 void CodeGenerator::Visit(const ClassicForStmt& node)
@@ -576,15 +633,29 @@ void CodeGenerator::Visit(const ClassicForStmt& node)
 	const uint32_t patchEnd = m_chunk.GetCodeSize();
 	m_chunk.WriteUint32(0, m_currentLine);
 
+	m_loopStack.push_back(LoopContext{m_localCount, 0, false, 1, {}, {}});
+
 	node.GetBody().Accept(*this);
+
+	const uint32_t stepIp = m_chunk.GetCodeSize();
 	node.GetStep().Accept(*this);
 
 	m_chunk.WriteOpCode(OpCode::Jump, m_currentLine);
 	m_chunk.WriteUint32(checkIp, m_currentLine);
 
-	m_chunk.PatchUint32(patchEnd, m_chunk.GetCodeSize());
-
+	const uint32_t endIp = m_chunk.GetCodeSize();
+	m_chunk.PatchUint32(patchEnd, endIp);
 	m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+
+	const uint32_t afterPopIp = m_chunk.GetCodeSize();
+
+	LoopContext ctx = std::move(m_loopStack.back());
+	m_loopStack.pop_back();
+
+	for (uint32_t patch : ctx.breakPatches)
+		m_chunk.PatchUint32(patch, afterPopIp);
+	for (uint32_t patch : ctx.continuePatches)
+		m_chunk.PatchUint32(patch, stepIp);
 }
 
 void CodeGenerator::Visit(const RepStmt& node)
@@ -608,7 +679,11 @@ void CodeGenerator::Visit(const RepStmt& node)
 	const uint32_t patchEnd = m_chunk.GetCodeSize();
 	m_chunk.WriteUint32(0, m_currentLine);
 
+	m_loopStack.push_back(LoopContext{m_localCount, 0, false, 1, {}, {}});
+
 	node.GetOriginalBody().Accept(*this);
+
+	const uint32_t stepIp = m_chunk.GetCodeSize();
 
 	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
 	m_chunk.WriteUint32(iterSlot, m_currentLine);
@@ -620,9 +695,19 @@ void CodeGenerator::Visit(const RepStmt& node)
 	m_chunk.WriteOpCode(OpCode::Jump, m_currentLine);
 	m_chunk.WriteUint32(checkIp, m_currentLine);
 
-	m_chunk.PatchUint32(patchEnd, m_chunk.GetCodeSize());
-
+	const uint32_t endIp = m_chunk.GetCodeSize();
+	m_chunk.PatchUint32(patchEnd, endIp);
 	m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+
+	const uint32_t afterPopIp = m_chunk.GetCodeSize();
+
+	LoopContext ctx = std::move(m_loopStack.back());
+	m_loopStack.pop_back();
+
+	for (uint32_t patch : ctx.breakPatches)
+		m_chunk.PatchUint32(patch, afterPopIp);
+	for (uint32_t patch : ctx.continuePatches)
+		m_chunk.PatchUint32(patch, stepIp);
 }
 
 void CodeGenerator::Visit(const VarDeclStmt& node)

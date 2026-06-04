@@ -18,7 +18,9 @@
 #include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
+#include "src/compiler/ast/BreakStmt.h"
 #include "src/compiler/ast/ClassicForStmt.h"
+#include "src/compiler/ast/ContinueStmt.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
@@ -575,6 +577,30 @@ void SemanticAnalyzer::Visit(const IfStmt& node)
 	}
 }
 
+void SemanticAnalyzer::Visit(const BreakStmt& node)
+{
+	if (m_loopDepth == 0)
+	{
+		m_engine->Report(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Оператор break используется вне цикла",
+			.line = node.GetRange().start.line,
+			.pos = node.GetRange().start.pos});
+	}
+}
+
+void SemanticAnalyzer::Visit(const ContinueStmt& node)
+{
+	if (m_loopDepth == 0)
+	{
+		m_engine->Report(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Оператор continue используется вне цикла",
+			.line = node.GetRange().start.line,
+			.pos = node.GetRange().start.pos});
+	}
+}
+
 void SemanticAnalyzer::Visit(const ClassicForStmt& node)
 {
 	m_scopeManager.EnterScope();
@@ -600,7 +626,9 @@ void SemanticAnalyzer::Visit(const ClassicForStmt& node)
 		node.GetCondition().GetRange().start.pos);
 
 	node.GetStep().Accept(*this);
+	++m_loopDepth;
 	node.GetBody().Accept(*this);
+	--m_loopDepth;
 
 	m_scopeManager.RestoreSlot(savedSlot);
 	m_scopeManager.LeaveScope();
@@ -643,7 +671,9 @@ void SemanticAnalyzer::Visit(const RepStmt& node)
 
 	m_resolvedIterators[&node] = std::move(iterInfos);
 
+	++m_loopDepth;
 	node.GetOriginalBody().Accept(*this);
+	--m_loopDepth;
 
 	m_scopeManager.RestoreSlot(savedSlot);
 	m_scopeManager.LeaveScope();
@@ -656,12 +686,16 @@ void SemanticAnalyzer::Visit(const RunStmt& node)
 		GetType(node.GetCondition()),
 		node.GetCondition().GetRange().start.line,
 		node.GetCondition().GetRange().start.pos);
+	++m_loopDepth;
 	node.GetBody().Accept(*this);
+	--m_loopDepth;
 }
 
 void SemanticAnalyzer::Visit(const DoWhileStmt& node)
 {
+	++m_loopDepth;
 	node.GetBody().Accept(*this);
+	--m_loopDepth;
 	node.GetCondition().Accept(*this);
 	AssertIsBool(
 		GetType(node.GetCondition()),

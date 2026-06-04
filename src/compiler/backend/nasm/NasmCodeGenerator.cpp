@@ -237,6 +237,14 @@ void NasmCodeGenerator::Visit(const ClassicForStmt& /*node*/)
 {
 }
 
+void NasmCodeGenerator::Visit(const BreakStmt& /*node*/)
+{
+}
+
+void NasmCodeGenerator::Visit(const ContinueStmt& /*node*/)
+{
+}
+
 void NasmCodeGenerator::Visit(const DoWhileStmt& /*node*/)
 {
 }

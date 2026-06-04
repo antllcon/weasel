@@ -59,6 +59,8 @@ Stmt -> WhileStmt
 Stmt -> DoWhileStmt
 Stmt -> ForStmt
 Stmt -> WhenStmt
+Stmt -> BreakStmt nl
+Stmt -> ContinueStmt nl
 Stmt -> { StmtList } nl
 
 WhenStmt -> when { WhenEntries WhenElseOpt }
@@ -93,6 +95,9 @@ DoWhileStmt -> { StmtList } run ( Expr )
 ForStmt -> repeat ( id in Expr .. Expr ) { StmtList }
 ForStmt -> repeat ( id , id in Expr .. Expr , Expr .. Expr ) { StmtList }
 ForStmt -> repeat ( BaseType id = Expr ; Expr ; AssignStmt ) { StmtList }
+
+BreakStmt -> break
+ContinueStmt -> continue
 
 ReturnStmt -> return Expr
 ReturnStmt -> return

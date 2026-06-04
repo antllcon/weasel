@@ -1,6 +1,8 @@
 #include "AstVisualizer.h"
 
 #include "src/compiler/ast/ArrayAllocExpr.h"
+#include "src/compiler/ast/BreakStmt.h"
+#include "src/compiler/ast/ContinueStmt.h"
 #include "src/compiler/ast/ArrayLiteralExpr.h"
 #include "src/compiler/ast/AssignStmt.h"
 #include "src/compiler/ast/BinaryExpr.h"
@@ -237,8 +239,18 @@ void AstVisualizer::Visit(const WhenStmt& node)
 	}
 }
 
+void AstVisualizer::Visit(const BreakStmt& /*node*/)
+{
+	PrintLeaf("break", true);
+}
+
 void AstVisualizer::Visit(const ClassicForStmt& /*node*/)
 {
+}
+
+void AstVisualizer::Visit(const ContinueStmt& /*node*/)
+{
+	PrintLeaf("continue", true);
 }
 
 void AstVisualizer::Visit(const RunStmt& node)

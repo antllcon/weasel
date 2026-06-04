@@ -17,7 +17,9 @@
 #include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
+#include "src/compiler/ast/BreakStmt.h"
 #include "src/compiler/ast/ClassicForStmt.h"
+#include "src/compiler/ast/ContinueStmt.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
@@ -446,6 +448,16 @@ std::unique_ptr<Stmt> ConvertAssignStmt(const CstNode& node)
 	return std::make_unique<AssignStmt>(std::move(lhs), isMove, std::move(rhs), ExtractRange(node));
 }
 
+std::unique_ptr<Stmt> ConvertBreakStmt(const CstNode& node)
+{
+	return std::make_unique<BreakStmt>(ExtractRange(node));
+}
+
+std::unique_ptr<Stmt> ConvertContinueStmt(const CstNode& node)
+{
+	return std::make_unique<ContinueStmt>(ExtractRange(node));
+}
+
 std::unique_ptr<Stmt> ConvertReturnStmt(const CstNode& node)
 {
 	std::unique_ptr<Expr> value = nullptr;
@@ -576,6 +588,8 @@ std::unique_ptr<Stmt> ConvertStmt(const CstNode& node)
 	if (firstChild.label == "AssignStmt") return ConvertAssignStmt(firstChild);
 	if (firstChild.label == "IfStmt") return ConvertIfStmt(firstChild);
 	if (firstChild.label == "ForStmt") return ConvertForStmt(firstChild);
+	if (firstChild.label == "BreakStmt") return ConvertBreakStmt(firstChild);
+	if (firstChild.label == "ContinueStmt") return ConvertContinueStmt(firstChild);
 	if (firstChild.label == "WhileStmt") return ConvertWhileStmt(firstChild);
 	if (firstChild.label == "DoWhileStmt") return ConvertDoWhileStmt(firstChild);
 	if (firstChild.label == "ReturnStmt") return ConvertReturnStmt(firstChild);

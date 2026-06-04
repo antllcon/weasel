@@ -36,7 +36,9 @@ public:
 	void Visit(const BlockStmt& node) override;
 	void Visit(const DoWhileStmt& node) override;
 	void Visit(const RunStmt& node) override;
+	void Visit(const BreakStmt& node) override;
 	void Visit(const ClassicForStmt& node) override;
+	void Visit(const ContinueStmt& node) override;
 	void Visit(const RepStmt& node) override;
 	void Visit(const VarDeclStmt& node) override;
 	void Visit(const AssignStmt& node) override;
@@ -48,6 +50,16 @@ public:
 	void Visit(const WhenStmt& node) override;
 
 private:
+	struct LoopContext
+	{
+		uint32_t localCountAtLoopEntry;
+		uint32_t continueTarget;
+		bool continueTargetKnown;
+		uint32_t breakPopsNeeded;
+		std::vector<uint32_t> breakPatches;
+		std::vector<uint32_t> continuePatches;
+	};
+
 	struct UnresolvedCall
 	{
 		uint32_t patchOffset;
@@ -61,6 +73,7 @@ private:
 	void EmitPrintCore(const FunctionCallExpr& node);
 
 	CodegenContext m_context;
+	std::vector<LoopContext> m_loopStack;
 	std::unordered_map<std::string, uint32_t> m_functionOffsets;
 	std::vector<UnresolvedCall> m_unresolvedCalls;
 	Chunk m_chunk;

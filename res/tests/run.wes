@@ -1,0 +1,94 @@
+# Тесты цикла run (while) и do-run (do-while)
+
+void <- testBasicRun()
+{
+    var int i = 0
+    run (i < 5)
+    {
+        print(i, " ")
+        i = i + 1
+    }
+    println("")
+}
+
+void <- testCountDown()
+{
+    var int n = 10
+    run (n > 0)
+    {
+        print(n, " ")
+        n = n - 2
+    }
+    println("")
+}
+
+void <- testDoWhileAlwaysExecutes()
+{
+    var int x = 100
+    {
+        println(x)
+        x = x + 1
+    } run (x < 5)
+}
+
+void <- testDoWhileBasic()
+{
+    var int i = 0
+    {
+        print(i, " ")
+        i = i + 1
+    } run (i < 4)
+    println("")
+}
+
+void <- testBoolCondition()
+{
+    var bool active = true
+    var int count = 0
+    run (active)
+    {
+        count = count + 1
+        active = count < 3
+    }
+    println(count)
+}
+
+void <- testNestedRun()
+{
+    var int i = 1
+    run (i <= 3)
+    {
+        var int j = 1
+        run (j <= 3)
+        {
+            print(i * j, " ")
+            j = j + 1
+        }
+        println("")
+        i = i + 1
+    }
+}
+
+void <- testSumWithRun()
+{
+    val array[int] data = [4, 8, 15, 16, 23, 42]
+    var int sum = 0
+    var uint idx = 0
+    run (idx < data.size)
+    {
+        sum = sum + data[idx]
+        idx = idx + 1
+    }
+    println(sum)
+}
+
+void <- main()
+{
+    testBasicRun()
+    testCountDown()
+    testDoWhileAlwaysExecutes()
+    testDoWhileBasic()
+    testBoolCondition()
+    testNestedRun()
+    testSumWithRun()
+}

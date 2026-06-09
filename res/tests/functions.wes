@@ -32,8 +32,8 @@ int <- binarySearch(val array[int] arr, int target)
         when
         {
             arr[mid] == target -> return mid.int()
-            arr[mid] < target  -> lo = mid + 1
-            else               -> hi = mid
+            arr[mid] < target -> lo = mid + 1
+            else -> hi = mid
         }
     }
     return -1

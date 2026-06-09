@@ -32,3 +32,6 @@ _deps/
 *.ilk
 *.pdb
 claude.md
+.agents
+skills-lock.json
+log.tx

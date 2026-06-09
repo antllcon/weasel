@@ -73,6 +73,7 @@ SourceRange ExtractRange(const CstNode& node)
 std::unique_ptr<Expr> ConvertExprByLabel(const CstNode& node);
 std::unique_ptr<BlockStmt> ConvertStmtList(const CstNode& node);
 std::unique_ptr<Stmt> ConvertElseOpt(const CstNode& node);
+std::unique_ptr<Stmt> ConvertIfStmt(const CstNode& node);
 std::unique_ptr<Stmt> ConvertStmt(const CstNode& node);
 
 BinaryOpKind ParseBinaryOp(const CstNode& opNode)
@@ -555,18 +556,10 @@ std::unique_ptr<Stmt> ConvertDoWhileStmt(const CstNode& node)
 std::unique_ptr<Stmt> ConvertElseOpt(const CstNode& node)
 {
 	if (node.children.empty())
-	{
 		return nullptr;
-	}
 
-	if (node.children[1]->value == LanguageTokens::SymParenLeft)
-	{
-		auto condition = ConvertExpr(*node.children[2]);
-		auto thenBlock = ConvertStmtList(*node.children[5]);
-		auto nested = ConvertElseOpt(*node.children[7]);
-		return std::make_unique<IfStmt>(
-			std::move(condition), std::move(thenBlock), std::move(nested), ExtractRange(node));
-	}
+	if (node.children[1]->label == "IfStmt")
+		return ConvertIfStmt(*node.children[1]);
 
 	return ConvertStmtList(*node.children[2]);
 }

@@ -59,10 +59,17 @@ Stmt -> ExprStmt nl
 Stmt -> WhileStmt
 Stmt -> DoWhileStmt
 Stmt -> ForStmt
+Stmt -> IfStmt
 Stmt -> WhenStmt
 Stmt -> BreakStmt nl
 Stmt -> ContinueStmt nl
 Stmt -> { StmtList } nl
+
+IfStmt -> if ( Expr ) { StmtList } ElseOpt
+
+ElseOpt -> else { StmtList }
+ElseOpt -> else IfStmt
+ElseOpt -> e
 
 WhenStmt -> when { WhenEntries WhenElseOpt }
 WhenStmt -> when ( Expr ) { WhenEntries WhenElseOpt }

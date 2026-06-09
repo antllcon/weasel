@@ -118,7 +118,7 @@ bool IsControlStructureEnd(const std::vector<Token>& tokens, size_t prevIdx)
 			if (beforeParen < tokens.size())
 			{
 				const auto& tokenBefore = tokens[beforeParen];
-				if (tokenBefore.type == TokenType::Keyword && (tokenBefore.value == "when" || tokenBefore.value == "run" || tokenBefore.value == LanguageTokens::KwRep))
+				if (tokenBefore.type == TokenType::Keyword && (tokenBefore.value == "when" || tokenBefore.value == "run" || tokenBefore.value == LanguageTokens::KwRep || tokenBefore.value == "if"))
 				{
 					return true;
 				}
@@ -288,6 +288,9 @@ std::vector<Token> FilterNewLines(const std::vector<Token>& tokens)
 
 		const size_t nextIdx = FindNextMeaningfulIndex(tokens, i);
 		if (nextIdx == tokens.size())
+			continue;
+
+		if (tokens[prevMeaningfulIdx].type == TokenType::Keyword && tokens[prevMeaningfulIdx].value == "else")
 			continue;
 
 		if (!IsNoiseNewLine(

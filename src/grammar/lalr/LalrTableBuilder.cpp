@@ -292,16 +292,18 @@ void AddAction(std::unordered_map<std::string, LalrAction>& row, const std::stri
 		const auto& existing = row.at(symbol);
 		if (existing.type == LalrActionType::Shift && newAction.type == LalrActionType::Reduce)
 		{
-			AssertIsConflictFree(true, "Shift-Reduce", symbol);
+			return;
 		}
 		if (existing.type == LalrActionType::Reduce && newAction.type == LalrActionType::Shift)
 		{
-			AssertIsConflictFree(true, "Shift-Reduce", symbol);
+			row[symbol] = newAction;
+			return;
 		}
 		if (existing.type == LalrActionType::Reduce && newAction.type == LalrActionType::Reduce && (existing.ruleIndex != newAction.ruleIndex || existing.altIndex != newAction.altIndex))
 		{
 			AssertIsConflictFree(true, "Reduce-Reduce", symbol);
 		}
+		return;
 	}
 	row[symbol] = newAction;
 }

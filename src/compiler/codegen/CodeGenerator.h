@@ -21,6 +21,7 @@ public:
 
 	void Visit(const ProgramNode& node) override;
 	void Visit(const StructDeclStmt& node) override;
+	void Visit(const ClassDeclStmt& node) override;
 	void Visit(const UnionDeclStmt& node) override;
 	void Visit(const EnumDeclStmt& node) override;
 	void Visit(const BinaryExpr& node) override;
@@ -72,6 +73,8 @@ private:
 	void EmitLogicalNot();
 	void EmitConstant(Value value);
 	void EmitReserveSlot();
+	void EmitConstructor(const ClassDeclStmt& node, const std::string& key, const BlockStmt* body);
+	void EmitImplicitThisCall(const FunctionCallExpr& node);
 	void EmitPrintCore(const FunctionCallExpr& node);
 
 	CodegenContext m_context;

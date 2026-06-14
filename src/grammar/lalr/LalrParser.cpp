@@ -106,7 +106,8 @@ bool IsControlStructureEnd(const std::vector<Token>& tokens, size_t prevIdx)
 	const auto& prev = tokens[prevIdx];
 	if (prev.type == TokenType::Keyword)
 	{
-		if (prev.value == "else" || prev.value == "run" || prev.value == "when")
+		if (prev.value == "else" || prev.value == "run" || prev.value == "when"
+			|| prev.value == LanguageTokens::KwPublic || prev.value == LanguageTokens::KwPrivate)
 			return true;
 	}
 	else if (prev.type == TokenType::ParenRight)
@@ -119,6 +120,10 @@ bool IsControlStructureEnd(const std::vector<Token>& tokens, size_t prevIdx)
 			{
 				const auto& tokenBefore = tokens[beforeParen];
 				if (tokenBefore.type == TokenType::Keyword && (tokenBefore.value == "when" || tokenBefore.value == "run" || tokenBefore.value == LanguageTokens::KwRep || tokenBefore.value == "if"))
+				{
+					return true;
+				}
+				if (tokenBefore.type == TokenType::Identifier)
 				{
 					return true;
 				}

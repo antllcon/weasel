@@ -1,0 +1,119 @@
+# ============================================================
+# Умножение матриц на классах Weasel
+# Демонстрирует: поля, конструктор, методы, this (неявный),
+# видимость private/public, инкапсуляцию данных в array[int].
+# ============================================================
+
+class Matrix
+{
+    # Поля приватны (значение по умолчанию)
+    var int rows
+    var int cols
+    var array[int] data
+
+    # Приватный помощник — доступ к элементу по (i, j)
+    int <- get(int i, int j)
+    {
+        return data[i * cols + j]
+    }
+
+    public {
+        Matrix(int r, int c)
+        {
+            rows = r
+            cols = c
+            data = array[int](r * c)
+        }
+
+        int <- numRows()
+        {
+            return rows
+        }
+
+        int <- numCols()
+        {
+            return cols
+        }
+
+        void <- set(int i, int j, int value)
+        {
+            data[i * cols + j] = value
+        }
+
+        Matrix <- multiply(Matrix other)
+        {
+            if (cols >< other.numRows())
+            {
+                println("Ошибка: несовместимые размеры матриц для умножения")
+                return Matrix(0, 0)
+            }
+
+            var Matrix result = Matrix(rows, other.numCols())
+
+            repeat (i in 0 .. rows)
+            {
+                repeat (j in 0 .. other.numCols())
+                {
+                    var int sum = 0
+                    repeat (k in 0 .. cols)
+                    {
+                        sum = sum + get(i, k) * other.get(k, j)
+                    }
+                    result.set(i, j, sum)
+                }
+            }
+
+            return result
+        }
+
+        void <- show()
+        {
+            repeat (i in 0 .. rows)
+            {
+                repeat (j in 0 .. cols)
+                {
+                    print(get(i, j), " ")
+                }
+                println("")
+            }
+        }
+    }
+}
+
+void <- main()
+{
+    # A = [[1, 2, 3],
+    #      [4, 5, 6]]   (2 x 3)
+    var Matrix a = Matrix(2, 3)
+    a.set(0, 0, 1)
+    a.set(0, 1, 2)
+    a.set(0, 2, 3)
+    a.set(1, 0, 4)
+    a.set(1, 1, 5)
+    a.set(1, 2, 6)
+
+    # B = [[7,  8],
+    #      [9,  10],
+    #      [11, 12]]    (3 x 2)
+    var Matrix b = Matrix(3, 2)
+    b.set(0, 0, 7)
+    b.set(0, 1, 8)
+    b.set(1, 0, 9)
+    b.set(1, 1, 10)
+    b.set(2, 0, 11)
+    b.set(2, 1, 12)
+
+    println("Матрица A:")
+    a.show()
+    println("")
+
+    println("Матрица B:")
+    b.show()
+    println("")
+
+    # C = A * B = [[58,  64],
+    #             [139, 154]]   (2 x 2)
+    println("Результат A * B:")
+    var Matrix c = a.multiply(b)
+    c.show()
+}

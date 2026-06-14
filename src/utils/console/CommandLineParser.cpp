@@ -72,6 +72,9 @@ std::vector<FlagRule> GetFlagRules()
 		 }},
 		{"-nasm", false, [](CompilerOptions& opt, std::string_view) {
 			 opt.emitNasm = true;
+		 }},
+		{"--format", false, [](CompilerOptions& opt, std::string_view) {
+			 opt.formatMode = true;
 		 }}};
 }
 } // namespace

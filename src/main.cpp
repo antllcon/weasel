@@ -1,4 +1,5 @@
 #include "compiler/pipeline/CompilerPipeline.h"
+#include "formatter/Formatter.h"
 #include "grammar/context/LanguageContextBuilder.h"
 #include "grammar/lalr/LalrTablePrinter.h"
 #include "utils/console/CommandLineParser.h"
@@ -16,6 +17,11 @@ int main(int argc, char* argv[])
 	{
 		const auto options = CommandLineParser::Parse(argc, argv);
 		Logger::Init(LoggerFactory::Create(options.logTarget));
+
+		if (options.formatMode)
+		{
+			return Formatter::FormatFile(options) ? EXIT_SUCCESS : EXIT_FAILURE;
+		}
 
 		const auto context = LanguageContextBuilder::Build(options.grammarFile);
 		LalrTablePrinter::Print(*context.lalrTable);

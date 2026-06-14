@@ -5,6 +5,7 @@ class ArrayAllocExpr;
 class DoWhileStmt;
 class ProgramNode;
 class StructDeclStmt;
+class ClassDeclStmt;
 class UnionDeclStmt;
 class EnumDeclStmt;
 class BinaryExpr;
@@ -38,6 +39,7 @@ public:
 
 	virtual void Visit(const ProgramNode& node) = 0;
 	virtual void Visit(const StructDeclStmt& node) = 0;
+	virtual void Visit(const ClassDeclStmt& node) = 0;
 	virtual void Visit(const UnionDeclStmt& node) = 0;
 	virtual void Visit(const EnumDeclStmt& node) = 0;
 	virtual void Visit(const ArrayAllocExpr& node) = 0;

@@ -17,6 +17,10 @@ ClassBody -> e
 
 ClassMember -> VarDecl nl
 ClassMember -> FuncDecl
+ClassMember -> id ( ParamList ) { StmtList }
+ClassMember -> id ( ) { StmtList }
+ClassMember -> public { ClassBody }
+ClassMember -> private { ClassBody }
 
 Type -> BaseType
 Type -> id

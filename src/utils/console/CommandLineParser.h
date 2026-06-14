@@ -18,6 +18,7 @@ struct CompilerOptions
 	std::filesystem::path grammarFile{DEFAULT_GRAMMAR_FILE};
 	LogTarget logTarget{LogTarget::None};
 	bool emitNasm{false};
+	bool formatMode{false};
 };
 
 namespace CommandLineParser

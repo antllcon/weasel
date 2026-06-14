@@ -2,27 +2,35 @@
 #include "Stmt.h"
 #include "Expr.h"
 #include <memory>
-#include <vector>
 #include <string>
 
 class RepStmt final : public Stmt
 {
 public:
-	RepStmt(std::vector<std::string> iterators,
-			std::vector<std::unique_ptr<Expr>> ranges,
-			std::unique_ptr<Stmt> originalBody,
-		const SourceRange& range);
+	RepStmt(std::string iterator,
+			std::unique_ptr<Expr> startExpr,
+			std::unique_ptr<Expr> endExpr,
+			std::unique_ptr<Expr> stepExpr,
+			bool isDown,
+			std::unique_ptr<Stmt> body,
+			const SourceRange& range);
 
 	void Accept(IAstVisitor& visitor) const override;
 	[[nodiscard]] SourceRange GetRange() const override;
 
-	[[nodiscard]] const std::vector<std::string>& GetIterators() const;
-	[[nodiscard]] const std::vector<std::unique_ptr<Expr>>& GetRanges() const;
-	[[nodiscard]] const Stmt& GetOriginalBody() const;
+	[[nodiscard]] const std::string& GetIterator() const;
+	[[nodiscard]] const Expr& GetStartExpr() const;
+	[[nodiscard]] const Expr& GetEndExpr() const;
+	[[nodiscard]] const Expr* GetStepExpr() const;
+	[[nodiscard]] bool IsDown() const;
+	[[nodiscard]] const Stmt& GetBody() const;
 
 private:
-	std::vector<std::string> m_iterators;
-	std::vector<std::unique_ptr<Expr>> m_ranges;
-	std::unique_ptr<Stmt> m_originalBody;
+	std::string m_iterator;
+	std::unique_ptr<Expr> m_startExpr;
+	std::unique_ptr<Expr> m_endExpr;
+	std::unique_ptr<Expr> m_stepExpr;
+	bool m_isDown;
+	std::unique_ptr<Stmt> m_body;
 	SourceRange m_range;
 };

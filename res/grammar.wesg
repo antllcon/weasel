@@ -37,6 +37,8 @@ ParamList -> Param
 
 Param -> Modifier Type id
 Param -> Type id
+Param -> Modifier Type id = Expr
+Param -> Type id = Expr
 
 StructDecl -> struct id [ FieldList ]
 UnionDecl -> union id [ FieldList ]
@@ -101,8 +103,12 @@ WhileStmt -> run ( Expr ) { StmtList }
 DoWhileStmt -> { StmtList } run ( Expr )
 
 ForStmt -> repeat ( id in Expr .. Expr ) { StmtList }
-ForStmt -> repeat ( id , id in Expr .. Expr , Expr .. Expr ) { StmtList }
-ForStmt -> repeat ( BaseType id = Expr ; Expr ; AssignStmt ) { StmtList }
+ForStmt -> repeat ( id in Expr .. Expr step Expr ) { StmtList }
+ForStmt -> repeat ( id in Expr down Expr ) { StmtList }
+ForStmt -> repeat ( id in Expr ) { StmtList }
+ForStmt -> repeat ( id , id in Expr ) { StmtList }
+ForStmt -> repeat ( id times ) { StmtList }
+ForStmt -> repeat ( num times ) { StmtList }
 
 BreakStmt -> break
 ContinueStmt -> continue

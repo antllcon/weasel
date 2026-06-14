@@ -1,0 +1,80 @@
+# ============================================================
+# Перегрузка функций (overloading)
+# ============================================================
+# Позитивные кейсы ниже должны компилироваться и выполняться.
+# Негативные — внизу, закомментированы (раскомментируй по одному).
+# ============================================================
+
+# --- Перегрузка по количеству аргументов ---
+int <- area(int side)
+{
+    return side * side
+}
+
+int <- area(int width, int height)
+{
+    return width * height
+}
+
+# --- Перегрузка по типу аргумента ---
+string <- describe(int x)
+{
+    return "целое"
+}
+
+string <- describe(real x)
+{
+    return "вещественное"
+}
+
+string <- describe(bool x)
+{
+    return "логическое"
+}
+
+# --- Перегрузка по типу при двух аргументах ---
+int <- combine(int a, int b)
+{
+    return a + b
+}
+
+real <- combine(real a, real b)
+{
+    return a * b
+}
+
+void <- main()
+{
+    println(area(5))           # 25  -> area(int)
+    println(area(3, 4))        # 12  -> area(int, int)
+
+    println(describe(42))      # целое         -> describe(int)
+    println(describe(3.14))    # вещественное  -> describe(real)
+    println(describe(true))    # логическое    -> describe(bool)
+
+    println(combine(2, 3))     # 5    -> combine(int, int)
+    println(combine(2.0, 3.0)) # 6.0  -> combine(real, real)
+}
+
+# ============================================================
+# НЕГАТИВНЫЕ КЕЙСЫ — раскомментируй ОДИН за раз.
+# ============================================================
+
+# --- A. Повторное объявление с той же сигнатурой ---
+#       Ошибка: "Повторное объявление функции с той же сигнатурой: dup(int)"
+#       (модификаторы val/var НЕ образуют новую перегрузку)
+# int <- dup(int x)
+# {
+#     return x
+# }
+# int <- dup(var int x)
+# {
+#     return x + 1
+# }
+
+# --- B. Нет подходящей перегрузки ---
+#       describe не имеет варианта со string -> "Нет подходящей перегрузки функции 'describe'"
+# string <- callNoMatch()
+# {
+#     return describe("текст")
+# }

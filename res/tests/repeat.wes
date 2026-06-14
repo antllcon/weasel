@@ -28,6 +28,24 @@ void <- testRangeWithExpression()
     println("")
 }
 
+void <- testRangeWithStep()
+{
+    repeat (i in 0 .. 10 step 2)
+    {
+        print(i, " ")
+    }
+    println("")
+}
+
+void <- testRangeDown()
+{
+    repeat (i in 5 down 0)
+    {
+        print(i, " ")
+    }
+    println("")
+}
+
 void <- testRangeNested()
 {
     repeat (i in 0 .. 3)
@@ -40,59 +58,54 @@ void <- testRangeNested()
     }
 }
 
-void <- testClassicBasic()
+void <- testCollection()
 {
-    repeat (int i = 0; i < 5; i = i + 1)
+    val array[int] nums = [3, 7, 2, 9, 1]
+    repeat (n in nums)
     {
-        print(i, " ")
+        print(n, " ")
     }
     println("")
 }
 
-void <- testClassicCountDown()
+void <- testCollectionIndexed()
 {
-    repeat (int i = 10; i > 0; i = i - 2)
+    val array[int] nums = [10, 20, 30]
+    repeat (i, n in nums)
     {
-        print(i, " ")
+        print(i, ":", n, " ")
     }
     println("")
 }
 
-void <- testClassicSumArray()
+void <- testCollectionSum()
 {
     val array[int] values = [3, 7, 2, 9, 1]
     var int sum = 0
-    repeat (int i = 0; i < 5; i = i + 1)
+    repeat (v in values)
     {
-        sum = sum + values[i]
+        sum = sum + v
     }
     println(sum)
 }
 
-void <- testClassicFibonacci()
+void <- testTimesLiteral()
 {
-    var int a = 0
-    var int b = 1
-    repeat (int step = 0; step < 8; step = step + 1)
+    repeat (3 times)
     {
-        print(a, " ")
-        val int next = a + b
-        a = b
-        b = next
+        print("* ")
     }
     println("")
 }
 
-void <- testClassicNestedLoops()
+void <- testTimesVariable()
 {
-    repeat (int i = 1; i <= 3; i = i + 1)
+    val int n = 5
+    repeat (n times)
     {
-        repeat (int j = 1; j <= 3; j = j + 1)
-        {
-            print(i * j, " ")
-        }
-        println("")
+        print("# ")
     }
+    println("")
 }
 
 void <- main()
@@ -100,10 +113,12 @@ void <- main()
     testRangeBasicInt()
     testRangeWithUint()
     testRangeWithExpression()
+    testRangeWithStep()
+    testRangeDown()
     testRangeNested()
-    testClassicBasic()
-    testClassicCountDown()
-    testClassicSumArray()
-    testClassicFibonacci()
-    testClassicNestedLoops()
+    testCollection()
+    testCollectionIndexed()
+    testCollectionSum()
+    testTimesLiteral()
+    testTimesVariable()
 }

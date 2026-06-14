@@ -255,21 +255,64 @@ bool IsNoiseNewLine(
 	return false;
 }
 
-std::vector<Token> FilterNewLines(const std::vector<Token>& tokens)
+std::vector<Token> RemoveRepeatHeaderNewlines(const std::vector<Token>& tokens)
 {
-	const auto doWhileOpeners = FindDoWhileOpeners(tokens);
-	const auto doWhileCondClosers = FindDoWhileConditionClosers(tokens);
-	const auto bareBlocks = FindBareBlocks(tokens, doWhileOpeners);
-
 	std::vector<Token> result;
 	result.reserve(tokens.size());
 
-	int braceDepth = 0;
-	size_t prevMeaningfulIdx = tokens.size();
-
 	for (size_t i = 0; i < tokens.size(); ++i)
 	{
-		const auto& tok = tokens[i];
+		result.push_back(tokens[i]);
+
+		if (!(tokens[i].type == TokenType::Keyword && tokens[i].value == LanguageTokens::KwRep))
+			continue;
+
+		std::vector<Token> header;
+		int depth = 0;
+		++i;
+		while (i < tokens.size())
+		{
+			if (tokens[i].type == TokenType::NewLine)
+			{
+				++i;
+				continue;
+			}
+			if (tokens[i].type == TokenType::ParenLeft || tokens[i].type == TokenType::BracketLeft)
+				++depth;
+			else if (tokens[i].type == TokenType::ParenRight || tokens[i].type == TokenType::BracketRight)
+				--depth;
+			else if (tokens[i].type == TokenType::BraceLeft && depth == 0)
+				break;
+			header.push_back(tokens[i]);
+			++i;
+		}
+
+		for (const auto& tok : header)
+			result.push_back(tok);
+
+		if (i < tokens.size())
+			--i;
+	}
+
+	return result;
+}
+
+std::vector<Token> FilterNewLines(const std::vector<Token>& tokens)
+{
+	const auto normalized = RemoveRepeatHeaderNewlines(tokens);
+	const auto doWhileOpeners = FindDoWhileOpeners(normalized);
+	const auto doWhileCondClosers = FindDoWhileConditionClosers(normalized);
+	const auto bareBlocks = FindBareBlocks(normalized, doWhileOpeners);
+
+	std::vector<Token> result;
+	result.reserve(normalized.size());
+
+	int braceDepth = 0;
+	size_t prevMeaningfulIdx = normalized.size();
+
+	for (size_t i = 0; i < normalized.size(); ++i)
+	{
+		const auto& tok = normalized[i];
 
 		if (tok.type != TokenType::NewLine)
 		{
@@ -283,21 +326,24 @@ std::vector<Token> FilterNewLines(const std::vector<Token>& tokens)
 			continue;
 		}
 
-		if (prevMeaningfulIdx == tokens.size())
+		if (prevMeaningfulIdx == normalized.size())
 			continue;
 
-		const size_t nextIdx = FindNextMeaningfulIndex(tokens, i);
-		if (nextIdx == tokens.size())
+		const size_t nextIdx = FindNextMeaningfulIndex(normalized, i);
+		if (nextIdx == normalized.size())
 			continue;
 
-		if (tokens[prevMeaningfulIdx].type == TokenType::Keyword && tokens[prevMeaningfulIdx].value == "else")
+		if (normalized[prevMeaningfulIdx].type == TokenType::Keyword && normalized[prevMeaningfulIdx].value == "else")
+			continue;
+
+		if (normalized[prevMeaningfulIdx].value == LanguageTokens::OpArrow)
 			continue;
 
 		if (!IsNoiseNewLine(
 				braceDepth,
-				tokens[prevMeaningfulIdx].type,
+				normalized[prevMeaningfulIdx].type,
 				prevMeaningfulIdx,
-				tokens[nextIdx].type,
+				normalized[nextIdx].type,
 				nextIdx,
 				doWhileOpeners,
 				doWhileCondClosers,

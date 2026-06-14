@@ -1,12 +1,18 @@
 #include "RepStmt.h"
 
-RepStmt::RepStmt(std::vector<std::string> iterators,
-	std::vector<std::unique_ptr<Expr>> ranges,
-	std::unique_ptr<Stmt> originalBody,
+RepStmt::RepStmt(std::string iterator,
+	std::unique_ptr<Expr> startExpr,
+	std::unique_ptr<Expr> endExpr,
+	std::unique_ptr<Expr> stepExpr,
+	bool isDown,
+	std::unique_ptr<Stmt> body,
 	const SourceRange& range)
-	: m_iterators(std::move(iterators))
-	, m_ranges(std::move(ranges))
-	, m_originalBody(std::move(originalBody))
+	: m_iterator(std::move(iterator))
+	, m_startExpr(std::move(startExpr))
+	, m_endExpr(std::move(endExpr))
+	, m_stepExpr(std::move(stepExpr))
+	, m_isDown(isDown)
+	, m_body(std::move(body))
 	, m_range(range)
 {
 }
@@ -21,17 +27,32 @@ SourceRange RepStmt::GetRange() const
 	return m_range;
 }
 
-const std::vector<std::string>& RepStmt::GetIterators() const
+const std::string& RepStmt::GetIterator() const
 {
-	return m_iterators;
+	return m_iterator;
 }
 
-const std::vector<std::unique_ptr<Expr>>& RepStmt::GetRanges() const
+const Expr& RepStmt::GetStartExpr() const
 {
-	return m_ranges;
+	return *m_startExpr;
 }
 
-const Stmt& RepStmt::GetOriginalBody() const
+const Expr& RepStmt::GetEndExpr() const
 {
-	return *m_originalBody;
+	return *m_endExpr;
+}
+
+const Expr* RepStmt::GetStepExpr() const
+{
+	return m_stepExpr.get();
+}
+
+bool RepStmt::IsDown() const
+{
+	return m_isDown;
+}
+
+const Stmt& RepStmt::GetBody() const
+{
+	return *m_body;
 }

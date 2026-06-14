@@ -31,6 +31,8 @@ public:
 	void Visit(const DoWhileStmt& node) override;
 	void Visit(const RunStmt& node) override;
 	void Visit(const RepStmt& node) override;
+	void Visit(const RepCollectionStmt& node) override;
+	void Visit(const RepTimesStmt& node) override;
 	void Visit(const VarDeclStmt& node) override;
 	void Visit(const AssignStmt& node) override;
 	void Visit(const ExprStmt& node) override;
@@ -39,7 +41,6 @@ public:
 	void Visit(const IfStmt& node) override;
 	void Visit(const ArrayAllocExpr& node) override;
 	void Visit(const WhenStmt& node) override;
-	void Visit(const ClassicForStmt& node) override;
 	void Visit(const BreakStmt& node) override;
 	void Visit(const ContinueStmt& node) override;
 

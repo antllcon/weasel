@@ -16,10 +16,12 @@
 #include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
+#include "src/compiler/ast/ArrayTypeInfo.h"
 #include "src/compiler/ast/BreakStmt.h"
-#include "src/compiler/ast/ClassicForStmt.h"
 #include "src/compiler/ast/ContinueStmt.h"
+#include "src/compiler/ast/RepCollectionStmt.h"
 #include "src/compiler/ast/RepStmt.h"
+#include "src/compiler/ast/RepTimesStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
 #include "src/compiler/ast/ScalarTypeInfo.h"
@@ -40,11 +42,15 @@
 namespace
 {
 
-void AssertIsTypeResolved(bool found)
+void AssertIsTypeResolved(bool found, const SourceRange& range)
 {
 	if (!found)
 	{
-		throw std::runtime_error("Тип узла не найден в аннотациях семантического анализа");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Backend,
+			.message = "Тип узла не найден в аннотациях семантического анализа",
+			.line = range.start.line,
+			.pos = range.start.pos});
 	}
 }
 
@@ -192,7 +198,9 @@ OpCode GetBinaryOpCode(BinaryOpKind op, const TypeInfo* typeInfo)
 		return OpCode::LtInt;
 	case BinaryOpKind::LogicalAnd:
 	case BinaryOpKind::LogicalOr:
-		throw std::runtime_error("Логические операторы должны обрабатываться через короткое замыкание");
+		throw CompilationException(DiagnosticData{
+			.phase = CompilerPhase::Backend,
+			.message = "Логические операторы должны обрабатываться через короткое замыкание"});
 	}
 	return OpCode::AddInt;
 }
@@ -277,7 +285,16 @@ void CodeGenerator::EmitPrintLn(const FunctionCallExpr& node)
 
 void CodeGenerator::EmitUserFunctionCall(const FunctionCallExpr& node)
 {
-	const auto funcIt = m_context.functions.find(node.GetName());
+	std::string key;
+	if (const auto it = m_context.annotations.resolvedCallTargets.find(&node);
+		it != m_context.annotations.resolvedCallTargets.end())
+	{
+		key = it->second;
+	}
+	const auto funcIt = m_context.functions.find(key);
+	const size_t totalParams = funcIt != m_context.functions.end()
+		? funcIt->second.params.size()
+		: node.GetArgs().size();
 
 	for (size_t i = 0; i < node.GetArgs().size(); ++i)
 	{
@@ -293,7 +310,21 @@ void CodeGenerator::EmitUserFunctionCall(const FunctionCallExpr& node)
 		}
 	}
 
-	const auto argCount = static_cast<uint32_t>(node.GetArgs().size());
+	if (funcIt != m_context.functions.end())
+	{
+		for (size_t i = node.GetArgs().size(); i < funcIt->second.params.size(); ++i)
+		{
+			const auto& param = funcIt->second.params[i];
+			param.defaultValue->Accept(*this);
+
+			if (!param.modifier.has_value() && IsStructParam(*param.type))
+			{
+				m_chunk.WriteOpCode(OpCode::CopyObject, m_currentLine);
+			}
+		}
+	}
+
+	const auto argCount = static_cast<uint32_t>(totalParams);
 
 	if (const auto* native = NativeRegistry::FindByName(node.GetName()))
 	{
@@ -302,7 +333,7 @@ void CodeGenerator::EmitUserFunctionCall(const FunctionCallExpr& node)
 	}
 
 	const uint32_t patchOffset = EmitCallWithPlaceholder(m_chunk, argCount, m_currentLine);
-	m_unresolvedCalls.push_back({patchOffset, node.GetName(), node.GetRange()});
+	m_unresolvedCalls.push_back({patchOffset, key, node.GetRange()});
 }
 
 Chunk CodeGenerator::Generate(const AstNode& root)
@@ -311,7 +342,7 @@ Chunk CodeGenerator::Generate(const AstNode& root)
 	const uint32_t mainPatchOffset = m_chunk.GetCodeSize();
 	m_chunk.WriteUint32(0, m_currentLine);
 	m_chunk.WriteUint32(0, m_currentLine);
-	m_unresolvedCalls.push_back({mainPatchOffset, "main", SourceRange{}});
+	m_unresolvedCalls.push_back({mainPatchOffset, m_context.entryPointKey, SourceRange{}});
 
 	m_chunk.WriteOpCode(OpCode::Return, m_currentLine);
 
@@ -430,7 +461,11 @@ void CodeGenerator::Visit(const UnaryExpr& node)
 		return;
 	}
 
-	throw std::runtime_error("Генерация кода для других UnaryExpr пока не реализована");
+	throw CompilationException(DiagnosticData{
+		.phase = CompilerPhase::Backend,
+		.message = "Генерация кода для других UnaryExpr пока не реализована",
+		.line = node.GetRange().start.line,
+		.pos = node.GetRange().start.pos});
 }
 
 void CodeGenerator::Visit(const IdentifierExpr& node)
@@ -531,7 +566,11 @@ void CodeGenerator::Visit(const MemberAccessExpr& node)
 		return;
 	}
 
-	throw std::runtime_error("Бэкенд: обращение к неизвестному полю");
+	throw CompilationException(DiagnosticData{
+		.phase = CompilerPhase::Backend,
+		.message = "Бэкенд: обращение к неизвестному полю",
+		.line = node.GetRange().start.line,
+		.pos = node.GetRange().start.pos});
 }
 
 void CodeGenerator::Visit(const BlockStmt& node)
@@ -633,16 +672,31 @@ void CodeGenerator::Visit(const ContinueStmt& /*node*/)
 	}
 }
 
-void CodeGenerator::Visit(const ClassicForStmt& node)
+void CodeGenerator::Visit(const RepStmt& node)
 {
-	const auto it = m_context.classicForInits.find(&node);
-	AssertIsIdentifierResolved(it != m_context.classicForInits.end(), node.GetInitName(), node.GetRange());
+	const auto repIt = m_context.repIterators.find(&node);
+	AssertIsIdentifierResolved(repIt != m_context.repIterators.end(), node.GetIterator(), node.GetRange());
+	const uint32_t iterSlot = repIt->second.stackSlot;
+	const auto iterType = GetType(node.GetStartExpr());
 
-	node.GetInitExpr().Accept(*this);
+	node.GetStartExpr().Accept(*this);
 
 	const uint32_t checkIp = m_chunk.GetCodeSize();
 
-	node.GetCondition().Accept(*this);
+	const auto ltOp = GetBinaryOpCode(BinaryOpKind::Less, iterType.get());
+	if (node.IsDown())
+	{
+		node.GetEndExpr().Accept(*this);
+		m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+		m_chunk.WriteUint32(iterSlot, m_currentLine);
+	}
+	else
+	{
+		m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+		m_chunk.WriteUint32(iterSlot, m_currentLine);
+		node.GetEndExpr().Accept(*this);
+	}
+	m_chunk.WriteOpCode(ltOp, m_currentLine);
 
 	m_chunk.WriteOpCode(OpCode::JumpIfFalse, m_currentLine);
 	const uint32_t patchEnd = m_chunk.GetCodeSize();
@@ -653,7 +707,25 @@ void CodeGenerator::Visit(const ClassicForStmt& node)
 	node.GetBody().Accept(*this);
 
 	const uint32_t stepIp = m_chunk.GetCodeSize();
-	node.GetStep().Accept(*this);
+
+	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+	m_chunk.WriteUint32(iterSlot, m_currentLine);
+
+	if (node.GetStepExpr())
+	{
+		node.GetStepExpr()->Accept(*this);
+	}
+	else
+	{
+		EmitConstant(Value(static_cast<int64_t>(1)));
+	}
+
+	const auto stepOp = node.IsDown()
+		? GetBinaryOpCode(BinaryOpKind::Sub, iterType.get())
+		: GetBinaryOpCode(BinaryOpKind::Add, iterType.get());
+	m_chunk.WriteOpCode(stepOp, m_currentLine);
+	m_chunk.WriteOpCode(OpCode::StoreLocal, m_currentLine);
+	m_chunk.WriteUint32(iterSlot, m_currentLine);
 
 	m_chunk.WriteOpCode(OpCode::Jump, m_currentLine);
 	m_chunk.WriteUint32(checkIp, m_currentLine);
@@ -673,45 +745,118 @@ void CodeGenerator::Visit(const ClassicForStmt& node)
 		m_chunk.PatchUint32(patch, stepIp);
 }
 
-void CodeGenerator::Visit(const RepStmt& node)
+void CodeGenerator::Visit(const RepCollectionStmt& node)
 {
-	const auto repIt = m_context.repIterators.find(&node);
-	AssertIsIdentifierResolved(repIt != m_context.repIterators.end(), node.GetIterators()[0], node.GetRange());
-	const uint32_t iterSlot = repIt->second[0].stackSlot;
+	const auto loopIt = m_context.collectionLoopInfos.find(&node);
+	AssertIsIdentifierResolved(loopIt != m_context.collectionLoopInfos.end(), node.GetValueIterator(), node.GetRange());
+	const uint32_t arraySlot = loopIt->second.arraySlot;
+	const uint32_t counterSlot = loopIt->second.counterSlot;
+	const uint32_t valueSlot = loopIt->second.valueIter.stackSlot;
 
-	node.GetRanges()[0]->Accept(*this);
+	node.GetCollectionExpr().Accept(*this);
+	EmitConstant(Value(static_cast<int64_t>(0)));
+	EmitReserveSlot();
 
 	const uint32_t checkIp = m_chunk.GetCodeSize();
 
 	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
-	m_chunk.WriteUint32(iterSlot, m_currentLine);
+	m_chunk.WriteUint32(counterSlot, m_currentLine);
 
-	node.GetRanges()[1]->Accept(*this);
-	const auto iterType = GetType(*node.GetRanges()[0]);
-	m_chunk.WriteOpCode(GetBinaryOpCode(BinaryOpKind::Less, iterType.get()), m_currentLine);
+	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+	m_chunk.WriteUint32(arraySlot, m_currentLine);
+	m_chunk.WriteOpCode(OpCode::ArrayLength, m_currentLine);
+
+	m_chunk.WriteOpCode(OpCode::LtInt, m_currentLine);
 
 	m_chunk.WriteOpCode(OpCode::JumpIfFalse, m_currentLine);
 	const uint32_t patchEnd = m_chunk.GetCodeSize();
 	m_chunk.WriteUint32(0, m_currentLine);
 
-	m_loopStack.push_back(LoopContext{m_localCount, 0, false, 1, {}, {}});
+	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+	m_chunk.WriteUint32(arraySlot, m_currentLine);
+	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+	m_chunk.WriteUint32(counterSlot, m_currentLine);
+	m_chunk.WriteOpCode(OpCode::LoadElement, m_currentLine);
+	m_chunk.WriteOpCode(OpCode::StoreLocal, m_currentLine);
+	m_chunk.WriteUint32(valueSlot, m_currentLine);
 
-	node.GetOriginalBody().Accept(*this);
+	m_loopStack.push_back(LoopContext{m_localCount, 0, false, 3, {}, {}});
+
+	node.GetBody().Accept(*this);
 
 	const uint32_t stepIp = m_chunk.GetCodeSize();
 
 	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
-	m_chunk.WriteUint32(iterSlot, m_currentLine);
+	m_chunk.WriteUint32(counterSlot, m_currentLine);
 	EmitConstant(Value(static_cast<int64_t>(1)));
-	m_chunk.WriteOpCode(GetBinaryOpCode(BinaryOpKind::Add, iterType.get()), m_currentLine);
+	m_chunk.WriteOpCode(OpCode::AddInt, m_currentLine);
 	m_chunk.WriteOpCode(OpCode::StoreLocal, m_currentLine);
-	m_chunk.WriteUint32(iterSlot, m_currentLine);
+	m_chunk.WriteUint32(counterSlot, m_currentLine);
 
 	m_chunk.WriteOpCode(OpCode::Jump, m_currentLine);
 	m_chunk.WriteUint32(checkIp, m_currentLine);
 
 	const uint32_t endIp = m_chunk.GetCodeSize();
 	m_chunk.PatchUint32(patchEnd, endIp);
+	m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+	m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+	m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+
+	const uint32_t afterPopIp = m_chunk.GetCodeSize();
+
+	LoopContext ctx = std::move(m_loopStack.back());
+	m_loopStack.pop_back();
+
+	for (uint32_t patch : ctx.breakPatches)
+		m_chunk.PatchUint32(patch, afterPopIp);
+	for (uint32_t patch : ctx.continuePatches)
+		m_chunk.PatchUint32(patch, stepIp);
+}
+
+void CodeGenerator::Visit(const RepTimesStmt& node)
+{
+	const auto timesIt = m_context.repTimesInfos.find(&node);
+	AssertIsIdentifierResolved(timesIt != m_context.repTimesInfos.end(), "times", node.GetRange());
+	const uint32_t limitSlot = timesIt->second.limitSlot;
+	const uint32_t counterSlot = timesIt->second.counterSlot;
+	const auto iterType = GetType(node.GetCountExpr());
+
+	node.GetCountExpr().Accept(*this);              // limit → limitSlot
+	EmitConstant(Value(static_cast<int64_t>(0)));   // counter=0 → counterSlot
+
+	const uint32_t checkIp = m_chunk.GetCodeSize();
+
+	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+	m_chunk.WriteUint32(counterSlot, m_currentLine);
+
+	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+	m_chunk.WriteUint32(limitSlot, m_currentLine);
+
+	m_chunk.WriteOpCode(GetBinaryOpCode(BinaryOpKind::Less, iterType.get()), m_currentLine);
+
+	m_chunk.WriteOpCode(OpCode::JumpIfFalse, m_currentLine);
+	const uint32_t patchEnd = m_chunk.GetCodeSize();
+	m_chunk.WriteUint32(0, m_currentLine);
+
+	m_loopStack.push_back(LoopContext{m_localCount, 0, false, 2, {}, {}});
+
+	node.GetBody().Accept(*this);
+
+	const uint32_t stepIp = m_chunk.GetCodeSize();
+
+	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+	m_chunk.WriteUint32(counterSlot, m_currentLine);
+	EmitConstant(Value(static_cast<int64_t>(1)));
+	m_chunk.WriteOpCode(GetBinaryOpCode(BinaryOpKind::Add, iterType.get()), m_currentLine);
+	m_chunk.WriteOpCode(OpCode::StoreLocal, m_currentLine);
+	m_chunk.WriteUint32(counterSlot, m_currentLine);
+
+	m_chunk.WriteOpCode(OpCode::Jump, m_currentLine);
+	m_chunk.WriteUint32(checkIp, m_currentLine);
+
+	const uint32_t endIp = m_chunk.GetCodeSize();
+	m_chunk.PatchUint32(patchEnd, endIp);
+	m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
 	m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
 
 	const uint32_t afterPopIp = m_chunk.GetCodeSize();
@@ -781,7 +926,11 @@ void CodeGenerator::Visit(const FunctionDeclStmt& node)
 	const uint32_t jumpPatch = m_chunk.GetCodeSize();
 	m_chunk.WriteUint32(0, m_currentLine);
 
-	m_functionOffsets[node.GetName()] = m_chunk.GetCodeSize();
+	const auto keyIt = m_context.annotations.functionDeclKeys.find(&node);
+	const std::string key = keyIt != m_context.annotations.functionDeclKeys.end()
+		? keyIt->second
+		: node.GetName();
+	m_functionOffsets[key] = m_chunk.GetCodeSize();
 	node.GetBody().Accept(*this);
 
 	EmitConstant(Value(static_cast<uint32_t>(0)));
@@ -854,7 +1003,7 @@ void CodeGenerator::Visit(const WhenStmt& node)
 			{
 				m_chunk.WriteOpCode(OpCode::Dup, m_currentLine);
 				entry.conditions[i]->Accept(*this);
-				const auto opCode = GetBinaryOpCode(BinaryOpKind::Eq, GetType(node).get());
+				const auto opCode = GetBinaryOpCode(BinaryOpKind::Eq, GetType(*node.GetSubject()).get());
 				m_chunk.WriteOpCode(opCode, m_currentLine);
 			}
 			else
@@ -921,7 +1070,7 @@ void CodeGenerator::Visit(const WhenStmt& node)
 std::shared_ptr<TypeInfo> CodeGenerator::GetType(const AstNode& node) const
 {
 	auto it = m_context.annotations.resolvedTypes.find(&node);
-	AssertIsTypeResolved(it != m_context.annotations.resolvedTypes.end());
+	AssertIsTypeResolved(it != m_context.annotations.resolvedTypes.end(), node.GetRange());
 	return it->second;
 }
 
@@ -936,4 +1085,9 @@ void CodeGenerator::EmitConstant(Value value)
 	const uint8_t idx = m_chunk.AddConstant(value);
 	m_chunk.WriteOpCode(OpCode::Constant, m_currentLine);
 	m_chunk.WriteByte(idx, m_currentLine);
+}
+
+void CodeGenerator::EmitReserveSlot()
+{
+	EmitConstant(Value());
 }

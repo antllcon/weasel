@@ -20,7 +20,9 @@
 #include "src/compiler/ast/MemberAccessExpr.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
+#include "src/compiler/ast/RepCollectionStmt.h"
 #include "src/compiler/ast/RepStmt.h"
+#include "src/compiler/ast/RepTimesStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
 #include "src/compiler/ast/StringExpr.h"
@@ -244,10 +246,6 @@ void AstVisualizer::Visit(const BreakStmt& /*node*/)
 	PrintLeaf("break", true);
 }
 
-void AstVisualizer::Visit(const ClassicForStmt& /*node*/)
-{
-}
-
 void AstVisualizer::Visit(const ContinueStmt& /*node*/)
 {
 	PrintLeaf("continue", true);
@@ -269,25 +267,32 @@ void AstVisualizer::Visit(const DoWhileStmt& node)
 
 void AstVisualizer::Visit(const RepStmt& node)
 {
-	const auto& iters = node.GetIterators();
-	std::string label = "For (";
-	for (size_t i = 0; i < iters.size(); ++i)
-	{
-		if (i > 0)
-		{
-			label += ", ";
-		}
-		label += iters[i];
-	}
-	label += ")";
+	const std::string label = node.IsDown()
+		? "RepDown (" + node.GetIterator() + ")"
+		: "RepRange (" + node.GetIterator() + ")";
 	PrintNode(label);
+	VisitChild(node.GetStartExpr(), false);
+	VisitChild(node.GetEndExpr(), node.GetStepExpr() == nullptr);
+	if (node.GetStepExpr())
+		VisitChild(*node.GetStepExpr(), false);
+	VisitChild(node.GetBody(), true);
+}
 
-	const auto& ranges = node.GetRanges();
-	for (size_t i = 0; i < ranges.size(); ++i)
-	{
-		VisitChild(*ranges[i], false);
-	}
-	VisitChild(node.GetOriginalBody(), true);
+void AstVisualizer::Visit(const RepCollectionStmt& node)
+{
+	const std::string label = node.HasIndexIterator()
+		? "RepCollection (" + node.GetIndexIterator() + ", " + node.GetValueIterator() + ")"
+		: "RepCollection (" + node.GetValueIterator() + ")";
+	PrintNode(label);
+	VisitChild(node.GetCollectionExpr(), false);
+	VisitChild(node.GetBody(), true);
+}
+
+void AstVisualizer::Visit(const RepTimesStmt& node)
+{
+	PrintNode("RepTimes");
+	VisitChild(node.GetCountExpr(), false);
+	VisitChild(node.GetBody(), true);
 }
 
 void AstVisualizer::Visit(const ReturnStmt& node)

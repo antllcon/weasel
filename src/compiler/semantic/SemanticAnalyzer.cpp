@@ -19,9 +19,10 @@
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/BreakStmt.h"
-#include "src/compiler/ast/ClassicForStmt.h"
 #include "src/compiler/ast/ContinueStmt.h"
+#include "src/compiler/ast/RepCollectionStmt.h"
 #include "src/compiler/ast/RepStmt.h"
+#include "src/compiler/ast/RepTimesStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
 #include "src/compiler/ast/ScalarTypeInfo.h"
@@ -164,14 +165,15 @@ void AssertIsBool(const std::shared_ptr<TypeInfo>& type, size_t line, size_t pos
 	}
 }
 
-void AssertIsArgCountMatch(size_t expected, size_t actual, const std::string& name)
+void AssertIsArgCountInRange(size_t actual, size_t required, size_t total, const std::string& name)
 {
-	if (expected != actual)
+	if (actual < required || actual > total)
 	{
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Semantic,
 			.message = "Неверное количество аргументов при вызове функции " + name
-				+ ": ожидалось " + std::to_string(expected)
+				+ ": ожидалось от " + std::to_string(required)
+				+ " до " + std::to_string(total)
 				+ ", получено " + std::to_string(actual)});
 	}
 }
@@ -324,6 +326,120 @@ bool IsPrimitiveType(const std::string& name)
 {
 	return name == LanguageTokens::TypeInt || name == LanguageTokens::TypeUint || name == LanguageTokens::TypeReal || name == LanguageTokens::TypeBool || name == LanguageTokens::TypeString || name == LanguageTokens::TypeVoid;
 }
+
+bool DefinitelyReturns(const Stmt& stmt)
+{
+	if (const auto* ret = dynamic_cast<const ReturnStmt*>(&stmt))
+	{
+		return ret->GetValue() != nullptr;
+	}
+
+	if (const auto* block = dynamic_cast<const BlockStmt*>(&stmt))
+	{
+		for (const auto& inner : block->GetStmts())
+		{
+			if (DefinitelyReturns(*inner))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	if (const auto* ifStmt = dynamic_cast<const IfStmt*>(&stmt))
+	{
+		const Stmt* elseNode = ifStmt->GetElseNode();
+		return elseNode != nullptr
+			&& DefinitelyReturns(ifStmt->GetThenBlock())
+			&& DefinitelyReturns(*elseNode);
+	}
+
+	if (const auto* whenStmt = dynamic_cast<const WhenStmt*>(&stmt))
+	{
+		const Stmt* elseBody = whenStmt->GetElseBody();
+		if (elseBody == nullptr || !DefinitelyReturns(*elseBody))
+		{
+			return false;
+		}
+		for (const auto& entry : whenStmt->GetEntries())
+		{
+			if (!DefinitelyReturns(*entry.body))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	return false;
+}
+
+std::string MangleFunction(const std::string& name, const std::vector<ParamInfo>& params)
+{
+	std::string key = name + "(";
+	for (size_t i = 0; i < params.size(); ++i)
+	{
+		if (i > 0)
+		{
+			key += ",";
+		}
+		key += params[i].type ? params[i].type->GetName() : "?";
+	}
+	key += ")";
+	return key;
+}
+
+size_t RequiredParamCount(const std::vector<ParamInfo>& params)
+{
+	size_t required = 0;
+	for (const auto& param : params)
+	{
+		if (param.defaultValue == nullptr)
+		{
+			++required;
+		}
+	}
+	return required;
+}
+
+[[noreturn]] void ThrowNoMatchingOverload(const std::string& name, const SourceRange& range)
+{
+	throw CompilationException(DiagnosticData{
+		.phase = CompilerPhase::Semantic,
+		.message = "Нет подходящей перегрузки функции '" + name + "' для переданных аргументов",
+		.line = range.start.line,
+		.pos = range.start.pos});
+}
+
+[[noreturn]] void ThrowAmbiguousCall(const std::string& name, const SourceRange& range)
+{
+	throw CompilationException(DiagnosticData{
+		.phase = CompilerPhase::Semantic,
+		.message = "Неоднозначный вызов перегруженной функции '" + name + "'",
+		.line = range.start.line,
+		.pos = range.start.pos});
+}
+
+bool IsFlexibleLiteralExpr(const Expr& expr)
+{
+	if (dynamic_cast<const NumExpr*>(&expr) != nullptr)
+	{
+		return true;
+	}
+	if (const auto* binary = dynamic_cast<const BinaryExpr*>(&expr))
+	{
+		if (IsComparisonOp(binary->GetOp()) || IsLogicalOp(binary->GetOp()))
+		{
+			return false;
+		}
+		return IsFlexibleLiteralExpr(binary->GetLeft()) && IsFlexibleLiteralExpr(binary->GetRight());
+	}
+	if (const auto* unary = dynamic_cast<const UnaryExpr*>(&expr))
+	{
+		return IsFlexibleLiteralExpr(unary->GetOperand());
+	}
+	return false;
+}
 } // namespace
 
 CodegenContext SemanticAnalyzer::Analyze(const AstNode& root, DiagnosticEngine& engine)
@@ -338,8 +454,10 @@ CodegenContext SemanticAnalyzer::Analyze(const AstNode& root, DiagnosticEngine& 
 		std::move(m_resolvedSymbols),
 		std::move(m_varDeclSlots),
 		std::move(m_resolvedIterators),
-		std::move(m_classicForInits),
-		std::move(m_functions)
+		std::move(m_collectionLoopInfos),
+		std::move(m_repTimesInfos),
+		std::move(m_functions),
+		std::move(m_entryPointKey)
 	};
 }
 
@@ -377,9 +495,11 @@ void SemanticAnalyzer::CollectFunctions(const AstNode& root)
 		info.returnType = native.returnType;
 		for (const auto& [name, type] : native.params)
 		{
-			info.params.push_back(ParamInfo{name, type, std::nullopt});
+			info.params.push_back(ParamInfo{name, type, std::nullopt, nullptr});
 		}
-		m_functions[native.name] = std::move(info);
+		const std::string key = MangleFunction(native.name, info.params);
+		m_overloadsByName[native.name].push_back(key);
+		m_functions[key] = std::move(info);
 	}
 
 	const auto* program = dynamic_cast<const ProgramNode*>(&root);
@@ -401,10 +521,29 @@ void SemanticAnalyzer::CollectFunctions(const AstNode& root)
 
 		for (const auto& param : fn->GetParams())
 		{
-			info.params.push_back(ParamInfo{param.name, m_typeResolver.Resolve(param.typeName), param.modifier});
+			info.params.push_back(ParamInfo{param.name, m_typeResolver.Resolve(param.typeName), param.modifier, param.defaultValue.get()});
 		}
 
-		m_functions[fn->GetName()] = std::move(info);
+		const std::string key = MangleFunction(fn->GetName(), info.params);
+		m_annotations.functionDeclKeys[fn] = key;
+
+		if (m_functions.contains(key))
+		{
+			m_engine->Report(DiagnosticData{
+				.phase = CompilerPhase::Semantic,
+				.message = "Повторное объявление функции с той же сигнатурой: " + key,
+				.line = fn->GetRange().start.line,
+				.pos = fn->GetRange().start.pos});
+			continue;
+		}
+
+		m_overloadsByName[fn->GetName()].push_back(key);
+		m_functions[key] = std::move(info);
+
+		if (fn->GetName() == "main")
+		{
+			m_entryPointKey = key;
+		}
 	}
 }
 
@@ -485,7 +624,31 @@ void SemanticAnalyzer::Visit(const ProgramNode& node)
 void SemanticAnalyzer::Visit(const FunctionDeclStmt& node)
 {
 	m_scopeManager.ResetSlots();
-	m_currentReturnType = m_functions[node.GetName()].returnType;
+	const std::string& key = m_annotations.functionDeclKeys[&node];
+	m_currentReturnType = m_functions[key].returnType;
+
+	bool seenDefault = false;
+	for (const auto& param : node.GetParams())
+	{
+		if (param.defaultValue != nullptr)
+		{
+			seenDefault = true;
+			const auto paramType = m_typeResolver.Resolve(param.typeName);
+			const auto savedExpected = m_expectedType;
+			m_expectedType = paramType;
+			param.defaultValue->Accept(*this);
+			m_expectedType = savedExpected;
+			AssertIsExactTypeMatch(paramType, GetType(*param.defaultValue), param.defaultValue->GetRange());
+		}
+		else if (seenDefault)
+		{
+			m_engine->Report(DiagnosticData{
+				.phase = CompilerPhase::Semantic,
+				.message = "Параметр '" + param.name + "' без значения по умолчанию не может следовать за параметром со значением по умолчанию",
+				.line = node.GetRange().start.line,
+				.pos = node.GetRange().start.pos});
+		}
+	}
 
 	m_scopeManager.EnterScope();
 	for (const auto& param : node.GetParams())
@@ -498,7 +661,17 @@ void SemanticAnalyzer::Visit(const FunctionDeclStmt& node)
 	node.GetBody().Accept(*this);
 	m_scopeManager.LeaveScope();
 
-	m_functions[node.GetName()].maxSlots = m_scopeManager.GetMaxSlots();
+	if (m_currentReturnType->GetName() != std::string(LanguageTokens::TypeVoid)
+		&& !DefinitelyReturns(node.GetBody()))
+	{
+		m_engine->Report(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Функция '" + node.GetName() + "' должна возвращать значение на всех путях выполнения",
+			.line = node.GetRange().start.line,
+			.pos = node.GetRange().start.pos});
+	}
+
+	m_functions[key].maxSlots = m_scopeManager.GetMaxSlots();
 	m_currentReturnType = nullptr;
 }
 
@@ -652,31 +825,36 @@ void SemanticAnalyzer::Visit(const ContinueStmt& node)
 	}
 }
 
-void SemanticAnalyzer::Visit(const ClassicForStmt& node)
+void SemanticAnalyzer::Visit(const RepStmt& node)
 {
 	m_scopeManager.EnterScope();
 	const uint32_t savedSlot = m_scopeManager.GetCurrentSlot();
 
-	auto initType = m_typeResolver.Resolve(node.GetInitType());
+	const auto savedExpected = m_expectedType;
+	m_expectedType = nullptr;
+	node.GetEndExpr().Accept(*this);
+	auto iterType = GetType(node.GetEndExpr());
+	AssertIsIntegerType(iterType, "Граница цикла должна быть целочисленного типа", node.GetEndExpr().GetRange());
+
+	m_expectedType = iterType;
+	node.GetStartExpr().Accept(*this);
+	m_expectedType = savedExpected;
+	AssertIsExactTypeMatch(iterType, GetType(node.GetStartExpr()), node.GetStartExpr().GetRange());
+
+	if (node.GetStepExpr())
+	{
+		m_expectedType = iterType;
+		node.GetStepExpr()->Accept(*this);
+		m_expectedType = savedExpected;
+		AssertIsExactTypeMatch(iterType, GetType(*node.GetStepExpr()), node.GetStepExpr()->GetRange());
+	}
 
 	const uint32_t slot = m_scopeManager.AllocateSlot();
-	const bool isNew = m_scopeManager.Declare(node.GetInitName(), initType, true, slot, false, nullptr);
-	AssertIsVariableNotRedeclared(isNew, node.GetInitName());
+	const bool isNew = m_scopeManager.Declare(node.GetIterator(), iterType, false, slot, false, nullptr);
+	AssertIsVariableNotRedeclared(isNew, node.GetIterator());
 
-	m_classicForInits[&node] = SymbolInfo{initType, slot, true, false, nullptr};
+	m_resolvedIterators[&node] = SymbolInfo{iterType, slot, false, false, nullptr};
 
-	const auto savedExpected = m_expectedType;
-	m_expectedType = initType;
-	node.GetInitExpr().Accept(*this);
-	m_expectedType = savedExpected;
-
-	node.GetCondition().Accept(*this);
-	AssertIsBool(
-		GetType(node.GetCondition()),
-		node.GetCondition().GetRange().start.line,
-		node.GetCondition().GetRange().start.pos);
-
-	node.GetStep().Accept(*this);
 	++m_loopDepth;
 	node.GetBody().Accept(*this);
 	--m_loopDepth;
@@ -685,45 +863,78 @@ void SemanticAnalyzer::Visit(const ClassicForStmt& node)
 	m_scopeManager.LeaveScope();
 }
 
-void SemanticAnalyzer::Visit(const RepStmt& node)
+void SemanticAnalyzer::Visit(const RepCollectionStmt& node)
 {
 	m_scopeManager.EnterScope();
 	const uint32_t savedSlot = m_scopeManager.GetCurrentSlot();
 
-	std::vector<SymbolInfo> iterInfos;
-	const auto& iters = node.GetIterators();
-	const auto& ranges = node.GetRanges();
+	const auto savedExpected = m_expectedType;
+	m_expectedType = nullptr;
+	node.GetCollectionExpr().Accept(*this);
+	m_expectedType = savedExpected;
 
-	for (size_t i = 0; i < iters.size(); ++i)
+	const auto collType = GetType(node.GetCollectionExpr());
+	const auto* arrayType = dynamic_cast<const ArrayTypeInfo*>(collType.get());
+	if (!arrayType)
 	{
-		const size_t startIdx = i * 2;
-		const size_t endIdx = i * 2 + 1;
-
-		const auto savedExpected = m_expectedType;
-		m_expectedType = nullptr;
-		ranges[endIdx]->Accept(*this);
-
-		auto iterType = GetType(*ranges[endIdx]);
-		AssertIsIntegerType(iterType, "Граница цикла должна быть целочисленного типа", ranges[endIdx]->GetRange());
-
-		m_expectedType = iterType;
-		ranges[startIdx]->Accept(*this);
-		m_expectedType = savedExpected;
-
-		AssertIsExactTypeMatch(iterType, GetType(*ranges[startIdx]), ranges[startIdx]->GetRange());
-
-		const uint32_t slot = m_scopeManager.AllocateSlot();
-
-		const bool isNew = m_scopeManager.Declare(iters[i], iterType, false, slot, false, nullptr);
-		AssertIsVariableNotRedeclared(isNew, iters[i]);
-
-		iterInfos.push_back(SymbolInfo{iterType, slot, false, false, nullptr});
+		m_engine->Report(DiagnosticData{
+			.phase = CompilerPhase::Semantic,
+			.message = "Выражение в repeat...in должно быть массивом",
+			.line = node.GetCollectionExpr().GetRange().start.line,
+			.pos = node.GetCollectionExpr().GetRange().start.pos});
+		m_scopeManager.RestoreSlot(savedSlot);
+		m_scopeManager.LeaveScope();
+		return;
 	}
 
-	m_resolvedIterators[&node] = std::move(iterInfos);
+	auto elementType = arrayType->GetElementType();
+	auto intType = m_typeResolver.Resolve(std::string(LanguageTokens::TypeInt));
+
+	const uint32_t arraySlot = m_scopeManager.AllocateSlot();
+	const uint32_t counterSlot = m_scopeManager.AllocateSlot();
+	if (node.HasIndexIterator())
+	{
+		const bool isNew = m_scopeManager.Declare(node.GetIndexIterator(), intType, false, counterSlot, false, nullptr);
+		AssertIsVariableNotRedeclared(isNew, node.GetIndexIterator());
+	}
+
+	const uint32_t valueSlot = m_scopeManager.AllocateSlot();
+	const bool isNew = m_scopeManager.Declare(node.GetValueIterator(), elementType, false, valueSlot, false, nullptr);
+	AssertIsVariableNotRedeclared(isNew, node.GetValueIterator());
+
+	m_collectionLoopInfos[&node] = CollectionLoopInfo{
+		SymbolInfo{elementType, valueSlot, false, false, nullptr},
+		arraySlot,
+		counterSlot
+	};
 
 	++m_loopDepth;
-	node.GetOriginalBody().Accept(*this);
+	node.GetBody().Accept(*this);
+	--m_loopDepth;
+
+	m_scopeManager.RestoreSlot(savedSlot);
+	m_scopeManager.LeaveScope();
+}
+
+void SemanticAnalyzer::Visit(const RepTimesStmt& node)
+{
+	m_scopeManager.EnterScope();
+	const uint32_t savedSlot = m_scopeManager.GetCurrentSlot();
+
+	const auto savedExpected = m_expectedType;
+	m_expectedType = nullptr;
+	node.GetCountExpr().Accept(*this);
+	m_expectedType = savedExpected;
+
+	const auto countType = GetType(node.GetCountExpr());
+	AssertIsIntegerType(countType, "Количество итераций должно быть целым числом", node.GetCountExpr().GetRange());
+
+	const uint32_t limitSlot = m_scopeManager.AllocateSlot();
+	const uint32_t counterSlot = m_scopeManager.AllocateSlot();
+	m_repTimesInfos[&node] = TimesLoopInfo{limitSlot, counterSlot};
+
+	++m_loopDepth;
+	node.GetBody().Accept(*this);
 	--m_loopDepth;
 
 	m_scopeManager.RestoreSlot(savedSlot);
@@ -793,51 +1004,54 @@ void SemanticAnalyzer::Visit(const IdentifierExpr& node)
 void SemanticAnalyzer::Visit(const BinaryExpr& node)
 {
 	const auto savedExpected = m_expectedType;
+	const bool resultIsBool = IsComparisonOp(node.GetOp()) || IsLogicalOp(node.GetOp());
 
-	m_expectedType = nullptr;
+	std::shared_ptr<TypeInfo> propagated = nullptr;
+	if (!resultIsBool
+		&& savedExpected != nullptr
+		&& savedExpected->GetName() != std::string(LanguageTokens::TypeBool))
+	{
+		propagated = savedExpected;
+	}
+
+	m_expectedType = propagated;
 	node.GetLeft().Accept(*this);
 	auto leftType = GetType(node.GetLeft());
 
 	node.GetRight().Accept(*this);
 	auto rightType = GetType(node.GetRight());
 
-	std::shared_ptr<TypeInfo> anchorType = nullptr;
-
-	if (savedExpected != nullptr && savedExpected->GetName() != std::string(LanguageTokens::TypeBool))
+	if (propagated == nullptr && leftType != rightType)
 	{
-		anchorType = savedExpected;
-	}
-	else if (leftType != rightType)
-	{
-		const bool isLeftStrict = dynamic_cast<const IdentifierExpr*>(&node.GetLeft()) != nullptr || dynamic_cast<const MemberAccessExpr*>(&node.GetLeft()) != nullptr || dynamic_cast<const IndexExpr*>(&node.GetLeft()) != nullptr;
+		const bool isLeftFlexible = IsFlexibleLiteralExpr(node.GetLeft());
+		const bool isRightFlexible = IsFlexibleLiteralExpr(node.GetRight());
 
-		const bool isRightStrict = dynamic_cast<const IdentifierExpr*>(&node.GetRight()) != nullptr || dynamic_cast<const MemberAccessExpr*>(&node.GetRight()) != nullptr || dynamic_cast<const IndexExpr*>(&node.GetRight()) != nullptr;
-
-		if (isLeftStrict && !isRightStrict)
-		{
-			anchorType = leftType;
-		}
-		else if (isRightStrict && !isLeftStrict)
+		std::shared_ptr<TypeInfo> anchorType = nullptr;
+		if (isLeftFlexible && !isRightFlexible)
 		{
 			anchorType = rightType;
 		}
-	}
+		else if (isRightFlexible && !isLeftFlexible)
+		{
+			anchorType = leftType;
+		}
 
-	if (anchorType != nullptr)
-	{
-		m_expectedType = anchorType;
-		node.GetLeft().Accept(*this);
-		leftType = GetType(node.GetLeft());
+		if (anchorType != nullptr)
+		{
+			m_expectedType = anchorType;
+			node.GetLeft().Accept(*this);
+			leftType = GetType(node.GetLeft());
 
-		node.GetRight().Accept(*this);
-		rightType = GetType(node.GetRight());
+			node.GetRight().Accept(*this);
+			rightType = GetType(node.GetRight());
+		}
 	}
 
 	m_expectedType = savedExpected;
 
 	AssertIsExactTypeMatch(leftType, rightType, node.GetRange());
 
-	if (IsComparisonOp(node.GetOp()) || IsLogicalOp(node.GetOp()))
+	if (resultIsBool)
 	{
 		SetType(node, ScalarTypeInfo::Make(BaseType::Bool));
 	}
@@ -876,32 +1090,81 @@ void SemanticAnalyzer::Visit(const FunctionCallExpr& node)
 		return;
 	}
 
+	const auto overloadIt = m_overloadsByName.find(node.GetName());
+	AssertIsFunctionExists(overloadIt != m_overloadsByName.end(), node.GetName(), node.GetRange());
+	const auto& candidateKeys = overloadIt->second;
+
+	if (candidateKeys.size() == 1)
+	{
+		const std::string& key = candidateKeys.front();
+		const auto& fn = m_functions[key];
+		AssertIsArgCountInRange(node.GetArgs().size(), RequiredParamCount(fn.params), fn.params.size(), node.GetName());
+
+		for (size_t i = 0; i < node.GetArgs().size(); ++i)
+		{
+			const auto savedExpected = m_expectedType;
+			m_expectedType = fn.params[i].type;
+
+			node.GetArgs()[i]->Accept(*this);
+
+			m_expectedType = savedExpected;
+
+			AssertIsExactTypeMatch(
+				fn.params[i].type,
+				GetType(*node.GetArgs()[i]),
+				node.GetArgs()[i]->GetRange());
+		}
+
+		m_annotations.resolvedCallTargets[&node] = key;
+		SetType(node, fn.returnType);
+		return;
+	}
+
+	std::vector<std::shared_ptr<TypeInfo>> argTypes;
 	for (const auto& arg : node.GetArgs())
 	{
-		arg->Accept(*this);
-	}
-
-	AssertIsFunctionExists(m_functions.contains(node.GetName()), node.GetName(), node.GetRange());
-
-	const auto& fn = m_functions[node.GetName()];
-	AssertIsArgCountMatch(fn.params.size(), node.GetArgs().size(), node.GetName());
-
-	for (size_t i = 0; i < fn.params.size(); ++i)
-	{
 		const auto savedExpected = m_expectedType;
-		m_expectedType = fn.params[i].type;
-
-		node.GetArgs()[i]->Accept(*this);
-
+		m_expectedType = nullptr;
+		arg->Accept(*this);
 		m_expectedType = savedExpected;
-
-		AssertIsExactTypeMatch(
-			fn.params[i].type,
-			GetType(*node.GetArgs()[i]),
-			node.GetArgs()[i]->GetRange());
+		argTypes.push_back(GetType(*arg));
 	}
 
-	SetType(node, fn.returnType);
+	std::vector<std::string> matches;
+	for (const auto& key : candidateKeys)
+	{
+		const auto& fn = m_functions[key];
+		if (argTypes.size() < RequiredParamCount(fn.params) || argTypes.size() > fn.params.size())
+		{
+			continue;
+		}
+		bool isMatch = true;
+		for (size_t i = 0; i < argTypes.size(); ++i)
+		{
+			if (!fn.params[i].type || !argTypes[i]
+				|| fn.params[i].type->GetName() != argTypes[i]->GetName())
+			{
+				isMatch = false;
+				break;
+			}
+		}
+		if (isMatch)
+		{
+			matches.push_back(key);
+		}
+	}
+
+	if (matches.empty())
+	{
+		ThrowNoMatchingOverload(node.GetName(), node.GetRange());
+	}
+	if (matches.size() > 1)
+	{
+		ThrowAmbiguousCall(node.GetName(), node.GetRange());
+	}
+
+	m_annotations.resolvedCallTargets[&node] = matches.front();
+	SetType(node, m_functions[matches.front()].returnType);
 }
 
 void SemanticAnalyzer::Visit(const NumExpr& node)

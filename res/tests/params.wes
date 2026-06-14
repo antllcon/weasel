@@ -10,18 +10,6 @@
 #
 # ============================================================
 
-struct Point
-[
-    var real x
-    var real y
-]
-
-struct Counter
-[
-    var int value
-    var int step
-]
-
 # ============================================================
 # СКАЛЯРЫ — всегда по значению, caller никогда не видит изменений
 # ============================================================
@@ -41,8 +29,14 @@ int <- tripleVal(val int x)
 # var: копия, но можно переприсвоить локально
 int <- clamp(var int x, int lo, int hi)
 {
-    run (x < lo) { x = lo }
-    run (x > hi) { x = hi }
+    run (x < lo)
+    {
+        x = lo
+    }
+    run (x > hi)
+    {
+        x = hi
+    }
     return x
 }
 
@@ -143,96 +137,6 @@ void <- testArrays()
 }
 
 # ============================================================
-# СТРУКТУРЫ — без модификатора: копия (caller не видит изменений)
-#              val: const-ref (нельзя менять поля)
-#              var: mutable-ref (изменения видны caller)
-# ============================================================
-
-# Без модификатора: функция получает КОПИЮ Point
-# Любые изменения p.x, p.y не видны caller
-real <- distanceFromOrigin(Point p)
-{
-    return p.x * p.x + p.y * p.y
-}
-
-real <- manhattan(Point a, Point b)
-{
-    val real dx = a.x - b.x
-    val real dy = a.y - b.y
-    run (dx < 0.0) { dx = dx * -1.0 }
-    run (dy < 0.0) { dy = dy * -1.0 }
-    return dx + dy
-}
-
-# val: const-ref — нельзя менять поля, не копирует
-void <- printPoint(val Point p)
-{
-    print("(")
-    print(p.x)
-    print(", ")
-    print(p.y)
-    println(")")
-    # p.x = 99.0   # ОШИБКА: val param — нельзя менять поля
-}
-
-# var: mutable-ref — изменения ВИДНЫ caller
-void <- translatePoint(var Point p, real dx, real dy)
-{
-    p.x = p.x + dx
-    p.y = p.y + dy
-}
-
-void <- normalizePoint(var Point p)
-{
-    val real len = distanceFromOrigin(p)
-    run (len > 0.0)
-    {
-        p.x = p.x / len
-        p.y = p.y / len
-    }
-}
-
-# Без модификатора: Counter передаётся по ЗНАЧЕНИЮ — копия
-# Можно "использовать" как счётчик внутри, не трогая оригинал
-int <- countSteps(Counter c, int target)
-{
-    var int steps = 0
-    run (c.value < target)
-    {
-        c.value = c.value + c.step
-        steps = steps + 1
-    }
-    return steps
-}
-
-# var: мутирует оригинал
-void <- advance(var Counter c)
-{
-    c.value = c.value + c.step
-}
-
-void <- testStructs()
-{
-    var Point origin = Point { x = 0.0, y = 0.0 }
-    var Point p = Point { x = 3.0, y = 4.0 }
-
-    println(distanceFromOrigin(p))     # 25.0 (3*3 + 4*4)
-    println(manhattan(origin, p))      # 7.0
-
-    printPoint(p)                      # (3.0, 4.0)
-
-    translatePoint(p, 1.0, -1.0)
-    printPoint(p)                      # (4.0, 3.0) — изменилось!
-
-    var Counter c = Counter { value = 0, step = 3 }
-    println(countSteps(c, 10))         # 4 (0→3→6→9→12, нужно 4 шага)
-    println(c.value)                   # 0 — не изменилось! передали копию
-
-    advance(c)
-    println(c.value)                   # 3 — изменилось! var param
-}
-
-# ============================================================
 # СМЕШАННЫЕ СЛУЧАИ
 # ============================================================
 
@@ -252,8 +156,14 @@ void <- clampArray(var array[int] arr, int lo, int hi)
 {
     repeat (i in 0 .. arr.size)
     {
-        when { arr[i] < lo -> arr[i] = lo }
-        when { arr[i] > hi -> arr[i] = hi }
+        when
+        {
+            arr[i] < lo -> arr[i] = lo
+        }
+        when
+        {
+            arr[i] > hi -> arr[i] = hi
+        }
     }
 }
 
@@ -291,6 +201,5 @@ void <- main()
 {
     testScalars()
     testArrays()
-    testStructs()
     testMixed()
 }

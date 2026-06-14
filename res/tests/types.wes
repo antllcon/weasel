@@ -1,33 +1,42 @@
 void <- main()
 {
-    val int a := -120
-    val uint b := 250
-    val int c := -30000
-    val uint d := 4294967295
-    val int e := -9000000000000000000
-    val real f := 3.14
-    val real g := 2.7182818284
-    val bool h := true
-    val string i := "Weasel Language"
+    val int a = -120
+    val uint b = 250
+    val int c = -30000
+    val uint d = 4294967295
+    val int e = -9000000000000000000
+    val real f = 3.14
+    val real g = 2.7182818284
+    val bool h = true
+    val string i = "Weasel Language"
 
-    print("Печать базовых типов данных")
-    print("int a:", a)
-    print("uint b:", b)
-    print("int c:", c)
-    print("uint d:", d)
-    print("int e:", e)
-    print("real f:", f)
-    print("real g:", g)
-    print("bool h:", h)
-    print("string i:", i)
-    print()
+    println("Печать базовых типов данных")
+    println("int a:", a)
+    println("uint b:", b)
+    println("int c:", c)
+    println("uint d:", d)
+    println("int e:", e)
+    println("real f:", f)
+    println("real g:", g)
+    println("bool h:", h)
+    println("string i:", i)
+    println()
 
-    print("Явное приведение типов")
-    print("1. real(2.718) -> int :", g.int())
-    print("2. real(3.14) -> uint:", f.uint())
-    print("3. uint(250) -> real:", b.real())
-    print("4. uint(429..) -> int :", d.int())
-    print("5. int(-30000) -> real:", c.real())
-    print("6. int(-120) -> uint:", a.uint())
+    println("Явное приведение типов")
+    println("1. real(2.718) -> int:", g.int())
+    println("2. real(3.14) -> uint:", f.uint())
+    println("3. uint(250) -> real:", b.real())
+    println("4. uint(429..) -> int:", d.int())
+    println("5. int(-30000) -> real:", c.real())
+    println("6. int(-120) -> uint:", a.uint())
+
+
+        const int a = -120
+        const uint b = 250
+        const real f = 3.14
+        const bool h = true
+        const string i = "Weasel Language"
+
+        const data g = a.real()
 }
 

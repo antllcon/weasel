@@ -18,7 +18,8 @@
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
 #include "src/compiler/ast/BreakStmt.h"
-#include "src/compiler/ast/ClassicForStmt.h"
+#include "src/compiler/ast/RepCollectionStmt.h"
+#include "src/compiler/ast/RepTimesStmt.h"
 #include "src/compiler/ast/ContinueStmt.h"
 #include "src/compiler/ast/RepStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
@@ -469,74 +470,105 @@ std::unique_ptr<Stmt> ConvertReturnStmt(const CstNode& node)
 	return std::make_unique<ReturnStmt>(std::move(value), ExtractRange(node));
 }
 
-std::unique_ptr<Stmt> ConvertForStmt1D(const CstNode& node)
+std::unique_ptr<Expr> ConvertCountTerminal(const CstNode& terminal)
 {
+	const auto range = ExtractRange(terminal);
+	if (terminal.label == "num")
+	{
+		const bool isFloat = terminal.value.find('.') != std::string::npos;
+		return std::make_unique<NumExpr>(terminal.value, isFloat, range);
+	}
+	return std::make_unique<IdentifierExpr>(terminal.value, range);
+}
+
+std::unique_ptr<Stmt> ConvertRepTimesStmt(const CstNode& node)
+{
+	// repeat ( id/num times ) { StmtList }
+	// [0]=repeat [1]=( [2]=id/num [3]=times [4]=) [5]={ [6]=StmtList [7]=}
+	auto countExpr = ConvertCountTerminal(*node.children[2]);
+	auto body = ConvertStmtList(*node.children[6]);
+	return std::make_unique<RepTimesStmt>(std::move(countExpr), std::move(body), ExtractRange(node));
+}
+
+std::unique_ptr<Stmt> ConvertRepCollectionStmt(const CstNode& node)
+{
+	// repeat ( id in Expr ) { StmtList }
+	// [0]=repeat [1]=( [2]=id [3]=in [4]=Expr [5]=) [6]={ [7]=StmtList [8]=}
+	const std::string valueIter = node.children[2]->value;
+	auto collExpr = ConvertExpr(*node.children[4]);
+	auto body = ConvertStmtList(*node.children[7]);
+	return std::make_unique<RepCollectionStmt>(valueIter, "", std::move(collExpr), std::move(body), ExtractRange(node));
+}
+
+std::unique_ptr<Stmt> ConvertRepIndexedCollectionStmt(const CstNode& node)
+{
+	// repeat ( id , id in Expr ) { StmtList }
+	// [0]=repeat [1]=( [2]=id [3]=, [4]=id [5]=in [6]=Expr [7]=) [8]={ [9]=StmtList [10]=}
+	const std::string indexIter = node.children[2]->value;
+	const std::string valueIter = node.children[4]->value;
+	auto collExpr = ConvertExpr(*node.children[6]);
+	auto body = ConvertStmtList(*node.children[9]);
+	return std::make_unique<RepCollectionStmt>(valueIter, indexIter, std::move(collExpr), std::move(body), ExtractRange(node));
+}
+
+std::unique_ptr<Stmt> ConvertRepRangeStmt(const CstNode& node)
+{
+	// repeat ( id in Expr .. Expr ) { StmtList }
+	// [0]=repeat [1]=( [2]=id [3]=in [4]=Expr [5]=.. [6]=Expr [7]=) [8]={ [9]=StmtList [10]=}
 	const std::string iterName = node.children[2]->value;
 	auto startExpr = ConvertExpr(*node.children[4]);
 	auto endExpr = ConvertExpr(*node.children[6]);
 	auto body = ConvertStmtList(*node.children[9]);
-
-	std::vector<std::string> iterators = {iterName};
-	std::vector<std::unique_ptr<Expr>> ranges;
-	ranges.push_back(std::move(startExpr));
-	ranges.push_back(std::move(endExpr));
-
-	return std::make_unique<RepStmt>(
-		std::move(iterators), std::move(ranges), std::move(body), ExtractRange(node));
+	return std::make_unique<RepStmt>(iterName, std::move(startExpr), std::move(endExpr), nullptr, false, std::move(body), ExtractRange(node));
 }
 
-std::unique_ptr<Stmt> ConvertForStmt2D(const CstNode& node)
+std::unique_ptr<Stmt> ConvertRepDownStmt(const CstNode& node)
 {
-	const std::string iter1 = node.children[2]->value;
-	const std::string iter2 = node.children[4]->value;
-	auto start1 = ConvertExpr(*node.children[6]);
-	auto end1 = ConvertExpr(*node.children[8]);
-	auto start2 = ConvertExpr(*node.children[10]);
-	auto end2 = ConvertExpr(*node.children[12]);
-	auto body = ConvertStmtList(*node.children[15]);
-
-	std::vector<std::string> iterators = {iter1, iter2};
-	std::vector<std::unique_ptr<Expr>> ranges;
-	ranges.push_back(std::move(start1));
-	ranges.push_back(std::move(end1));
-	ranges.push_back(std::move(start2));
-	ranges.push_back(std::move(end2));
-
-	return std::make_unique<RepStmt>(
-		std::move(iterators), std::move(ranges), std::move(body), ExtractRange(node));
+	// repeat ( id in Expr down Expr ) { StmtList }
+	// [0]=repeat [1]=( [2]=id [3]=in [4]=Expr [5]=down [6]=Expr [7]=) [8]={ [9]=StmtList [10]=}
+	const std::string iterName = node.children[2]->value;
+	auto startExpr = ConvertExpr(*node.children[4]);
+	auto endExpr = ConvertExpr(*node.children[6]);
+	auto body = ConvertStmtList(*node.children[9]);
+	return std::make_unique<RepStmt>(iterName, std::move(startExpr), std::move(endExpr), nullptr, true, std::move(body), ExtractRange(node));
 }
 
-std::unique_ptr<Stmt> ConvertClassicForStmt(const CstNode& node)
+std::unique_ptr<Stmt> ConvertRepRangeStepStmt(const CstNode& node)
 {
-	// repeat ( BaseType id = Expr ; Expr ; AssignStmt ) { StmtList }
-	// [0]=repeat [1]=( [2]=BaseType [3]=id [4]== [5]=Expr [6]=; [7]=Expr [8]=; [9]=AssignStmt [10]=) [11]={ [12]=StmtList [13]=}
-	const std::string initType = node.children[2]->children[0]->value;
-	const std::string initName = node.children[3]->value;
-	auto initExpr = ConvertExpr(*node.children[5]);
-	auto condition = ConvertExpr(*node.children[7]);
-	auto step = ConvertAssignStmt(*node.children[9]);
-	auto body = ConvertStmtList(*node.children[12]);
-
-	return std::make_unique<ClassicForStmt>(
-		initType, initName, std::move(initExpr), std::move(condition), std::move(step), std::move(body), ExtractRange(node));
+	// repeat ( id in Expr .. Expr step Expr ) { StmtList }
+	// [0]=repeat [1]=( [2]=id [3]=in [4]=Expr [5]=.. [6]=Expr [7]=step [8]=Expr [9]=) [10]={ [11]=StmtList [12]=}
+	const std::string iterName = node.children[2]->value;
+	auto startExpr = ConvertExpr(*node.children[4]);
+	auto endExpr = ConvertExpr(*node.children[6]);
+	auto stepExpr = ConvertExpr(*node.children[8]);
+	auto body = ConvertStmtList(*node.children[11]);
+	return std::make_unique<RepStmt>(iterName, std::move(startExpr), std::move(endExpr), std::move(stepExpr), false, std::move(body), ExtractRange(node));
 }
 
 std::unique_ptr<Stmt> ConvertForStmt(const CstNode& node)
 {
-	if (node.children.size() == 11)
+	const size_t count = node.children.size();
+
+	if (count == 8)
+		return ConvertRepTimesStmt(node);
+
+	if (count == 9)
+		return ConvertRepCollectionStmt(node);
+
+	if (count == 11)
 	{
-		return ConvertForStmt1D(node);
-	}
-	if (node.children.size() == 17)
-	{
-		return ConvertForStmt2D(node);
-	}
-	if (node.children.size() == 14)
-	{
-		return ConvertClassicForStmt(node);
+		if (node.children[3]->value == ",")
+			return ConvertRepIndexedCollectionStmt(node);
+		if (node.children[5]->value == "..")
+			return ConvertRepRangeStmt(node);
+		if (node.children[5]->value == "down")
+			return ConvertRepDownStmt(node);
 	}
 
-	ThrowConversionError("Неподдерживаемая форма repeat с " + std::to_string(node.children.size()) + " дочерними узлами", node);
+	if (count == 13)
+		return ConvertRepRangeStepStmt(node);
+
+	ThrowConversionError("Неподдерживаемая форма repeat с " + std::to_string(count) + " дочерними узлами", node);
 }
 
 std::unique_ptr<Stmt> ConvertWhileStmt(const CstNode& node)
@@ -618,16 +650,31 @@ void CollectDecls(const CstNode& node, std::vector<const CstNode*>& decls)
 
 Param ConvertParam(const CstNode& node)
 {
-	if (node.children.size() == 3)
+	const size_t count = node.children.size();
+
+	if (count == 5)
 	{
 		const VarModifier modifier = ParseModifier(*node.children[0]);
 		const std::string typeName = ParseType(*node.children[1]);
 		const std::string name = node.children[2]->value;
-		return Param{typeName, name, modifier};
+		return Param{typeName, name, modifier, ConvertExpr(*node.children[4])};
+	}
+	if (count == 4)
+	{
+		const std::string typeName = ParseType(*node.children[0]);
+		const std::string name = node.children[1]->value;
+		return Param{typeName, name, std::nullopt, ConvertExpr(*node.children[3])};
+	}
+	if (count == 3)
+	{
+		const VarModifier modifier = ParseModifier(*node.children[0]);
+		const std::string typeName = ParseType(*node.children[1]);
+		const std::string name = node.children[2]->value;
+		return Param{typeName, name, modifier, nullptr};
 	}
 	const std::string typeName = ParseType(*node.children[0]);
 	const std::string name = node.children[1]->value;
-	return Param{typeName, name, std::nullopt};
+	return Param{typeName, name, std::nullopt, nullptr};
 }
 
 void CollectParams(const CstNode& node, std::vector<Param>& params)

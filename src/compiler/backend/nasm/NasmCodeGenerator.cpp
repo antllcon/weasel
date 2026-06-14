@@ -12,7 +12,9 @@
 #include "src/compiler/ast/IfStmt.h"
 #include "src/compiler/ast/NumExpr.h"
 #include "src/compiler/ast/ProgramNode.h"
+#include "src/compiler/ast/RepCollectionStmt.h"
 #include "src/compiler/ast/RepStmt.h"
+#include "src/compiler/ast/RepTimesStmt.h"
 #include "src/compiler/ast/ReturnStmt.h"
 #include "src/compiler/ast/RunStmt.h"
 #include "src/compiler/ast/UnaryExpr.h"
@@ -233,7 +235,11 @@ void NasmCodeGenerator::Visit(const WhenStmt& /*node*/)
 {
 }
 
-void NasmCodeGenerator::Visit(const ClassicForStmt& /*node*/)
+void NasmCodeGenerator::Visit(const RepCollectionStmt& /*node*/)
+{
+}
+
+void NasmCodeGenerator::Visit(const RepTimesStmt& /*node*/)
 {
 }
 
@@ -270,23 +276,23 @@ void NasmCodeGenerator::Visit(const RepStmt& node)
 	const auto repIt = m_context.repIterators.find(&node);
 	if (repIt == m_context.repIterators.end())
 	{
-		throw std::runtime_error("NASM: итератор цикла не найден: " + node.GetIterators()[0]);
+		throw std::runtime_error("NASM: итератор цикла не найден: " + node.GetIterator());
 	}
-	const int32_t iterOffset = SlotToOffset(repIt->second[0].stackSlot);
+	const int32_t iterOffset = SlotToOffset(repIt->second.stackSlot);
 
 	const std::string labelLoop = MakeLabel("rep");
 	const std::string labelEnd = MakeLabel("end");
 
-	EmitExprToRax(*node.GetRanges()[0]);
+	EmitExprToRax(node.GetStartExpr());
 	Emit("mov [rbp" + std::to_string(iterOffset) + "], rax");
 
 	EmitLabel(labelLoop);
-	EmitExprToRax(*node.GetRanges()[1]);
+	EmitExprToRax(node.GetEndExpr());
 	Emit("mov rbx, [rbp" + std::to_string(iterOffset) + "]");
 	Emit("cmp rbx, rax");
 	Emit("jge " + labelEnd);
 
-	node.GetOriginalBody().Accept(*this);
+	node.GetBody().Accept(*this);
 
 	Emit("mov rax, [rbp" + std::to_string(iterOffset) + "]");
 	Emit("inc rax");

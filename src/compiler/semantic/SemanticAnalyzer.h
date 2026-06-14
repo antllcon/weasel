@@ -4,8 +4,9 @@
 #include "TypeResolver.h"
 #include "src/compiler/ast/AstNode.h"
 #include "src/compiler/ast/BreakStmt.h"
-#include "src/compiler/ast/ClassicForStmt.h"
 #include "src/compiler/ast/ContinueStmt.h"
+#include "src/compiler/ast/RepCollectionStmt.h"
+#include "src/compiler/ast/RepTimesStmt.h"
 #include "src/compiler/ast/IAstVisitor.h"
 #include "src/diagnostics/DiagnosticEngine.h"
 #include "src/compiler/codegen/CodegenContext.h"
@@ -32,9 +33,10 @@ private:
 	void Visit(const AssignStmt& node) override;
 	void Visit(const IfStmt& node) override;
 	void Visit(const BreakStmt& node) override;
-	void Visit(const ClassicForStmt& node) override;
 	void Visit(const ContinueStmt& node) override;
 	void Visit(const RepStmt& node) override;
+	void Visit(const RepCollectionStmt& node) override;
+	void Visit(const RepTimesStmt& node) override;
 	void Visit(const RunStmt& node) override;
 	void Visit(const DoWhileStmt& node) override;
 	void Visit(const ReturnStmt& node) override;
@@ -62,10 +64,13 @@ private:
 	AstAnnotations m_annotations;
 	std::unordered_map<const AstNode*, SymbolInfo> m_resolvedSymbols;
 	std::unordered_map<const AstNode*, uint32_t> m_varDeclSlots;
-	std::unordered_map<const AstNode*, std::vector<SymbolInfo>> m_resolvedIterators;
-	std::unordered_map<const ClassicForStmt*, SymbolInfo> m_classicForInits;
+	std::unordered_map<const AstNode*, SymbolInfo> m_resolvedIterators;
+	std::unordered_map<const AstNode*, CollectionLoopInfo> m_collectionLoopInfos;
+	std::unordered_map<const AstNode*, TimesLoopInfo> m_repTimesInfos;
 	int m_loopDepth = 0;
 	std::unordered_map<std::string, FunctionInfo> m_functions;
+	std::unordered_map<std::string, std::vector<std::string>> m_overloadsByName;
+	std::string m_entryPointKey;
 
 	std::shared_ptr<TypeInfo> m_currentReturnType;
 	std::shared_ptr<TypeInfo> m_expectedType;

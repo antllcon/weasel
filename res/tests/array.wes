@@ -54,6 +54,7 @@ void <- testNestedArrays()
     print(matrix[0][0])
     print(matrix[1][2])
     print(matrix.size)
+}
 
 void <- testRuntimeErrors()
 {

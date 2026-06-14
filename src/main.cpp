@@ -1,5 +1,6 @@
 #include "compiler/pipeline/CompilerPipeline.h"
 #include "grammar/context/LanguageContextBuilder.h"
+#include "grammar/lalr/LalrTablePrinter.h"
 #include "utils/console/CommandLineParser.h"
 #include "utils/console/ConsoleEncoding.h"
 #include "utils/logger/Logger.h"
@@ -17,6 +18,7 @@ int main(int argc, char* argv[])
 		Logger::Init(LoggerFactory::Create(options.logTarget));
 
 		const auto context = LanguageContextBuilder::Build(options.grammarFile);
+		LalrTablePrinter::Print(*context.lalrTable);
 
 		ScopedTimer timer("Время компиляции");
 		const bool success = CompilerPipeline::Compile(options, context);

@@ -1,5 +1,6 @@
 #pragma once
 #include "BlockStmt.h"
+#include "Expr.h"
 #include "Stmt.h"
 #include "VarDeclStmt.h"
 #include <memory>
@@ -12,6 +13,7 @@ struct Param
 	std::string typeName;
 	std::string name;
 	std::optional<VarModifier> modifier;
+	std::unique_ptr<Expr> defaultValue;
 };
 
 class FunctionDeclStmt final : public Stmt

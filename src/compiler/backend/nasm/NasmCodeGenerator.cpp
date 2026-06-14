@@ -497,6 +497,9 @@ void NasmCodeGenerator::Visit(const MemberAccessExpr& /*node*/)
 void NasmCodeGenerator::Visit(const StructDeclStmt& /*node*/)
 {
 }
+void NasmCodeGenerator::Visit(const ClassDeclStmt& /*node*/)
+{
+}
 void NasmCodeGenerator::Visit(const UnionDeclStmt& /*node*/)
 {
 }

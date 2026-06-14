@@ -29,6 +29,7 @@
 #include "src/compiler/ast/StringExpr.h"
 #include "src/compiler/ast/TypeInfo.h"
 #include "src/compiler/ast/StructDeclStmt.h"
+#include "src/compiler/ast/ClassDeclStmt.h"
 #include "src/compiler/ast/StructTypeInfo.h"
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/UnionDeclStmt.h"
@@ -484,6 +485,15 @@ void SemanticAnalyzer::CollectTypes(const AstNode& root)
 		{
 			m_typeResolver.RegisterStruct(unionDecl->GetName(), std::make_shared<StructTypeInfo>(unionDecl->GetName(), unionDecl->GetFields()));
 		}
+		else if (const auto* classDecl = dynamic_cast<const ClassDeclStmt*>(decl.get()))
+		{
+			std::vector<FieldDecl> fields;
+			for (const auto& field : classDecl->GetFields())
+			{
+				fields.push_back(FieldDecl{field.typeName, field.name, field.isPublic});
+			}
+			m_typeResolver.RegisterStruct(classDecl->GetName(), std::make_shared<StructTypeInfo>(classDecl->GetName(), std::move(fields), true));
+		}
 	}
 }
 
@@ -543,6 +553,78 @@ void SemanticAnalyzer::CollectFunctions(const AstNode& root)
 		if (fn->GetName() == "main")
 		{
 			m_entryPointKey = key;
+		}
+	}
+
+	for (const auto& decl : program->GetDeclarations())
+	{
+		const auto* classDecl = dynamic_cast<const ClassDeclStmt*>(decl.get());
+		if (!classDecl)
+		{
+			continue;
+		}
+		const std::string& className = classDecl->GetName();
+
+		for (const auto& ctor : classDecl->GetConstructors())
+		{
+			FunctionInfo info;
+			info.returnType = ScalarTypeInfo::Make(BaseType::Void);
+			for (const auto& param : ctor.params)
+			{
+				info.params.push_back(ParamInfo{param.name, m_typeResolver.Resolve(param.typeName), param.modifier, nullptr});
+			}
+			const std::string key = MangleFunction(className + "$ctor", info.params);
+			m_annotations.ctorKeys[ctor.body.get()] = key;
+
+			if (m_functions.contains(key))
+			{
+				m_engine->Report(DiagnosticData{
+					.phase = CompilerPhase::Semantic,
+					.message = "Повторное объявление конструктора с той же сигнатурой: " + key,
+					.line = ctor.range.start.line,
+					.pos = ctor.range.start.pos});
+				continue;
+			}
+			m_classConstructorKeys[className].push_back(key);
+			m_functions[key] = std::move(info);
+		}
+
+		if (classDecl->GetConstructors().empty())
+		{
+			FunctionInfo info;
+			info.returnType = ScalarTypeInfo::Make(BaseType::Void);
+			const std::string key = MangleFunction(className + "$ctor", info.params);
+			m_annotations.ctorKeys[classDecl] = key;
+			m_classConstructorKeys[className].push_back(key);
+			m_functions[key] = std::move(info);
+		}
+
+		const auto classType = m_typeResolver.GetStruct(className);
+		for (const auto& method : classDecl->GetMethods())
+		{
+			const FunctionDeclStmt& methodDecl = *method.decl;
+			FunctionInfo info;
+			info.returnType = m_typeResolver.Resolve(methodDecl.GetReturnTypeName());
+			info.params.push_back(ParamInfo{"this", classType, VarModifier::Var, nullptr});
+			for (const auto& param : methodDecl.GetParams())
+			{
+				info.params.push_back(ParamInfo{param.name, m_typeResolver.Resolve(param.typeName), param.modifier, nullptr});
+			}
+			const std::string key = MangleFunction(className + "#" + methodDecl.GetName(), info.params);
+			m_annotations.functionDeclKeys[&methodDecl] = key;
+
+			if (m_functions.contains(key))
+			{
+				m_engine->Report(DiagnosticData{
+					.phase = CompilerPhase::Semantic,
+					.message = "Повторное объявление метода с той же сигнатурой: " + key,
+					.line = methodDecl.GetRange().start.line,
+					.pos = methodDecl.GetRange().start.pos});
+				continue;
+			}
+			m_classMethodKeys[className][methodDecl.GetName()].push_back(key);
+			m_memberVisibility[key] = method.isPublic;
+			m_functions[key] = std::move(info);
 		}
 	}
 }
@@ -608,6 +690,29 @@ void SemanticAnalyzer::Visit(const MemberAccessExpr& node)
 	{
 		SetType(node, ScalarTypeInfo::Make(BaseType::Uint));
 		return;
+	}
+
+	if (const auto* structType = dynamic_cast<const StructTypeInfo*>(receiverType.get()))
+	{
+		for (const auto& field : structType->GetFields())
+		{
+			if (field.name == node.GetField())
+			{
+				const bool insideOwner = m_currentClassType
+					&& m_currentClassType->GetName() == structType->GetName();
+				if (structType->IsClass() && !field.isPublic && !insideOwner)
+				{
+					m_engine->Report(DiagnosticData{
+						.phase = CompilerPhase::Semantic,
+						.message = "Обращение к приватному полю '" + node.GetField()
+							+ "' класса '" + structType->GetName() + "' извне",
+						.line = node.GetRange().start.line,
+						.pos = node.GetRange().start.pos});
+				}
+				SetType(node, m_typeResolver.Resolve(field.typeName));
+				return;
+			}
+		}
 	}
 
 	AssertIsMemberFound(false, node.GetRange());
@@ -737,7 +842,8 @@ void SemanticAnalyzer::Visit(const AssignStmt& node)
 {
 	const bool isIdentifier = dynamic_cast<const IdentifierExpr*>(&node.GetLhs()) != nullptr;
 	const bool isIndexExpr = dynamic_cast<const IndexExpr*>(&node.GetLhs()) != nullptr;
-	AssertIsLhsValidForAssignment(isIdentifier || isIndexExpr, node.GetRange());
+	const bool isMemberAccess = dynamic_cast<const MemberAccessExpr*>(&node.GetLhs()) != nullptr;
+	AssertIsLhsValidForAssignment(isIdentifier || isIndexExpr || isMemberAccess, node.GetRange());
 
 	node.GetLhs().Accept(*this);
 
@@ -990,6 +1096,26 @@ void SemanticAnalyzer::Visit(const IdentifierExpr& node)
 	auto result = m_scopeManager.Resolve(node.GetName());
 	if (!result)
 	{
+		if (m_currentClassType && node.GetName() == "this")
+		{
+			SetType(node, m_currentClassType);
+			return;
+		}
+
+		if (m_currentClassType)
+		{
+			const auto& fields = m_currentClassType->GetFields();
+			for (size_t i = 0; i < fields.size(); ++i)
+			{
+				if (fields[i].name == node.GetName())
+				{
+					SetType(node, m_typeResolver.Resolve(fields[i].typeName));
+					m_annotations.fieldAccessIndices[&node] = static_cast<uint32_t>(i);
+					return;
+				}
+			}
+		}
+
 		m_engine->Report(DiagnosticData{
 			.phase = CompilerPhase::Semantic,
 			.message = "Использование необъявленной переменной: " + node.GetName(),
@@ -1090,10 +1216,211 @@ void SemanticAnalyzer::Visit(const FunctionCallExpr& node)
 		return;
 	}
 
-	const auto overloadIt = m_overloadsByName.find(node.GetName());
-	AssertIsFunctionExists(overloadIt != m_overloadsByName.end(), node.GetName(), node.GetRange());
-	const auto& candidateKeys = overloadIt->second;
+	if (m_typeResolver.IsStruct(node.GetName()))
+	{
+		const auto classType = m_typeResolver.GetStruct(node.GetName());
+		const auto& ctorKeys = m_classConstructorKeys[node.GetName()];
 
+		if (ctorKeys.size() == 1)
+		{
+			const auto& fn = m_functions[ctorKeys.front()];
+			AssertIsArgCountInRange(node.GetArgs().size(), RequiredParamCount(fn.params), fn.params.size(), node.GetName());
+			for (size_t i = 0; i < node.GetArgs().size(); ++i)
+			{
+				const auto savedExpected = m_expectedType;
+				m_expectedType = fn.params[i].type;
+				node.GetArgs()[i]->Accept(*this);
+				m_expectedType = savedExpected;
+				AssertIsExactTypeMatch(fn.params[i].type, GetType(*node.GetArgs()[i]), node.GetArgs()[i]->GetRange());
+			}
+			m_annotations.resolvedCallTargets[&node] = ctorKeys.front();
+			SetType(node, classType);
+			return;
+		}
+
+		std::vector<std::shared_ptr<TypeInfo>> argTypes;
+		for (const auto& arg : node.GetArgs())
+		{
+			const auto savedExpected = m_expectedType;
+			m_expectedType = nullptr;
+			arg->Accept(*this);
+			m_expectedType = savedExpected;
+			argTypes.push_back(GetType(*arg));
+		}
+		std::vector<std::string> matches;
+		for (const auto& key : ctorKeys)
+		{
+			const auto& fn = m_functions[key];
+			if (fn.params.size() != argTypes.size())
+			{
+				continue;
+			}
+			bool isMatch = true;
+			for (size_t i = 0; i < fn.params.size(); ++i)
+			{
+				if (!fn.params[i].type || !argTypes[i]
+					|| fn.params[i].type->GetName() != argTypes[i]->GetName())
+				{
+					isMatch = false;
+					break;
+				}
+			}
+			if (isMatch)
+			{
+				matches.push_back(key);
+			}
+		}
+		if (matches.empty())
+		{
+			ThrowNoMatchingOverload(node.GetName(), node.GetRange());
+		}
+		if (matches.size() > 1)
+		{
+			ThrowAmbiguousCall(node.GetName(), node.GetRange());
+		}
+		m_annotations.resolvedCallTargets[&node] = matches.front();
+		SetType(node, classType);
+		return;
+	}
+
+	if (!node.GetArgs().empty())
+	{
+		const auto savedExpected = m_expectedType;
+		m_expectedType = nullptr;
+		node.GetArgs()[0]->Accept(*this);
+		m_expectedType = savedExpected;
+
+		if (const auto* recvClass = dynamic_cast<const StructTypeInfo*>(GetType(*node.GetArgs()[0]).get()))
+		{
+			const auto classIt = m_classMethodKeys.find(recvClass->GetName());
+			if (classIt != m_classMethodKeys.end())
+			{
+				const auto methodIt = classIt->second.find(node.GetName());
+				if (methodIt != classIt->second.end())
+				{
+					ResolveCallToCandidates(node, methodIt->second);
+					const auto keyIt = m_annotations.resolvedCallTargets.find(&node);
+					if (keyIt != m_annotations.resolvedCallTargets.end())
+					{
+						const auto visIt = m_memberVisibility.find(keyIt->second);
+						const bool isPublic = visIt == m_memberVisibility.end() || visIt->second;
+						const bool insideOwner = m_currentClassType
+							&& m_currentClassType->GetName() == recvClass->GetName();
+						if (!isPublic && !insideOwner)
+						{
+							m_engine->Report(DiagnosticData{
+								.phase = CompilerPhase::Semantic,
+								.message = "Обращение к приватному методу '" + node.GetName()
+									+ "' класса '" + recvClass->GetName() + "' извне",
+								.line = node.GetRange().start.line,
+								.pos = node.GetRange().start.pos});
+						}
+					}
+					return;
+				}
+			}
+		}
+	}
+
+	const auto overloadIt = m_overloadsByName.find(node.GetName());
+	if (overloadIt != m_overloadsByName.end())
+	{
+		ResolveCallToCandidates(node, overloadIt->second);
+		return;
+	}
+
+	if (m_currentClassType)
+	{
+		const auto classIt = m_classMethodKeys.find(m_currentClassType->GetName());
+		if (classIt != m_classMethodKeys.end())
+		{
+			const auto methodIt = classIt->second.find(node.GetName());
+			if (methodIt != classIt->second.end())
+			{
+				ResolveImplicitThisCall(node, methodIt->second);
+				return;
+			}
+		}
+	}
+
+	AssertIsFunctionExists(false, node.GetName(), node.GetRange());
+}
+
+void SemanticAnalyzer::ResolveImplicitThisCall(const FunctionCallExpr& node, const std::vector<std::string>& candidateKeys)
+{
+	const size_t argCount = node.GetArgs().size();
+
+	if (candidateKeys.size() == 1)
+	{
+		const std::string& key = candidateKeys.front();
+		const auto& fn = m_functions[key];
+		AssertIsArgCountInRange(argCount, RequiredParamCount(fn.params) - 1, fn.params.size() - 1, node.GetName());
+
+		for (size_t i = 0; i < argCount; ++i)
+		{
+			const auto savedExpected = m_expectedType;
+			m_expectedType = fn.params[i + 1].type;
+			node.GetArgs()[i]->Accept(*this);
+			m_expectedType = savedExpected;
+			AssertIsExactTypeMatch(fn.params[i + 1].type, GetType(*node.GetArgs()[i]), node.GetArgs()[i]->GetRange());
+		}
+
+		m_annotations.resolvedCallTargets[&node] = key;
+		m_annotations.implicitThisCalls.insert(&node);
+		SetType(node, fn.returnType);
+		return;
+	}
+
+	std::vector<std::shared_ptr<TypeInfo>> argTypes;
+	for (const auto& arg : node.GetArgs())
+	{
+		const auto savedExpected = m_expectedType;
+		m_expectedType = nullptr;
+		arg->Accept(*this);
+		m_expectedType = savedExpected;
+		argTypes.push_back(GetType(*arg));
+	}
+
+	std::vector<std::string> matches;
+	for (const auto& key : candidateKeys)
+	{
+		const auto& fn = m_functions[key];
+		if (argTypes.size() < RequiredParamCount(fn.params) - 1 || argTypes.size() > fn.params.size() - 1)
+		{
+			continue;
+		}
+		bool isMatch = true;
+		for (size_t i = 0; i < argTypes.size(); ++i)
+		{
+			if (!fn.params[i + 1].type || !argTypes[i]
+				|| fn.params[i + 1].type->GetName() != argTypes[i]->GetName())
+			{
+				isMatch = false;
+				break;
+			}
+		}
+		if (isMatch)
+		{
+			matches.push_back(key);
+		}
+	}
+
+	if (matches.empty())
+	{
+		ThrowNoMatchingOverload(node.GetName(), node.GetRange());
+	}
+	if (matches.size() > 1)
+	{
+		ThrowAmbiguousCall(node.GetName(), node.GetRange());
+	}
+
+	m_annotations.resolvedCallTargets[&node] = matches.front();
+	m_annotations.implicitThisCalls.insert(&node);
+	SetType(node, m_functions[matches.front()].returnType);
+}
+
+void SemanticAnalyzer::ResolveCallToCandidates(const FunctionCallExpr& node, const std::vector<std::string>& candidateKeys)
+{
 	if (candidateKeys.size() == 1)
 	{
 		const std::string& key = candidateKeys.front();
@@ -1242,6 +1569,91 @@ void SemanticAnalyzer::Visit(const ArrayLiteralExpr& node)
 
 void SemanticAnalyzer::Visit(const StructDeclStmt& /*node*/)
 {
+}
+
+void SemanticAnalyzer::Visit(const ClassDeclStmt& node)
+{
+	const auto classType = m_typeResolver.GetStruct(node.GetName());
+
+	for (const auto& field : node.GetFields())
+	{
+		if (field.defaultValue)
+		{
+			const auto fieldType = m_typeResolver.Resolve(field.typeName);
+			const auto savedExpected = m_expectedType;
+			m_expectedType = fieldType;
+			field.defaultValue->Accept(*this);
+			m_expectedType = savedExpected;
+			AssertIsExactTypeMatch(fieldType, GetType(*field.defaultValue), field.defaultValue->GetRange());
+		}
+	}
+
+	for (const auto& ctor : node.GetConstructors())
+	{
+		m_scopeManager.ResetSlots();
+		m_currentReturnType = ScalarTypeInfo::Make(BaseType::Void);
+		m_currentClassType = classType;
+
+		m_scopeManager.EnterScope();
+		const uint32_t thisSlot = m_scopeManager.AllocateSlot();
+		(void)thisSlot;
+		for (const auto& param : ctor.params)
+		{
+			const uint32_t slot = m_scopeManager.AllocateSlot();
+			const bool isMutable = IsMutableParam(param.modifier);
+			const bool isConstRef = IsConstRefParam(param.modifier);
+			m_scopeManager.Declare(param.name, m_typeResolver.Resolve(param.typeName), isMutable, slot, false, nullptr, isConstRef);
+		}
+		ctor.body->Accept(*this);
+		m_scopeManager.LeaveScope();
+
+		const auto keyIt = m_annotations.ctorKeys.find(ctor.body.get());
+		if (keyIt != m_annotations.ctorKeys.end())
+		{
+			m_functions[keyIt->second].maxSlots = m_scopeManager.GetMaxSlots();
+		}
+		m_currentClassType = nullptr;
+		m_currentReturnType = nullptr;
+	}
+
+	for (const auto& method : node.GetMethods())
+	{
+		const FunctionDeclStmt& decl = *method.decl;
+		m_scopeManager.ResetSlots();
+		m_currentReturnType = m_typeResolver.Resolve(decl.GetReturnTypeName());
+		m_currentClassType = classType;
+
+		m_scopeManager.EnterScope();
+		const uint32_t thisSlot = m_scopeManager.AllocateSlot();
+		(void)thisSlot;
+		for (const auto& param : decl.GetParams())
+		{
+			const uint32_t slot = m_scopeManager.AllocateSlot();
+			const bool isMutable = IsMutableParam(param.modifier);
+			const bool isConstRef = IsConstRefParam(param.modifier);
+			m_scopeManager.Declare(param.name, m_typeResolver.Resolve(param.typeName), isMutable, slot, false, nullptr, isConstRef);
+		}
+		decl.GetBody().Accept(*this);
+		m_scopeManager.LeaveScope();
+
+		if (m_currentReturnType->GetName() != std::string(LanguageTokens::TypeVoid)
+			&& !DefinitelyReturns(decl.GetBody()))
+		{
+			m_engine->Report(DiagnosticData{
+				.phase = CompilerPhase::Semantic,
+				.message = "Метод '" + decl.GetName() + "' должен возвращать значение на всех путях выполнения",
+				.line = decl.GetRange().start.line,
+				.pos = decl.GetRange().start.pos});
+		}
+
+		const auto keyIt = m_annotations.functionDeclKeys.find(&decl);
+		if (keyIt != m_annotations.functionDeclKeys.end())
+		{
+			m_functions[keyIt->second].maxSlots = m_scopeManager.GetMaxSlots();
+		}
+		m_currentClassType = nullptr;
+		m_currentReturnType = nullptr;
+	}
 }
 
 void SemanticAnalyzer::Visit(const UnionDeclStmt& /*node*/)

@@ -27,6 +27,7 @@
 #include "src/compiler/ast/RunStmt.h"
 #include "src/compiler/ast/StringExpr.h"
 #include "src/compiler/ast/StructDeclStmt.h"
+#include "src/compiler/ast/ClassDeclStmt.h"
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
@@ -380,6 +381,16 @@ void AstVisualizer::Visit(const MemberAccessExpr& node)
 void AstVisualizer::Visit(const StructDeclStmt& node)
 {
 	PrintNode("StructDecl (" + node.GetName() + ")");
+	const auto& fields = node.GetFields();
+	for (size_t i = 0; i < fields.size(); ++i)
+	{
+		PrintLeaf("Field (" + fields[i].typeName + " " + fields[i].name + ")", i + 1 == fields.size());
+	}
+}
+
+void AstVisualizer::Visit(const ClassDeclStmt& node)
+{
+	PrintNode("ClassDecl (" + node.GetName() + ")");
 	const auto& fields = node.GetFields();
 	for (size_t i = 0; i < fields.size(); ++i)
 	{

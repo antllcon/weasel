@@ -7,15 +7,17 @@
 class StructTypeInfo final : public TypeInfo
 {
 public:
-	StructTypeInfo(std::string name, std::vector<FieldDecl> fields);
+	StructTypeInfo(std::string name, std::vector<FieldDecl> fields, bool isClass = false);
 
 	[[nodiscard]] std::string GetName() const override;
 	[[nodiscard]] bool IsScalar() const override;
 
 	[[nodiscard]] const std::vector<FieldDecl>& GetFields() const;
 	[[nodiscard]] uint32_t GetFieldCount() const;
+	[[nodiscard]] bool IsClass() const;
 
 private:
 	std::string m_name;
 	std::vector<FieldDecl> m_fields;
+	bool m_isClass;
 };

@@ -26,6 +26,7 @@
 #include "src/compiler/ast/RunStmt.h"
 #include "src/compiler/ast/ScalarTypeInfo.h"
 #include "src/compiler/ast/StructTypeInfo.h"
+#include "src/compiler/ast/ClassDeclStmt.h"
 #include "src/compiler/ast/StringExpr.h"
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/VarDeclStmt.h"
@@ -156,6 +157,15 @@ OpCode GetBinaryOpCode(BinaryOpKind op, const TypeInfo* typeInfo)
 		}
 	}
 
+	if (const auto* structType = dynamic_cast<const StructTypeInfo*>(typeInfo);
+		structType != nullptr && structType->IsClass())
+	{
+		if (op == BinaryOpKind::Eq || op == BinaryOpKind::NotEq)
+		{
+			return OpCode::EqUint;
+		}
+	}
+
 	const auto* scalar = dynamic_cast<const ScalarTypeInfo*>(typeInfo);
 	if (!scalar) return OpCode::AddInt;
 
@@ -214,7 +224,8 @@ std::string ExtractBaseTypeName(const TypeInfo* typeInfo)
 
 bool IsStructParam(const TypeInfo& type)
 {
-	return dynamic_cast<const StructTypeInfo*>(&type) != nullptr;
+	const auto* structType = dynamic_cast<const StructTypeInfo*>(&type);
+	return structType != nullptr && !structType->IsClass();
 }
 } // namespace
 
@@ -336,6 +347,41 @@ void CodeGenerator::EmitUserFunctionCall(const FunctionCallExpr& node)
 	m_unresolvedCalls.push_back({patchOffset, key, node.GetRange()});
 }
 
+void CodeGenerator::EmitImplicitThisCall(const FunctionCallExpr& node)
+{
+	std::string key;
+	if (const auto it = m_context.annotations.resolvedCallTargets.find(&node);
+		it != m_context.annotations.resolvedCallTargets.end())
+	{
+		key = it->second;
+	}
+	const auto funcIt = m_context.functions.find(key);
+
+	m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+	m_chunk.WriteUint32(0, m_currentLine);
+
+	for (size_t i = 0; i < node.GetArgs().size(); ++i)
+	{
+		node.GetArgs()[i]->Accept(*this);
+
+		if (funcIt != m_context.functions.end() && i + 1 < funcIt->second.params.size())
+		{
+			const auto& param = funcIt->second.params[i + 1];
+			if (!param.modifier.has_value() && IsStructParam(*param.type))
+			{
+				m_chunk.WriteOpCode(OpCode::CopyObject, m_currentLine);
+			}
+		}
+	}
+
+	const auto totalParams = funcIt != m_context.functions.end()
+		? funcIt->second.params.size()
+		: node.GetArgs().size() + 1;
+	const auto argCount = static_cast<uint32_t>(totalParams);
+	const uint32_t patchOffset = EmitCallWithPlaceholder(m_chunk, argCount, m_currentLine);
+	m_unresolvedCalls.push_back({patchOffset, key, node.GetRange()});
+}
+
 Chunk CodeGenerator::Generate(const AstNode& root)
 {
 	m_chunk.WriteOpCode(OpCode::Call, m_currentLine);
@@ -367,6 +413,64 @@ void CodeGenerator::Visit(const ProgramNode& node)
 
 void CodeGenerator::Visit(const StructDeclStmt& /*node*/)
 {
+}
+
+void CodeGenerator::EmitConstructor(const ClassDeclStmt& node, const std::string& key, const BlockStmt* body)
+{
+	m_chunk.WriteOpCode(OpCode::Jump, m_currentLine);
+	const uint32_t jumpPatch = m_chunk.GetCodeSize();
+	m_chunk.WriteUint32(0, m_currentLine);
+
+	m_functionOffsets[key] = m_chunk.GetCodeSize();
+
+	const auto& fields = node.GetFields();
+	for (size_t i = 0; i < fields.size(); ++i)
+	{
+		if (fields[i].defaultValue)
+		{
+			m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+			m_chunk.WriteUint32(0, m_currentLine);
+			fields[i].defaultValue->Accept(*this);
+			m_chunk.WriteOpCode(OpCode::StoreField, m_currentLine);
+			m_chunk.WriteUint32(static_cast<uint32_t>(i), m_currentLine);
+		}
+	}
+
+	if (body != nullptr)
+	{
+		body->Accept(*this);
+	}
+
+	EmitConstant(Value(static_cast<uint32_t>(0)));
+	m_chunk.WriteOpCode(OpCode::Return, m_currentLine);
+
+	m_chunk.PatchUint32(jumpPatch, m_chunk.GetCodeSize());
+}
+
+void CodeGenerator::Visit(const ClassDeclStmt& node)
+{
+	for (const auto& ctor : node.GetConstructors())
+	{
+		const auto keyIt = m_context.annotations.ctorKeys.find(ctor.body.get());
+		if (keyIt != m_context.annotations.ctorKeys.end())
+		{
+			EmitConstructor(node, keyIt->second, ctor.body.get());
+		}
+	}
+
+	if (node.GetConstructors().empty())
+	{
+		const auto keyIt = m_context.annotations.ctorKeys.find(&node);
+		if (keyIt != m_context.annotations.ctorKeys.end())
+		{
+			EmitConstructor(node, keyIt->second, nullptr);
+		}
+	}
+
+	for (const auto& method : node.GetMethods())
+	{
+		method.decl->Accept(*this);
+	}
 }
 
 void CodeGenerator::Visit(const UnionDeclStmt& /*node*/)
@@ -470,6 +574,23 @@ void CodeGenerator::Visit(const UnaryExpr& node)
 
 void CodeGenerator::Visit(const IdentifierExpr& node)
 {
+	if (node.GetName() == "this")
+	{
+		m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+		m_chunk.WriteUint32(0, m_currentLine);
+		return;
+	}
+
+	const auto fieldIt = m_context.annotations.fieldAccessIndices.find(&node);
+	if (fieldIt != m_context.annotations.fieldAccessIndices.end())
+	{
+		m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+		m_chunk.WriteUint32(0, m_currentLine);
+		m_chunk.WriteOpCode(OpCode::GetField, m_currentLine);
+		m_chunk.WriteUint32(fieldIt->second, m_currentLine);
+		return;
+	}
+
 	const auto it = m_context.symbols.find(&node);
 	AssertIsIdentifierResolved(it != m_context.symbols.end(), node.GetName(), node.GetRange());
 
@@ -533,6 +654,41 @@ void CodeGenerator::Visit(const FunctionCallExpr& node)
 		return;
 	}
 
+	if (const auto* structType = dynamic_cast<const StructTypeInfo*>(GetType(node).get()))
+	{
+		if (structType->GetName() == node.GetName())
+		{
+			m_chunk.WriteOpCode(OpCode::AllocateStruct, m_currentLine);
+			m_chunk.WriteUint32(structType->GetFieldCount(), m_currentLine);
+
+			m_chunk.WriteOpCode(OpCode::Dup, m_currentLine);
+			for (const auto& arg : node.GetArgs())
+			{
+				arg->Accept(*this);
+			}
+
+			std::string ctorKey;
+			if (const auto it = m_context.annotations.resolvedCallTargets.find(&node);
+				it != m_context.annotations.resolvedCallTargets.end())
+			{
+				ctorKey = it->second;
+			}
+
+			const auto argCount = static_cast<uint32_t>(node.GetArgs().size() + 1);
+			const uint32_t patchOffset = EmitCallWithPlaceholder(m_chunk, argCount, m_currentLine);
+			m_unresolvedCalls.push_back({patchOffset, ctorKey, node.GetRange()});
+
+			m_chunk.WriteOpCode(OpCode::Pop, m_currentLine);
+			return;
+		}
+	}
+
+	if (m_context.annotations.implicitThisCalls.contains(&node))
+	{
+		EmitImplicitThisCall(node);
+		return;
+	}
+
 	EmitUserFunctionCall(node);
 }
 
@@ -557,13 +713,29 @@ void CodeGenerator::Visit(const MemberAccessExpr& node)
 		}
 	}
 
+	const auto receiverType = GetType(node.GetReceiver());
+
 	node.GetReceiver().Accept(*this);
 
 	// todo это не должно быть натиной функцией?
-	if (node.GetField() == "size")
+	if (node.GetField() == "size" && dynamic_cast<const ArrayTypeInfo*>(receiverType.get()))
 	{
 		m_chunk.WriteOpCode(OpCode::ArrayLength, m_currentLine);
 		return;
+	}
+
+	if (const auto* structType = dynamic_cast<const StructTypeInfo*>(receiverType.get()))
+	{
+		const auto& fields = structType->GetFields();
+		for (size_t i = 0; i < fields.size(); ++i)
+		{
+			if (fields[i].name == node.GetField())
+			{
+				m_chunk.WriteOpCode(OpCode::GetField, m_currentLine);
+				m_chunk.WriteUint32(static_cast<uint32_t>(i), m_currentLine);
+				return;
+			}
+		}
 	}
 
 	throw CompilationException(DiagnosticData{
@@ -892,6 +1064,17 @@ void CodeGenerator::Visit(const AssignStmt& node)
 {
 	if (const auto* id = dynamic_cast<const IdentifierExpr*>(&node.GetLhs()))
 	{
+		const auto fieldIt = m_context.annotations.fieldAccessIndices.find(id);
+		if (fieldIt != m_context.annotations.fieldAccessIndices.end())
+		{
+			m_chunk.WriteOpCode(OpCode::LoadLocal, m_currentLine);
+			m_chunk.WriteUint32(0, m_currentLine);
+			node.GetRhs().Accept(*this);
+			m_chunk.WriteOpCode(OpCode::StoreField, m_currentLine);
+			m_chunk.WriteUint32(fieldIt->second, m_currentLine);
+			return;
+		}
+
 		node.GetRhs().Accept(*this);
 		const auto it = m_context.symbols.find(id);
 		AssertIsIdentifierResolved(it != m_context.symbols.end(), id->GetName(), node.GetRange());
@@ -908,6 +1091,29 @@ void CodeGenerator::Visit(const AssignStmt& node)
 		node.GetRhs().Accept(*this);
 
 		m_chunk.WriteOpCode(OpCode::StoreElement, m_currentLine);
+		return;
+	}
+
+	if (const auto* member = dynamic_cast<const MemberAccessExpr*>(&node.GetLhs()))
+	{
+		const auto receiverType = GetType(member->GetReceiver());
+		member->GetReceiver().Accept(*this);
+		node.GetRhs().Accept(*this);
+
+		if (const auto* structType = dynamic_cast<const StructTypeInfo*>(receiverType.get()))
+		{
+			const auto& fields = structType->GetFields();
+			for (size_t i = 0; i < fields.size(); ++i)
+			{
+				if (fields[i].name == member->GetField())
+				{
+					m_chunk.WriteOpCode(OpCode::StoreField, m_currentLine);
+					m_chunk.WriteUint32(static_cast<uint32_t>(i), m_currentLine);
+					return;
+				}
+			}
+		}
+		AssertIsLhsIdentifier(false, node.GetRange());
 		return;
 	}
 

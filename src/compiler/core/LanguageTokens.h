@@ -26,6 +26,8 @@ inline constexpr std::string_view KwIn = "in";
 inline constexpr std::string_view KwLet = "let";
 inline constexpr std::string_view KwNot = "not";
 inline constexpr std::string_view KwOr = "or";
+inline constexpr std::string_view KwPrivate = "private";
+inline constexpr std::string_view KwPublic = "public";
 inline constexpr std::string_view KwRep = "repeat";
 inline constexpr std::string_view KwReturn = "return";
 inline constexpr std::string_view KwRun = "run";
@@ -66,6 +68,6 @@ inline constexpr std::string_view SymColon = ":";
 inline constexpr std::string_view SymComma = ",";
 inline constexpr std::string_view SymDot = ".";
 
-inline constexpr std::array<std::string_view, 32> AllKeywords = {
-	KwAlias, KwAnd, KwArray, TypeBool, KwBreak, KwStruct /* "class" */, KwContinue, KwDown, KwElse, KwEnum, KwFalse, KwIf, KwImport, KwIn, TypeInt, KwLet, KwNot, KwOr, TypeReal, KwRep, KwReturn, KwRun, KwStep, TypeString, KwTimes, KwTrue, TypeUint, KwUnion, KwVal, KwVar, TypeVoid, KwWhen};
+inline constexpr std::array<std::string_view, 34> AllKeywords = {
+	KwAlias, KwAnd, KwArray, TypeBool, KwBreak, KwStruct /* "class" */, KwContinue, KwDown, KwElse, KwEnum, KwFalse, KwIf, KwImport, KwIn, TypeInt, KwLet, KwNot, KwOr, KwPrivate, KwPublic, TypeReal, KwRep, KwReturn, KwRun, KwStep, TypeString, KwTimes, KwTrue, TypeUint, KwUnion, KwVal, KwVar, TypeVoid, KwWhen};
 } // namespace LanguageTokens

@@ -1,0 +1,320 @@
+# ==============================================================================
+# КОНСТАНТЫ ВРЕМЕНИ КОМПИЛЯЦИИ (let)
+# ==============================================================================
+let uint COUNT_CELL_X = 200
+let uint COUNT_CELL_Y = 100
+let real SIZE_CELL = 10.0
+
+let real RADIUS_A = 35.0
+let real RADIUS_B = 25.0
+let real RADIUS_ROBOT = 8.0
+
+let uint PREDICTIVE_SIZE = 15
+let real V_SPEED = 3.0
+let real TIME_FOR_PREDICT = 2.0
+
+let uint COUNT_STEPS_GRADIENT = 20
+let real STEP_GRADIENT = 0.005
+let real STEP_DESCENT = 0.0000003  # 3e-7
+
+let real LARGE_LAMBDA = 2000.0
+let real WEIGHT_COST_TRACKING = 16.0
+let real WEIGHT_COST_OBSTACLES = 300.0
+let real WEIGHT_COST_REPULSIVE = 500.0
+let real GAMMA_REPULSIVE = 0.1
+
+# ==============================================================================
+# БАЗОВЫЕ ТИПЫ
+# ==============================================================================
+class Point
+{
+    var real x
+    var real y
+
+    Point(real px, real py)
+    {
+        x = px
+        y = py
+    }
+}
+
+class InputVector
+{
+    var real omega
+    var real v
+
+    InputVector(real o, real v_speed)
+    {
+        omega = o
+        v = v_speed
+    }
+}
+
+class RobotState
+{
+    var Point position
+    var real phi
+
+    RobotState(Point p, real ph)
+    {
+        position = p
+        phi = ph
+    }
+
+    # В Weasel объекты передаются по ссылке.
+    # Нам нужен метод клонирования для создания новых состояний при прогнозировании.
+    RobotState <- clone()
+    {
+        val Point pCopy = Point(position.x, position.y)
+        return RobotState(pCopy, phi)
+    }
+}
+
+# ==============================================================================
+# СРЕДА (Обертка над картой)
+# ==============================================================================
+class Environment
+{
+    val uint width
+    val uint height
+    val array[bool] grid # Плоский массив для O(1) доступа
+
+    Environment(uint w, uint h)
+    {
+        width = w
+        height = h
+        grid = array[bool](w * h)
+    }
+
+    void <- setObstacle(uint x, uint y, bool isObstacle)
+    {
+        if (x < width and y < height)
+        {
+            grid[x * height + y] = isObstacle
+        }
+    }
+
+    bool <- isCellObstacle(uint x, uint y)
+    {
+        if (x >= width or y >= height)
+        {
+            return true # Выход за границы — это тоже препятствие
+        }
+        return grid[x * height + y]
+    }
+}
+
+# ==============================================================================
+# РОБОТ И АЛГОРИТМ ПЛАНИРОВАНИЯ
+# ==============================================================================
+class Robot
+{
+    var RobotState currentState
+    val RobotState goalState
+
+    val array[InputVector] inputs
+    val array[RobotState] predictPath
+    val array[Point] optimalPath # Глобальный путь (от Dijkstra)
+
+    var uint indexOfPath = 0
+
+    Robot(RobotState init, RobotState goal)
+    {
+        currentState = init.clone()
+        goalState = goal.clone()
+
+        inputs = array[InputVector](PREDICTIVE_SIZE)
+        predictPath = array[RobotState](PREDICTIVE_SIZE)
+        optimalPath = array[Point](100) # Имитация глобального пути
+
+        # Инициализация векторов управления
+        repeat (i in 0 .. PREDICTIVE_SIZE)
+        {
+            inputs[i] = InputVector(0.0, V_SPEED)
+            predictPath[i] = currentState.clone()
+        }
+    }
+
+    # ---------------------------------------------------------
+    # Кинематическая модель робота
+    # ---------------------------------------------------------
+    RobotState <- getPredictRobotState(RobotState state, InputVector input, real time)
+    {
+        val real newPhi = state.phi + input.omega * time
+        # Предполагаем, что math_cos и math_sin — встроенные функции
+        val real newX = state.position.x + input.v * time * math_cos(newPhi)
+        val real newY = state.position.y + input.v * time * math_sin(newPhi)
+
+        return RobotState(Point(newX, newY), newPhi)
+    }
+
+    # ---------------------------------------------------------
+    # 1. Притяжение к глобальному пути (Cost Tracking)
+    # ---------------------------------------------------------
+    real <- calculateCostTracking(RobotState myState)
+    {
+        if (optimalPath.size == 0) { return 0.0 }
+
+        var real result = 0.0
+        var RobotState predicted = myState.clone()
+
+        repeat (i in 0 .. PREDICTIVE_SIZE)
+        {
+            predicted = getPredictRobotState(predicted, inputs[i], TIME_FOR_PREDICT)
+
+            # Упрощенный поиск целевой точки для краткости
+            val Point target = optimalPath[indexOfPath]
+
+            val real dx = predicted.position.x - target.x
+            val real dy = predicted.position.y - target.y
+            result = result + (dx * dx + dy * dy)
+        }
+        return result
+    }
+
+    # ---------------------------------------------------------
+    # 2. Отталкивание от статических препятствий
+    # ---------------------------------------------------------
+    real <- calculateObstacleCost(RobotState myState, Environment env)
+    {
+        var real result = 0.0
+        var RobotState predicted = myState.clone()
+        val real minSafeDist = SIZE_CELL * 1.5
+
+        repeat (i in 0 .. PREDICTIVE_SIZE)
+        {
+            predicted = getPredictRobotState(predicted, inputs[i], TIME_FOR_PREDICT)
+
+            # Перевод координат в индексы сетки (math_floor)
+            val uint cx = math_floor(predicted.position.x / SIZE_CELL).uint()
+            val uint cy = math_floor(predicted.position.y / SIZE_CELL).uint()
+
+            # Если попали прямо в препятствие
+            if (env.isCellObstacle(cx, cy))
+            {
+                result = result + WEIGHT_COST_OBSTACLES * 1000.0
+            }
+        }
+        return result
+    }
+
+    # ---------------------------------------------------------
+    # 3. Главная функция стоимости
+    # ---------------------------------------------------------
+    real <- calculateMainFunc(RobotState myState, Environment env)
+    {
+        var real cost = 0.0
+        cost = cost + WEIGHT_COST_TRACKING * calculateCostTracking(myState)
+        cost = cost + calculateObstacleCost(myState, env)
+        # Здесь также добавляются вызовы для Avoidance других роботов...
+        return cost
+    }
+
+    # ---------------------------------------------------------
+    # 4. Локальное планирование: Градиентный спуск (MPC)
+    # ---------------------------------------------------------
+    void <- predictPath(Environment env)
+    {
+        val array[real] gradient = array[real](PREDICTIVE_SIZE)
+
+        repeat (step in 0 .. COUNT_STEPS_GRADIENT)
+        {
+            # Вычисление градиента для каждого горизонта прогнозирования
+            repeat (i in 0 .. PREDICTIVE_SIZE)
+            {
+                val real originalOmega = inputs[i].omega
+
+                # Шаг вперед
+                inputs[i].omega = originalOmega + STEP_GRADIENT
+                val real costPlus = calculateMainFunc(currentState, env)
+
+                # Шаг назад
+                inputs[i].omega = originalOmega - STEP_GRADIENT
+                val real costMinus = calculateMainFunc(currentState, env)
+
+                # Восстановление и расчет производной
+                inputs[i].omega = originalOmega
+                gradient[i] = (costPlus - costMinus) / (2.0 * STEP_GRADIENT)
+            }
+
+            # Корректировка управляющих векторов (спуск по градиенту)
+            repeat (i in 0 .. PREDICTIVE_SIZE)
+            {
+                var real update = gradient[i] * STEP_DESCENT
+
+                # Ограничение величины изменения (clamp)
+                if (update > 0.06) { update = 0.06 }
+                if (update < -0.06) { update = -0.06 }
+
+                var real newOmega = inputs[i].omega - update
+
+                # Ограничение физических возможностей робота
+                if (newOmega > 0.3) { newOmega = 0.3 }
+                if (newOmega < -0.3) { newOmega = -0.3 }
+
+                inputs[i].omega = newOmega
+            }
+        }
+
+        # Сохранение итогового прогнозируемого пути
+        var RobotState tempState = currentState.clone()
+        repeat (i in 0 .. PREDICTIVE_SIZE)
+        {
+            tempState = getPredictRobotState(tempState, inputs[i], TIME_FOR_PREDICT)
+            predictPath[i] = tempState.clone()
+        }
+    }
+
+    # ---------------------------------------------------------
+    # 5. Применение управления
+    # ---------------------------------------------------------
+    void <- move()
+    {
+        # Делаем физический шаг по первому вычисленному вектору
+        currentState = getPredictRobotState(currentState, inputs[0], TIME_FOR_PREDICT)
+
+        # Сдвигаем окно прогнозирования (Receding Horizon)
+        repeat (i in 0 .. PREDICTIVE_SIZE - 1)
+        {
+            inputs[i].omega = inputs[i + 1].omega
+            inputs[i].v = inputs[i + 1].v
+        }
+
+        # Обнуляем последний вектор в горизонте
+        inputs[PREDICTIVE_SIZE - 1].omega = 0.0
+        inputs[PREDICTIVE_SIZE - 1].v = V_SPEED
+    }
+}
+
+void <- main()
+{
+    # 1. Создаем карту
+    val Environment env = Environment(COUNT_CELL_X, COUNT_CELL_Y)
+
+    env.setObstacle(40, 20, true)
+    env.setObstacle(40, 40, true)
+    env.setObstacle(90, 70, true)
+
+    val Point startPos = Point(100.0, 400.0)
+    val Point goalPos = Point(1200.0, 400.0)
+
+    val Robot robot1 = Robot(
+        RobotState(startPos, 2.35), # 135 градусов в радианах
+        RobotState(goalPos, 0.0)
+    )
+
+    println("Запуск симуляции системы Multi-Robot...")
+
+    repeat (100 times)
+    {
+        robot1.predictPath(env)
+
+        robot1.move()
+
+        print("Робот на [X: ", robot1.currentState.position.x)
+        println(", Y: ", robot1.currentState.position.y, "]")
+    }
+
+    println("Симуляция завершена.")
+}
+

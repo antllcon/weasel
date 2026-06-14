@@ -15,6 +15,8 @@
 #include <unordered_map>
 #include <vector>
 
+class StructTypeInfo;
+
 class SemanticAnalyzer : public IAstVisitor
 {
 public:
@@ -53,9 +55,13 @@ private:
 	void Visit(const IndexExpr& node) override;
 	void Visit(const MemberAccessExpr& node) override;
 	void Visit(const StructDeclStmt& node) override;
+	void Visit(const ClassDeclStmt& node) override;
 	void Visit(const UnionDeclStmt& node) override;
 	void Visit(const EnumDeclStmt& node) override;
 	void Visit(const WhenStmt& node) override;
+
+	void ResolveCallToCandidates(const FunctionCallExpr& node, const std::vector<std::string>& candidateKeys);
+	void ResolveImplicitThisCall(const FunctionCallExpr& node, const std::vector<std::string>& candidateKeys);
 
 	TypeResolver m_typeResolver;
 	ScopeManager m_scopeManager;
@@ -70,8 +76,12 @@ private:
 	int m_loopDepth = 0;
 	std::unordered_map<std::string, FunctionInfo> m_functions;
 	std::unordered_map<std::string, std::vector<std::string>> m_overloadsByName;
+	std::unordered_map<std::string, std::vector<std::string>> m_classConstructorKeys;
+	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<std::string>>> m_classMethodKeys;
+	std::unordered_map<std::string, bool> m_memberVisibility;
 	std::string m_entryPointKey;
 
 	std::shared_ptr<TypeInfo> m_currentReturnType;
 	std::shared_ptr<TypeInfo> m_expectedType;
+	std::shared_ptr<StructTypeInfo> m_currentClassType;
 };

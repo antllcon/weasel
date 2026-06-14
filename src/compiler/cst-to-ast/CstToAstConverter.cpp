@@ -26,6 +26,7 @@
 #include "src/compiler/ast/RunStmt.h"
 #include "src/compiler/ast/StringExpr.h"
 #include "src/compiler/ast/StructDeclStmt.h"
+#include "src/compiler/ast/ClassDeclStmt.h"
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
@@ -749,6 +750,86 @@ std::unique_ptr<AstNode> ConvertUnionDecl(const CstNode& node)
 	return std::make_unique<UnionDeclStmt>(name, std::move(fields), ExtractRange(node));
 }
 
+void CollectClassMembers(const CstNode& classBody,
+	const std::string& className,
+	std::vector<ClassField>& fields,
+	std::vector<ConstructorDecl>& constructors,
+	std::vector<ClassMethod>& methods,
+	bool isPublic)
+{
+	if (classBody.children.empty())
+	{
+		return;
+	}
+	CollectClassMembers(*classBody.children[0], className, fields, constructors, methods, isPublic);
+
+	const CstNode& member = *classBody.children[1];
+	const CstNode& first = *member.children[0];
+
+	if (first.label == LanguageTokens::KwPublic || first.label == LanguageTokens::KwPrivate)
+	{
+		const bool sectionPublic = first.label == LanguageTokens::KwPublic;
+		CollectClassMembers(*member.children[2], className, fields, constructors, methods, sectionPublic);
+		return;
+	}
+
+	if (first.label == "VarDecl")
+	{
+		ClassField field;
+		field.modifier = ParseModifier(*first.children[0]);
+		field.typeName = ParseType(*first.children[1]);
+		field.name = first.children[2]->value;
+		field.isPublic = isPublic;
+		if (first.children.size() == 5)
+		{
+			field.defaultValue = ConvertExpr(*first.children[4]);
+		}
+		fields.push_back(std::move(field));
+		return;
+	}
+
+	if (first.label == "FuncDecl")
+	{
+		auto node = ConvertFuncDecl(first);
+		ClassMethod method;
+		method.decl.reset(static_cast<FunctionDeclStmt*>(node.release()));
+		method.isPublic = isPublic;
+		methods.push_back(std::move(method));
+		return;
+	}
+
+	if (first.label == "id")
+	{
+		if (first.value != className)
+		{
+			ThrowConversionError("Имя конструктора '" + first.value + "' не совпадает с именем класса '" + className + "'", member);
+		}
+
+		ConstructorDecl ctor;
+		ctor.range = ExtractRange(member);
+		const bool hasParams = member.children.size() == 7;
+		if (hasParams)
+		{
+			CollectParams(*member.children[2], ctor.params);
+		}
+		const size_t stmtListIdx = hasParams ? 5 : 4;
+		ctor.body = ConvertStmtList(*member.children[stmtListIdx]);
+		constructors.push_back(std::move(ctor));
+		return;
+	}
+}
+
+std::unique_ptr<AstNode> ConvertClassDecl(const CstNode& node)
+{
+	const std::string name = node.children[1]->value;
+	std::vector<ClassField> fields;
+	std::vector<ConstructorDecl> constructors;
+	std::vector<ClassMethod> methods;
+	CollectClassMembers(*node.children[3], name, fields, constructors, methods, false);
+	return std::make_unique<ClassDeclStmt>(
+		name, std::move(fields), std::move(constructors), std::move(methods), ExtractRange(node));
+}
+
 std::unique_ptr<AstNode> ConvertEnumDecl(const CstNode& node)
 {
 	const std::string name = node.children[1]->value;
@@ -762,6 +843,7 @@ std::unique_ptr<AstNode> ConvertDecl(const CstNode& node)
 	const auto& firstChild = *node.children[0];
 	if (firstChild.label == "FuncDecl") return ConvertFuncDecl(firstChild);
 	if (firstChild.label == "StructDecl") return ConvertStructDecl(firstChild);
+	if (firstChild.label == "ClassDecl") return ConvertClassDecl(firstChild);
 	if (firstChild.label == "UnionDecl") return ConvertUnionDecl(firstChild);
 	if (firstChild.label == "EnumDecl") return ConvertEnumDecl(firstChild);
 	if (firstChild.label == "VarDecl") return ConvertVarDecl(firstChild);

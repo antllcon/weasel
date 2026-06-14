@@ -15,8 +15,7 @@ class Matrix
     var uint cols
     var array[int] data
 
-    public Matrix(uint rows, uint cols) { ... }
-    ~Matrix() { ... }
+    Matrix(uint rows, uint cols) { ... }
 
     void Fill(int value) { ... }
     int GetRows() { ... }

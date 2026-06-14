@@ -1,8 +1,9 @@
 #include "StructTypeInfo.h"
 
-StructTypeInfo::StructTypeInfo(std::string name, std::vector<FieldDecl> fields)
+StructTypeInfo::StructTypeInfo(std::string name, std::vector<FieldDecl> fields, bool isClass)
 	: m_name(std::move(name))
 	, m_fields(std::move(fields))
+	, m_isClass(isClass)
 {
 }
 
@@ -24,4 +25,9 @@ const std::vector<FieldDecl>& StructTypeInfo::GetFields() const
 uint32_t StructTypeInfo::GetFieldCount() const
 {
 	return static_cast<uint32_t>(m_fields.size());
+}
+
+bool StructTypeInfo::IsClass() const
+{
+	return m_isClass;
 }

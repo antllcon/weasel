@@ -1,20 +1,22 @@
 class IntList
 {
-    var int count
-    var int capacity
+    var uint count
+    var uint capacity
     var array[int] data
 
-    int <- nextCapacity()
+    uint <- nextCapacity()
     {
-        var int grown = capacity + capacity / 2
-        if (grown == capacity)
+        var int grown = (capacity + capacity).int() / 2
+
+        if (grown == capacity.int())
         {
-            grown = capacity + 1
+            grown = capacity.int() + 1
         }
+
         return grown
     }
 
-    void <- reallocate(int newCapacity)
+    void <- reallocate(uint newCapacity)
     {
         var array[int] newData = array[int](newCapacity)
         repeat (i in 0 .. count)
@@ -33,19 +35,21 @@ class IntList
             data = array[int](4)
         }
 
-        IntList(int initialCapacity)
+        IntList(uint initCapacity)
         {
-            var int cap = initialCapacity
+            var uint cap = initCapacity
+
             if (cap < 1)
             {
                 cap = 1
             }
+
             count = 0
             capacity = cap
             data = array[int](cap)
         }
 
-        int <- size()
+        uint <- size()
         {
             return count
         }
@@ -55,7 +59,7 @@ class IntList
             return count == 0
         }
 
-        void <- reserve(int minCapacity)
+        void <- reserve(uint minCapacity)
         {
             if (minCapacity > capacity)
             {
@@ -73,12 +77,12 @@ class IntList
             count = count + 1
         }
 
-        int <- get(int index)
+        int <- get(uint index)
         {
             return data[index]
         }
 
-        void <- set(int index, int value)
+        void <- set(uint index, int value)
         {
             data[index] = value
         }

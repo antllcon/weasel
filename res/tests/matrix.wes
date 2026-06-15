@@ -6,78 +6,73 @@
 
 class Matrix
 {
-    # Поля приватны (значение по умолчанию)
     var int rows
     var int cols
     var array[int] data
 
-    # Приватный помощник — доступ к элементу по (i, j)
     int <- get(int i, int j)
     {
         return data[i * cols + j]
     }
 
-    public {
-        Matrix(int r, int c)
-        {
-            rows = r
-            cols = c
-            data = array[int](r * c)
-        }
+public {
+    Matrix(int r, int c)
+    {
+        rows = r
+        cols = c
+        data = array[int](r * c)
+    }
 
-        int <- numRows()
-        {
-            return rows
-        }
+    int <- numRows()
+    {
+        return rows
+    }
 
-        int <- numCols()
-        {
-            return cols
-        }
+    int <- numCols()
+    {
+        return cols
+    }
 
-        void <- set(int i, int j, int value)
-        {
-            data[i * cols + j] = value
-        }
+    void <- set(int i, int j, int value)
+    {
+        data[i * cols + j] = value
+    }
 
-        Matrix <- multiply(Matrix other)
+    Matrix <- multiply(Matrix other)
+    {
+        if (cols >< other.numRows())
         {
-            if (cols >< other.numRows())
+            println("Ошибка: несовместимые размеры матриц для умножения")
+            return Matrix(0, 0)
+        }
+        var Matrix result = Matrix(rows, other.numCols())
+        repeat (i in 0 .. rows)
+        {
+            repeat (j in 0 .. other.numCols())
             {
-                println("Ошибка: несовместимые размеры матриц для умножения")
-                return Matrix(0, 0)
-            }
-
-            var Matrix result = Matrix(rows, other.numCols())
-
-            repeat (i in 0 .. rows)
-            {
-                repeat (j in 0 .. other.numCols())
+                var int sum = 0
+                repeat (k in 0 .. cols)
                 {
-                    var int sum = 0
-                    repeat (k in 0 .. cols)
-                    {
-                        sum = sum + get(i, k) * other.get(k, j)
-                    }
-                    result.set(i, j, sum)
+                    sum = sum + get(i, k) * other.get(k, j)
                 }
+                result.set(i, j, sum)
             }
-
-            return result
         }
+        return result
+    }
 
-        void <- show()
+    void <- show()
+    {
+        repeat (i in 0 .. rows)
         {
-            repeat (i in 0 .. rows)
+            repeat (j in 0 .. cols)
             {
-                repeat (j in 0 .. cols)
-                {
-                    print(get(i, j), " ")
-                }
-                println("")
+                print(get(i, j), " ")
             }
+            println("")
         }
     }
+}
 }
 
 void <- main()

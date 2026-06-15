@@ -503,6 +503,9 @@ void NasmCodeGenerator::Visit(const ClassDeclStmt& /*node*/)
 void NasmCodeGenerator::Visit(const UnionDeclStmt& /*node*/)
 {
 }
+void NasmCodeGenerator::Visit(const ImportDecl& /*node*/)
+{
+}
 void NasmCodeGenerator::Visit(const EnumDeclStmt& /*node*/)
 {
 }

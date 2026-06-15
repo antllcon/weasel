@@ -8,6 +8,7 @@ class StructDeclStmt;
 class ClassDeclStmt;
 class UnionDeclStmt;
 class EnumDeclStmt;
+class ImportDecl;
 class BinaryExpr;
 class UnaryExpr;
 class IdentifierExpr;
@@ -42,6 +43,7 @@ public:
 	virtual void Visit(const ClassDeclStmt& node) = 0;
 	virtual void Visit(const UnionDeclStmt& node) = 0;
 	virtual void Visit(const EnumDeclStmt& node) = 0;
+	virtual void Visit(const ImportDecl& node) = 0;
 	virtual void Visit(const ArrayAllocExpr& node) = 0;
 	virtual void Visit(const BinaryExpr& node) = 0;
 	virtual void Visit(const UnaryExpr& node) = 0;

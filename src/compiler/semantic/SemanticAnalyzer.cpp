@@ -1660,6 +1660,10 @@ void SemanticAnalyzer::Visit(const UnionDeclStmt& /*node*/)
 {
 }
 
+void SemanticAnalyzer::Visit(const ImportDecl& /*node*/)
+{
+}
+
 void SemanticAnalyzer::Visit(const EnumDeclStmt& /*node*/)
 {
 }

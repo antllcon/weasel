@@ -59,9 +59,13 @@ void RunNasmBackend(FrontendPipeline::FrontendResult& result, const CompilerOpti
 	// Logger::Log("[Compiler]\tNASM-код записан в: " + outputFile.string());
 }
 
-void RunVmBackend(FrontendPipeline::FrontendResult& result)
+void RunVmBackend(FrontendPipeline::FrontendResult& result, bool checkOnly)
 {
 	auto bytecode = GenerateBytecode(result);
+	if (checkOnly)
+	{
+		return;
+	}
 	RunVirtualMachine(bytecode);
 }
 } // namespace
@@ -76,7 +80,7 @@ bool Run(FrontendPipeline::FrontendResult& result, const CompilerOptions& option
 	}
 	else
 	{
-		RunVmBackend(result);
+		RunVmBackend(result, options.checkOnly);
 	}
 
 	return true;

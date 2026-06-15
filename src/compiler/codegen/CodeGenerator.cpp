@@ -477,6 +477,10 @@ void CodeGenerator::Visit(const UnionDeclStmt& /*node*/)
 {
 }
 
+void CodeGenerator::Visit(const ImportDecl& /*node*/)
+{
+}
+
 void CodeGenerator::Visit(const EnumDeclStmt& /*node*/)
 {
 }

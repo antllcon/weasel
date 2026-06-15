@@ -27,6 +27,7 @@
 #include "src/compiler/ast/StringExpr.h"
 #include "src/compiler/ast/StructDeclStmt.h"
 #include "src/compiler/ast/ClassDeclStmt.h"
+#include "src/compiler/ast/ImportDecl.h"
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
@@ -838,6 +839,12 @@ std::unique_ptr<AstNode> ConvertEnumDecl(const CstNode& node)
 	return std::make_unique<EnumDeclStmt>(name, std::move(values), ExtractRange(node));
 }
 
+std::unique_ptr<AstNode> ConvertImportDecl(const CstNode& node)
+{
+	const std::string modulePath = node.children[1]->value;
+	return std::make_unique<ImportDecl>(modulePath, ExtractRange(node));
+}
+
 std::unique_ptr<AstNode> ConvertDecl(const CstNode& node)
 {
 	const auto& firstChild = *node.children[0];
@@ -846,12 +853,13 @@ std::unique_ptr<AstNode> ConvertDecl(const CstNode& node)
 	if (firstChild.label == "ClassDecl") return ConvertClassDecl(firstChild);
 	if (firstChild.label == "UnionDecl") return ConvertUnionDecl(firstChild);
 	if (firstChild.label == "EnumDecl") return ConvertEnumDecl(firstChild);
+	if (firstChild.label == "ImportDecl") return ConvertImportDecl(firstChild);
 	if (firstChild.label == "VarDecl") return ConvertVarDecl(firstChild);
 	ThrowConversionError("Неподдерживаемый тип декларации", firstChild);
 }
 } // namespace
 
-std::unique_ptr<AstNode> CstToAstConverter::Convert(const CstNode& root)
+std::vector<std::unique_ptr<AstNode>> CstToAstConverter::ConvertDeclarations(const CstNode& root)
 {
 	const CstNode& programNode = *root.children[0];
 	const CstNode& declListNode = *programNode.children[0];
@@ -867,5 +875,10 @@ std::unique_ptr<AstNode> CstToAstConverter::Convert(const CstNode& root)
 		declarations.push_back(ConvertDecl(*decl));
 	}
 
-	return std::make_unique<ProgramNode>(std::move(declarations));
+	return declarations;
+}
+
+std::unique_ptr<AstNode> CstToAstConverter::Convert(const CstNode& root)
+{
+	return std::make_unique<ProgramNode>(ConvertDeclarations(root));
 }

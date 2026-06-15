@@ -1,0 +1,12 @@
+# Главный модуль: импортирует util и использует его функцию и класс.
+# Запуск: wesc tests/modules/app.wes   (из каталога res)
+
+import "util"
+
+void <- main()
+{
+    println(square(7))
+
+    var Greeter g = Greeter("Weasel")
+    println(g.greeting())
+}

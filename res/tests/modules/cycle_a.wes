@@ -1,0 +1,16 @@
+# Циклический импорт (a -> b -> a). Загрузчик не должен зацикливаться:
+# повторный импорт уже посещённого модуля игнорируется.
+# Запуск: wesc tests/modules/cycle_a.wes   (из каталога res)
+
+import "cycle_b"
+
+int <- fromA()
+{
+    return 1
+}
+
+void <- main()
+{
+    println(fromA())     # 1
+    println(fromB())     # 2
+}

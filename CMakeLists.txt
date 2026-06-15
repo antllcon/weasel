@@ -14,7 +14,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 file(GLOB_RECURSE SRC_FILES "src/*.cpp")
 file(GLOB_RECURSE HEADER_FILES "src/*.h")
+file(GLOB_RECURSE WKIT_FILES "src/wkit/*.cpp")
 list(REMOVE_ITEM SRC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
+list(REMOVE_ITEM SRC_FILES ${WKIT_FILES})
 
 if (MSVC)
     add_compile_options(/utf-8 /W4 /WX)
@@ -28,6 +30,10 @@ target_include_directories(core_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(wesc src/main.cpp)
 target_link_libraries(wesc PRIVATE core_lib)
 set_target_properties(wesc PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/res")
+
+add_executable(wkit ${WKIT_FILES})
+target_link_libraries(wkit PRIVATE core_lib)
+set_target_properties(wkit PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/res")
 
 option(BUILD_TESTING "Build the tests" ON)
 

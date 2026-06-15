@@ -17,7 +17,7 @@ void AssertIsEnoughArguments(int argc)
 {
 	if (argc < 2)
 	{
-		throw std::runtime_error("Проверь аргументы: wesc <name.wes> [-l | -lf] [-g <name.txt>] [-nasm]");
+		throw std::runtime_error("Проверь аргументы: wesc <name.wes> [-l | -lf] [-g <name.txt>] [--stdlib <dir>] [-nasm] [-c | --check]");
 	}
 }
 
@@ -70,11 +70,20 @@ std::vector<FlagRule> GetFlagRules()
 		{"-g", true, [](CompilerOptions& opt, std::string_view val) {
 			 opt.grammarFile = val;
 		 }},
+		{"--stdlib", true, [](CompilerOptions& opt, std::string_view val) {
+			 opt.stdlibDir = val;
+		 }},
 		{"-nasm", false, [](CompilerOptions& opt, std::string_view) {
 			 opt.emitNasm = true;
 		 }},
 		{"--format", false, [](CompilerOptions& opt, std::string_view) {
 			 opt.formatMode = true;
+		 }},
+		{"-c", false, [](CompilerOptions& opt, std::string_view) {
+			 opt.checkOnly = true;
+		 }},
+		{"--check", false, [](CompilerOptions& opt, std::string_view) {
+			 opt.checkOnly = true;
 		 }}};
 }
 } // namespace

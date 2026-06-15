@@ -141,7 +141,14 @@ std::string Formatter::Format(const std::vector<Token>& tokens)
 			continue;
 		}
 
-		out << value;
+		if (type == TokenType::String)
+		{
+			out << "\"" << value << "\"";
+		}
+		else
+		{
+			out << value;
+		}
 
 		if (NeedsSpaceAfter(type, value))
 		{

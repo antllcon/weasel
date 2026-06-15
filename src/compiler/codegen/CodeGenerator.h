@@ -23,6 +23,7 @@ public:
 	void Visit(const StructDeclStmt& node) override;
 	void Visit(const ClassDeclStmt& node) override;
 	void Visit(const UnionDeclStmt& node) override;
+	void Visit(const ImportDecl& node) override;
 	void Visit(const EnumDeclStmt& node) override;
 	void Visit(const BinaryExpr& node) override;
 	void Visit(const UnaryExpr& node) override;

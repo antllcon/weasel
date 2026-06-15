@@ -17,6 +17,7 @@ struct FrontendResult
 
 [[nodiscard]] std::optional<FrontendResult> Run(
 	const std::filesystem::path& sourceFile,
+	const std::filesystem::path& stdlibDir,
 	const LanguageContext& context,
 	DiagnosticEngine& engine);
 } // namespace FrontendPipeline

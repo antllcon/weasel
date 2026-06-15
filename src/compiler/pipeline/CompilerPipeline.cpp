@@ -5,19 +5,26 @@
 #include "src/diagnostics/DiagnosticEngine.h"
 #include "src/utils/logger/Logger.h"
 
+#include <iostream>
+
 namespace
 {
-void LogDiagnostics(const DiagnosticEngine& engine)
+void LogDiagnostics(const DiagnosticEngine& engine, LogTarget logTarget)
 {
 	for (const auto& diagnostic : engine.GetDiagnostics())
 	{
-		Logger::Log(DiagnosticEngine::FormatMessage(diagnostic));
+		const auto message = DiagnosticEngine::FormatMessage(diagnostic);
+		std::cerr << message << std::endl;
+		if (logTarget == LogTarget::File)
+		{
+			Logger::Log(message);
+		}
 	}
 }
 
 bool ExecutePhases(const CompilerOptions& options, const LanguageContext& context, DiagnosticEngine& engine)
 {
-	auto frontendResult = FrontendPipeline::Run(options.sourceFile, context, engine);
+	auto frontendResult = FrontendPipeline::Run(options.sourceFile, options.stdlibDir, context, engine);
 	if (!frontendResult) return false;
 	return BackendPipeline::Run(*frontendResult, options);
 }
@@ -43,6 +50,6 @@ bool CompilerPipeline::Compile(const CompilerOptions& options, const LanguageCon
 			.message = e.what()});
 	}
 
-	LogDiagnostics(engine);
+	LogDiagnostics(engine, options.logTarget);
 	return isSuccess;
 }

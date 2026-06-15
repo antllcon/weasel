@@ -9,6 +9,9 @@ Decl -> EnumDecl
 Decl -> UnionDecl
 Decl -> VarDecl
 Decl -> ClassDecl
+Decl -> ImportDecl
+
+ImportDecl -> import str
 
 ClassDecl -> class id { ClassBody }
 

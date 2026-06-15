@@ -1,0 +1,24 @@
+# Вспомогательный модуль: функция + класс.
+# Не содержит main — это библиотека, подключаемая через import.
+
+int <- square(int x)
+{
+    return x * x
+}
+
+class Greeter
+{
+    var string name
+
+    public {
+        Greeter(string who)
+        {
+            name = who
+        }
+
+        string <- greeting()
+        {
+            return name
+        }
+    }
+}

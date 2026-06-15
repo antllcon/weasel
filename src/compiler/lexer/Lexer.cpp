@@ -321,6 +321,7 @@ Token ParseOperatorOrPunctuation(LexerState& state)
 			Advance(state);
 			return MakeToken(TokenType::OpEq, startPos, 2, state, startLine);
 		}
+		return MakeToken(TokenType::OpAssign, startPos, 1, state, startLine);
 	case LanguageTokens::SymDot[0]:
 		if (Peek(state) == LanguageTokens::OpRange[1])
 		{

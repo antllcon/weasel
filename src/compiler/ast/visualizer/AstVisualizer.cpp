@@ -28,6 +28,7 @@
 #include "src/compiler/ast/StringExpr.h"
 #include "src/compiler/ast/StructDeclStmt.h"
 #include "src/compiler/ast/ClassDeclStmt.h"
+#include "src/compiler/ast/ImportDecl.h"
 #include "src/compiler/ast/UnaryExpr.h"
 #include "src/compiler/ast/UnionDeclStmt.h"
 #include "src/compiler/ast/VarDeclStmt.h"
@@ -406,6 +407,11 @@ void AstVisualizer::Visit(const UnionDeclStmt& node)
 	{
 		PrintLeaf("Field (" + fields[i].typeName + " " + fields[i].name + ")", i + 1 == fields.size());
 	}
+}
+
+void AstVisualizer::Visit(const ImportDecl& node)
+{
+	PrintNode("ImportDecl (" + node.GetModulePath() + ")");
 }
 
 void AstVisualizer::Visit(const EnumDeclStmt& node)

@@ -1,23 +1,12 @@
 #include "FrontendPipeline.h"
 #include "src/compiler/ast/visualizer/AstVisualizer.h"
-#include "src/compiler/cst-to-ast/CstToAstConverter.h"
-#include "src/compiler/lexer/Lexer.h"
-#include "src/compiler/lexer/visualizer/LexerVisualizer.h"
-#include "src/compiler/reader/SourceLoader.h"
+#include "src/compiler/modules/ModuleLoader.h"
 #include "src/compiler/semantic/SemanticAnalyzer.h"
 #include "src/compiler/semantic/SymbolTableVisualizer.h"
 #include "src/diagnostics/CompilationException.h"
-#include "src/grammar/cst/CstVisualizer.h"
-#include "src/grammar/lalr/LalrParser.h"
-#include "src/utils/logger/timer/ScopedTimer.h"
 
 namespace FrontendPipeline
 {
-using SourceCode = std::string;
-using TokenStream = std::vector<Token>;
-using CstTree = std::unique_ptr<CstNode>;
-using AstTree = std::unique_ptr<AstNode>;
-
 namespace
 {
 void AssertIsContextValid(const LanguageContext& context)
@@ -27,17 +16,6 @@ void AssertIsContextValid(const LanguageContext& context)
 		throw CompilationException(DiagnosticData{
 			.phase = CompilerPhase::Parser,
 			.message = "LALR таблица не инициализирована"});
-	}
-}
-
-void AssertIsCstValid(const CstNode* cstRoot, const std::filesystem::path& sourceFile)
-{
-	if (!cstRoot)
-	{
-		throw CompilationException(DiagnosticData{
-			.phase = CompilerPhase::Parser,
-			.message = "Синтаксическое дерево (CST) не было построено",
-			.filePath = sourceFile});
 	}
 }
 
@@ -52,41 +30,8 @@ void AssertIsAstValid(const AstNode* astRoot, const std::filesystem::path& sourc
 	}
 }
 
-SourceCode ReadSourceFile(const std::filesystem::path& filePath)
-{
-	// ScopedTimer t("Чтение исходного файла");
-	return SourceLoader::Read(filePath);
-}
-
-TokenStream RunLexerPhase(const SourceCode& sourceCode, DiagnosticEngine& engine)
-{
-	// ScopedTimer t("Лексический анализ");
-	auto tokens = Lexer::Tokenize(sourceCode, engine);
-	LexerVisualizer::Visualize(tokens, engine, false);
-	return tokens;
-}
-
-CstTree RunParserPhase(const TokenStream& tokens, const LanguageContext& context, const std::filesystem::path& sourceFile)
-{
-	// ScopedTimer t("Синтаксический анализ");
-	auto cstRoot = LalrParser::ParseTokenStream(*context.lalrTable, tokens, true);
-	AssertIsCstValid(cstRoot.get(), sourceFile);
-	CstVisualizer::Visualize(*cstRoot);
-	return cstRoot;
-}
-
-AstTree RunAstConversionPhase(const CstTree& cstRoot, const std::filesystem::path& sourceFile)
-{
-	// ScopedTimer t("Конвертация CST в AST");
-	auto astRoot = CstToAstConverter::Convert(*cstRoot);
-	AssertIsAstValid(astRoot.get(), sourceFile);
-	AstVisualizer::Visualize(*astRoot);
-	return astRoot;
-}
-
 CodegenContext RunSemanticPhase(AstNode& astRoot, DiagnosticEngine& engine)
 {
-	// ScopedTimer t("Семантический анализ");
 	SemanticAnalyzer sema;
 	auto codegenCtx = sema.Analyze(astRoot, engine);
 	SymbolTableVisualizer::Visualize(codegenCtx.symbols);
@@ -94,16 +39,20 @@ CodegenContext RunSemanticPhase(AstNode& astRoot, DiagnosticEngine& engine)
 }
 } // namespace
 
-std::optional<FrontendResult> Run(const std::filesystem::path& sourceFile, const LanguageContext& context, DiagnosticEngine& engine)
+std::optional<FrontendResult> Run(
+	const std::filesystem::path& sourceFile,
+	const std::filesystem::path& stdlibDir,
+	const LanguageContext& context,
+	DiagnosticEngine& engine)
 {
 	AssertIsContextValid(context);
-	auto sourceCode = ReadSourceFile(sourceFile);
 
-	auto tokens = RunLexerPhase(sourceCode, engine);
+	auto astRoot = ModuleLoader::Load(sourceFile, stdlibDir, context, engine);
 	if (engine.HasErrors()) return std::nullopt;
 
-	auto cstRoot = RunParserPhase(tokens, context, sourceFile);
-	auto astRoot = RunAstConversionPhase(cstRoot, sourceFile);
+	AssertIsAstValid(astRoot.get(), sourceFile);
+	AstVisualizer::Visualize(*astRoot);
+
 	auto semaResult = RunSemanticPhase(*astRoot, engine);
 	if (engine.HasErrors()) return std::nullopt;
 

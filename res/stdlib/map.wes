@@ -1,0 +1,86 @@
+class Map
+{
+    var int count
+    var int capacity
+    var array[string] keys
+    var array[int] values
+
+    # Индекс ключа или -1, если ключ не найден
+    int <- indexOf(string key)
+    {
+        repeat (i in 0 .. count)
+        {
+            if (keys[i] == key)
+            {
+                return i
+            }
+        }
+        return -1
+    }
+
+    void <- grow()
+    {
+        var int newCapacity = capacity + capacity / 2
+        if (newCapacity == capacity)
+        {
+            newCapacity = capacity + 1
+        }
+        var array[string] newKeys = array[string](newCapacity)
+        var array[int] newValues = array[int](newCapacity)
+        repeat (i in 0 .. count)
+        {
+            newKeys[i] = keys[i]
+            newValues[i] = values[i]
+        }
+        keys = newKeys
+        values = newValues
+        capacity = newCapacity
+    }
+
+    public {
+        Map()
+        {
+            count = 0
+            capacity = 4
+            keys = array[string](4)
+            values = array[int](4)
+        }
+
+        int <- size()
+        {
+            return count
+        }
+
+        bool <- contains(string key)
+        {
+            return indexOf(key) >< -1
+        }
+
+        void <- set(string key, int value)
+        {
+            var int idx = indexOf(key)
+            if (idx >< -1)
+            {
+                values[idx] = value
+                return
+            }
+            if (count == capacity)
+            {
+                grow()
+            }
+            keys[count] = key
+            values[count] = value
+            count = count + 1
+        }
+
+        int <- get(string key)
+        {
+            var int idx = indexOf(key)
+            if (idx >< -1)
+            {
+                return values[idx]
+            }
+            return 0
+        }
+    }
+}

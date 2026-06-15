@@ -1,0 +1,54 @@
+import "list"
+import "stack"
+import "queue"
+import "map"
+
+void <- main()
+{
+    var IntList nums = IntList()
+    nums.push(10)
+    nums.push(20)
+    nums.push(30)
+    println(nums.size())
+    println(nums.get(1))
+    nums.set(1, 99)
+    println(nums.get(1))
+    println(nums.pop())
+    println(nums.size())
+
+    var IntList big = IntList()
+    repeat (i in 0 .. 10)
+    {
+        big.push(i * i)
+    }
+    println(big.size())
+    println(big.get(9))
+
+    var IntStack st = IntStack()
+    st.push(1)
+    st.push(2)
+    st.push(3)
+    println(st.peek())
+    println(st.pop())
+    println(st.pop())
+    println(st.size())
+
+    var IntQueue q = IntQueue()
+    q.enqueue(100)
+    q.enqueue(200)
+    q.enqueue(300)
+    println(q.front())
+    println(q.dequeue())
+    println(q.dequeue())
+    println(q.size())
+
+    var Map ages = Map()
+    ages.set("Alice", 30)
+    ages.set("Bob", 25)
+    println(ages.get("Alice"))
+    println(ages.get("Bob"))
+    ages.set("Alice", 31)
+    println(ages.get("Alice"))
+    println(ages.contains("Eve"))
+    println(ages.size())
+}

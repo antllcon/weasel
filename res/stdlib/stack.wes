@@ -1,0 +1,79 @@
+class IntStack
+{
+    var int count
+    var int capacity
+    var array[int] data
+
+    int <- nextCapacity()
+    {
+        var int grown = capacity + capacity / 2
+        if (grown == capacity)
+        {
+            grown = capacity + 1
+        }
+        return grown
+    }
+
+    void <- reallocate(int newCapacity)
+    {
+        var array[int] newData = array[int](newCapacity)
+        repeat (i in 0 .. count)
+        {
+            newData[i] = data[i]
+        }
+        data = newData
+        capacity = newCapacity
+    }
+
+    public {
+        IntStack()
+        {
+            count = 0
+            capacity = 4
+            data = array[int](4)
+        }
+
+        IntStack(int initialCapacity)
+        {
+            var int cap = initialCapacity
+            if (cap < 1)
+            {
+                cap = 1
+            }
+            count = 0
+            capacity = cap
+            data = array[int](cap)
+        }
+
+        int <- size()
+        {
+            return count
+        }
+
+        bool <- isEmpty()
+        {
+            return count == 0
+        }
+
+        void <- push(int value)
+        {
+            if (count == capacity)
+            {
+                reallocate(nextCapacity())
+            }
+            data[count] = value
+            count = count + 1
+        }
+
+        int <- pop()
+        {
+            count = count - 1
+            return data[count]
+        }
+
+        int <- peek()
+        {
+            return data[count - 1]
+        }
+    }
+}

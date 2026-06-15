@@ -1,0 +1,86 @@
+class IntQueue
+{
+    var int count
+    var int capacity
+    var int head
+    var array[int] data
+
+    int <- nextCapacity()
+    {
+        var int grown = capacity + capacity / 2
+        if (grown == capacity)
+        {
+            grown = capacity + 1
+        }
+        return grown
+    }
+
+    void <- grow()
+    {
+        var int newCapacity = nextCapacity()
+        var array[int] newData = array[int](newCapacity)
+        repeat (i in 0 .. count)
+        {
+            newData[i] = data[(head + i) % capacity]
+        }
+        data = newData
+        capacity = newCapacity
+        head = 0
+    }
+
+    public {
+        IntQueue()
+        {
+            count = 0
+            capacity = 4
+            head = 0
+            data = array[int](4)
+        }
+
+        IntQueue(int initialCapacity)
+        {
+            var int cap = initialCapacity
+            if (cap < 1)
+            {
+                cap = 1
+            }
+            count = 0
+            capacity = cap
+            head = 0
+            data = array[int](cap)
+        }
+
+        int <- size()
+        {
+            return count
+        }
+
+        bool <- isEmpty()
+        {
+            return count == 0
+        }
+
+        void <- enqueue(int value)
+        {
+            if (count == capacity)
+            {
+                grow()
+            }
+            data[(head + count) % capacity] = value
+            count = count + 1
+        }
+
+        int <- dequeue()
+        {
+            var int value = data[head]
+            head = (head + 1) % capacity
+            count = count - 1
+            return value
+        }
+
+        int <- front()
+        {
+            return data[head]
+        }
+    }
+}

@@ -39,7 +39,6 @@ class Box
     }
 }
 
-# Нет конструктора → авто-default + инициализаторы полей
 class Counter
 {
     public {
@@ -48,7 +47,6 @@ class Counter
     }
 }
 
-# Инкапсуляция: поля private, наружу — только методы (public)
 class Rect
 {
     var int w
@@ -79,14 +77,11 @@ class Rect
     }
 }
 
-# Фаза 4: объект передаётся по ссылке (без копии)
 void <- mutate(Point p)
 {
     p.x = 99.0
 }
 
-# Фаза 5: видимость. Поле private, приватный метод доступен только изнутри.
-# Конструкторы вызываемы всегда.
 class Account
 {
     var int balance
@@ -96,7 +91,6 @@ class Account
         balance = initial
     }
 
-    # private по умолчанию — доступен только изнутри класса
     int <- bonus()
     {
         return balance / 10
@@ -115,7 +109,6 @@ class Account
     }
 }
 
-# Фаза 7: композиция — объект как поле другого объекта
 class Line
 {
     public {
@@ -128,7 +121,6 @@ class Line
             b = pb
         }
 
-        # доступ к полям полей-объектов изнутри метода
         real <- spanX()
         {
             return b.x - a.x
@@ -139,68 +131,60 @@ class Line
 void <- main()
 {
     var Point p = Point(3.0, 4.0)
-    println(p.x)         # 3.0
-    println(p.y)         # 4.0
+    println(p.x)
+    println(p.y)
 
-    # ссылочная семантика
     var Point q = p
     q.x = 9.0
-    println(p.x)         # 9.0
+    println(p.x)
 
-    # перегрузка конструкторов
     var Box sq = Box(5)
-    println(sq.w)        # 5
-    println(sq.h)        # 5
+    println(sq.w)
+    println(sq.h)
     var Box rect = Box(3, 4)
-    println(rect.w)      # 3
-    println(rect.h)      # 4
+    println(rect.w)
+    println(rect.h)
 
-    # авто-default-конструктор + инициализаторы полей
     var Counter c = Counter()
-    println(c.value)     # 0
-    println(c.steper)    # 5
+    println(c.value)
+    println(c.steper)
 
-    # методы: доступ к полям, this, перегрузка, мутация состояния
     var Rect r = Rect(3, 4)
-    println(r.area())    # 12
-    println(r.scaled(2)) # 24
+    println(r.area())
+    println(r.scaled(2))
     r.grow(1, 1)
-    println(r.area())    # 20
+    println(r.area())
 
-    # Фаза 4: передача в функцию — ссылка, не копия
     mutate(p)
-    println(p.x)         # 99.0
+    println(p.x)
 
-    # Фаза 4: равенство по ссылке
-    println(p == q)      # true  (q — алиас p)
+    println(p == q)
     var Point fresh = Point(99.0, 4.0)
-    println(p == fresh)  # false (разные объекты)
-    println(p >< fresh)  # true
+    println(p == fresh)
+    println(p >< fresh)
 
-    # Фаза 5: видимость
     var Account acc = Account(100)
     acc.deposit(50)
-    println(acc.total())     # 165 (balance 150 + bonus 15)
-    # println(acc.balance)   # ОШИБКА: приватное поле извне
-    # println(acc.bonus())   # ОШИБКА: приватный метод извне
+    println(acc.total())
+    # println(acc.balance) # приватный метод
+    # println(acc.bonus()) # приватный метод
 
     # Фаза 7: композиция — объект как поле
     var Point start = Point(0.0, 0.0)
     var Point finish = Point(3.0, 0.0)
     var Line seg = Line(start, finish)
-    println(seg.a.x)         # 0.0
-    println(seg.b.x)         # 3.0
-    println(seg.spanX())     # 3.0
+    println(seg.a.x)
+    println(seg.b.x)
+    println(seg.spanX())
     seg.a.x = 1.0
-    println(seg.a.x)         # 1.0
-    println(start.x)         # 1.0 (ссылка: seg.a — это start)
+    println(seg.a.x)
+    println(start.x)
 
-    # Фаза 7: массив объектов
     var array[Point] pts = array[Point](2)
     pts[0] = Point(5.0, 6.0)
     pts[1] = Point(7.0, 8.0)
-    println(pts[0].x)        # 5.0
-    println(pts[1].y)        # 8.0
+    println(pts[0].x)
+    println(pts[1].y)
     pts[0].x = 50.0
-    println(pts[0].x)        # 50.0
+    println(pts[0].x)
 }

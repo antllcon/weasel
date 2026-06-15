@@ -1,6 +1,3 @@
-# Главный модуль: импортирует util и использует его функцию и класс.
-# Запуск: wesc tests/modules/app.wes   (из каталога res)
-
 import "util"
 
 void <- main()

@@ -327,33 +327,1076 @@ n   (Goto)   : В какое состояние переходим после с
 
 [ast]		Абстрактное синтаксическое дерево:
 		Program
-		    ├── FuncDecl (square: int | int x)
+		    ├── FuncDecl (PI: real)
 		    │   └── Block
 		    │       └── Return
-		    │           └── Binary (*)
-		    │               ├── Identifier (x)
-		    │               └── Identifier (x)
-		    ├── ClassDecl (Greeter)
-		    │   └── Field (string name)
+		    │           └── Num (3.14159265358979f)
+		    ├── FuncDecl (absR: real | real x)
+		    │   └── Block
+		    │       ├── If
+		    │       │   ├── Binary (<)
+		    │       │   │   ├── Identifier (x)
+		    │       │   │   └── Num (0.0f)
+		    │       │   └── Block
+		    │       │       └── Return
+		    │       │           └── Binary (-)
+		    │       │               ├── Num (0.0f)
+		    │       │               └── Identifier (x)
+		    │       └── Return
+		    │           └── Identifier (x)
+		    ├── FuncDecl (minR: real | real a real b)
+		    │   └── Block
+		    │       ├── If
+		    │       │   ├── Binary (<)
+		    │       │   │   ├── Identifier (a)
+		    │       │   │   └── Identifier (b)
+		    │       │   └── Block
+		    │       │       └── Return
+		    │       │           └── Identifier (a)
+		    │       └── Return
+		    │           └── Identifier (b)
+		    ├── FuncDecl (maxR: real | real a real b)
+		    │   └── Block
+		    │       ├── If
+		    │       │   ├── Binary (>)
+		    │       │   │   ├── Identifier (a)
+		    │       │   │   └── Identifier (b)
+		    │       │   └── Block
+		    │       │       └── Return
+		    │       │           └── Identifier (a)
+		    │       └── Return
+		    │           └── Identifier (b)
+		    ├── FuncDecl (clampR: real | real x real lo real hi)
+		    │   └── Block
+		    │       ├── If
+		    │       │   ├── Binary (<)
+		    │       │   │   ├── Identifier (x)
+		    │       │   │   └── Identifier (lo)
+		    │       │   └── Block
+		    │       │       └── Return
+		    │       │           └── Identifier (lo)
+		    │       ├── If
+		    │       │   ├── Binary (>)
+		    │       │   │   ├── Identifier (x)
+		    │       │   │   └── Identifier (hi)
+		    │       │   └── Block
+		    │       │       └── Return
+		    │       │           └── Identifier (hi)
+		    │       └── Return
+		    │           └── Identifier (x)
+		    ├── FuncDecl (floorR: real | real x)
+		    │   └── Block
+		    │       ├── VarDecl (var int truncated =)
+		    │       │   └── Call (int)
+		    │       │       └── Identifier (x)
+		    │       ├── VarDecl (var real result =)
+		    │       │   └── Call (real)
+		    │       │       └── Identifier (truncated)
+		    │       ├── If
+		    │       │   ├── Binary (>)
+		    │       │   │   ├── Identifier (result)
+		    │       │   │   └── Identifier (x)
+		    │       │   └── Block
+		    │       │       └── Assign (=)
+		    │       │           ├── Identifier (result)
+		    │       │           └── Binary (-)
+		    │       │               ├── Identifier (result)
+		    │       │               └── Num (1.0f)
+		    │       └── Return
+		    │           └── Identifier (result)
+		    ├── FuncDecl (normalizeAngle: real | real a)
+		    │   └── Block
+		    │       ├── VarDecl (var real twoPi =)
+		    │       │   └── Binary (*)
+		    │       │       ├── Num (2.0f)
+		    │       │       └── Call (PI)
+		    │       ├── While
+		    │       │   ├── Binary (>)
+		    │       │   │   ├── Identifier (a)
+		    │       │   │   └── Call (PI)
+		    │       │   └── Block
+		    │       │       └── Assign (=)
+		    │       │           ├── Identifier (a)
+		    │       │           └── Binary (-)
+		    │       │               ├── Identifier (a)
+		    │       │               └── Identifier (twoPi)
+		    │       ├── While
+		    │       │   ├── Binary (<)
+		    │       │   │   ├── Identifier (a)
+		    │       │   │   └── Binary (-)
+		    │       │   │       ├── Num (0.0f)
+		    │       │   │       └── Call (PI)
+		    │       │   └── Block
+		    │       │       └── Assign (=)
+		    │       │           ├── Identifier (a)
+		    │       │           └── Binary (+)
+		    │       │               ├── Identifier (a)
+		    │       │               └── Identifier (twoPi)
+		    │       └── Return
+		    │           └── Identifier (a)
+		    ├── FuncDecl (sinR: real | real angle)
+		    │   └── Block
+		    │       ├── VarDecl (var real x =)
+		    │       │   └── Call (normalizeAngle)
+		    │       │       └── Identifier (angle)
+		    │       ├── VarDecl (var real x2 =)
+		    │       │   └── Binary (*)
+		    │       │       ├── Identifier (x)
+		    │       │       └── Identifier (x)
+		    │       ├── VarDecl (var real term =)
+		    │       │   └── Identifier (x)
+		    │       ├── VarDecl (var real sum =)
+		    │       │   └── Identifier (x)
+		    │       ├── RepRange (k)
+		    │       │   ├── Num (1)
+		    │       │   └── Num (12)
+		    │       │   └── Block
+		    │       │       ├── VarDecl (var real denom =)
+		    │       │       │   └── Call (real)
+		    │       │       │       └── Binary (*)
+		    │       │       │           ├── Binary (*)
+		    │       │       │           │   ├── Num (2)
+		    │       │       │           │   └── Identifier (k)
+		    │       │       │           └── Binary (+)
+		    │       │       │               ├── Binary (*)
+		    │       │       │               │   ├── Num (2)
+		    │       │       │               │   └── Identifier (k)
+		    │       │       │               └── Num (1)
+		    │       │       ├── Assign (=)
+		    │       │       │   ├── Identifier (term)
+		    │       │       │   └── Binary (/)
+		    │       │       │       ├── Binary (*)
+		    │       │       │       │   ├── Identifier (term)
+		    │       │       │       │   └── Binary (-)
+		    │       │       │       │       ├── Num (0.0f)
+		    │       │       │       │       └── Identifier (x2)
+		    │       │       │       └── Identifier (denom)
+		    │       │       └── Assign (=)
+		    │       │           ├── Identifier (sum)
+		    │       │           └── Binary (+)
+		    │       │               ├── Identifier (sum)
+		    │       │               └── Identifier (term)
+		    │       └── Return
+		    │           └── Identifier (sum)
+		    ├── FuncDecl (cosR: real | real angle)
+		    │   └── Block
+		    │       ├── VarDecl (var real x =)
+		    │       │   └── Call (normalizeAngle)
+		    │       │       └── Identifier (angle)
+		    │       ├── VarDecl (var real x2 =)
+		    │       │   └── Binary (*)
+		    │       │       ├── Identifier (x)
+		    │       │       └── Identifier (x)
+		    │       ├── VarDecl (var real term =)
+		    │       │   └── Num (1.0f)
+		    │       ├── VarDecl (var real sum =)
+		    │       │   └── Num (1.0f)
+		    │       ├── RepRange (k)
+		    │       │   ├── Num (1)
+		    │       │   └── Num (12)
+		    │       │   └── Block
+		    │       │       ├── VarDecl (var real denom =)
+		    │       │       │   └── Call (real)
+		    │       │       │       └── Binary (*)
+		    │       │       │           ├── Binary (-)
+		    │       │       │           │   ├── Binary (*)
+		    │       │       │           │   │   ├── Num (2)
+		    │       │       │           │   │   └── Identifier (k)
+		    │       │       │           │   └── Num (1)
+		    │       │       │           └── Binary (*)
+		    │       │       │               ├── Num (2)
+		    │       │       │               └── Identifier (k)
+		    │       │       ├── Assign (=)
+		    │       │       │   ├── Identifier (term)
+		    │       │       │   └── Binary (/)
+		    │       │       │       ├── Binary (*)
+		    │       │       │       │   ├── Identifier (term)
+		    │       │       │       │   └── Binary (-)
+		    │       │       │       │       ├── Num (0.0f)
+		    │       │       │       │       └── Identifier (x2)
+		    │       │       │       └── Identifier (denom)
+		    │       │       └── Assign (=)
+		    │       │           ├── Identifier (sum)
+		    │       │           └── Binary (+)
+		    │       │               ├── Identifier (sum)
+		    │       │               └── Identifier (term)
+		    │       └── Return
+		    │           └── Identifier (sum)
+		    ├── FuncDecl (sqrtR: real | real x)
+		    │   └── Block
+		    │       ├── If
+		    │       │   ├── Binary (<=)
+		    │       │   │   ├── Identifier (x)
+		    │       │   │   └── Num (0.0f)
+		    │       │   └── Block
+		    │       │       └── Return
+		    │       │           └── Num (0.0f)
+		    │       ├── VarDecl (var real g =)
+		    │       │   └── Identifier (x)
+		    │       ├── If
+		    │       │   ├── Binary (<)
+		    │       │   │   ├── Identifier (g)
+		    │       │   │   └── Num (1.0f)
+		    │       │   └── Block
+		    │       │       └── Assign (=)
+		    │       │           ├── Identifier (g)
+		    │       │           └── Num (1.0f)
+		    │       ├── RepRange (i)
+		    │       │   ├── Num (0)
+		    │       │   └── Num (30)
+		    │       │   └── Block
+		    │       │       └── Assign (=)
+		    │       │           ├── Identifier (g)
+		    │       │           └── Binary (*)
+		    │       │               ├── Num (0.5f)
+		    │       │               └── Binary (+)
+		    │       │                   ├── Identifier (g)
+		    │       │                   └── Binary (/)
+		    │       │                       ├── Identifier (x)
+		    │       │                       └── Identifier (g)
+		    │       └── Return
+		    │           └── Identifier (g)
+		    ├── FuncDecl (hypotR: real | real a real b)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Call (sqrtR)
+		    │               └── Binary (+)
+		    │                   ├── Binary (*)
+		    │                   │   ├── Identifier (a)
+		    │                   │   └── Identifier (a)
+		    │                   └── Binary (*)
+		    │                       ├── Identifier (b)
+		    │                       └── Identifier (b)
+		    ├── FuncDecl (expR: real | real x)
+		    │   └── Block
+		    │       ├── VarDecl (var real ax =)
+		    │       │   └── Identifier (x)
+		    │       ├── If
+		    │       │   ├── Binary (<)
+		    │       │   │   ├── Identifier (x)
+		    │       │   │   └── Num (0.0f)
+		    │       │   └── Block
+		    │       │       └── Assign (=)
+		    │       │           ├── Identifier (ax)
+		    │       │           └── Binary (-)
+		    │       │               ├── Num (0.0f)
+		    │       │               └── Identifier (x)
+		    │       ├── VarDecl (var int halvings =)
+		    │       │   └── Num (0)
+		    │       ├── While
+		    │       │   ├── Binary (>)
+		    │       │   │   ├── Identifier (ax)
+		    │       │   │   └── Num (0.5f)
+		    │       │   └── Block
+		    │       │       ├── Assign (=)
+		    │       │       │   ├── Identifier (ax)
+		    │       │       │   └── Binary (*)
+		    │       │       │       ├── Identifier (ax)
+		    │       │       │       └── Num (0.5f)
+		    │       │       └── Assign (=)
+		    │       │           ├── Identifier (halvings)
+		    │       │           └── Binary (+)
+		    │       │               ├── Identifier (halvings)
+		    │       │               └── Num (1)
+		    │       ├── VarDecl (var real term =)
+		    │       │   └── Num (1.0f)
+		    │       ├── VarDecl (var real sum =)
+		    │       │   └── Num (1.0f)
+		    │       ├── RepRange (k)
+		    │       │   ├── Num (1)
+		    │       │   └── Num (14)
+		    │       │   └── Block
+		    │       │       ├── Assign (=)
+		    │       │       │   ├── Identifier (term)
+		    │       │       │   └── Binary (/)
+		    │       │       │       ├── Binary (*)
+		    │       │       │       │   ├── Identifier (term)
+		    │       │       │       │   └── Identifier (ax)
+		    │       │       │       └── Call (real)
+		    │       │       │           └── Identifier (k)
+		    │       │       └── Assign (=)
+		    │       │           ├── Identifier (sum)
+		    │       │           └── Binary (+)
+		    │       │               ├── Identifier (sum)
+		    │       │               └── Identifier (term)
+		    │       ├── RepRange (i)
+		    │       │   ├── Num (0)
+		    │       │   └── Identifier (halvings)
+		    │       │   └── Block
+		    │       │       └── Assign (=)
+		    │       │           ├── Identifier (sum)
+		    │       │           └── Binary (*)
+		    │       │               ├── Identifier (sum)
+		    │       │               └── Identifier (sum)
+		    │       ├── If
+		    │       │   ├── Binary (<)
+		    │       │   │   ├── Identifier (x)
+		    │       │   │   └── Num (0.0f)
+		    │       │   └── Block
+		    │       │       └── Return
+		    │       │           └── Binary (/)
+		    │       │               ├── Num (1.0f)
+		    │       │               └── Identifier (sum)
+		    │       └── Return
+		    │           └── Identifier (sum)
+		    ├── FuncDecl (vSpeed: real)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Num (1.0f)
+		    ├── FuncDecl (dtVal: real)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Num (0.6f)
+		    ├── FuncDecl (senseRadius: real)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Num (1.5f)
+		    ├── FuncDecl (minSafeDist: real)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Num (1.6f)
+		    ├── FuncDecl (robotRadius: real)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Num (0.4f)
+		    ├── FuncDecl (wTracking: real)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Num (1.0f)
+		    ├── FuncDecl (wObstacle: real)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Num (25.0f)
+		    ├── FuncDecl (stepGradient: real)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Num (0.01f)
+		    ├── FuncDecl (stepDescent: real)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Num (0.03f)
+		    ├── FuncDecl (maxOmegaVal: real)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Num (1.2f)
+		    ├── FuncDecl (goalRadius: real)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Num (0.7f)
+		    ├── FuncDecl (descentSteps: int)
+		    │   └── Block
+		    │       └── Return
+		    │           └── Num (6)
+		    ├── ClassDecl (Grid)
+		    │   ├── Field (int w)
+		    │   ├── Field (int h)
+		    │   └── Field (array[bool] cells)
+		    ├── ClassDecl (Graph)
+		    │   └── Field (Grid grid)
+		    ├── ClassDecl (Robot)
+		    │   ├── Field (Grid grid)
+		    │   ├── Field (real x)
+		    │   ├── Field (real y)
+		    │   ├── Field (real phi)
+		    │   ├── Field (real goalX)
+		    │   ├── Field (real goalY)
+		    │   ├── Field (array[real] pathX)
+		    │   ├── Field (array[real] pathY)
+		    │   ├── Field (int pathLen)
+		    │   ├── Field (int pathIndex)
+		    │   ├── Field (array[real] omega)
+		    │   ├── Field (int horizon)
+		    │   ├── Field (bool reached)
+		    │   └── Field (int steps)
+		    ├── FuncDecl (printRobotMap: void | Grid g Robot robot)
+		    │   └── Block
+		    │       ├── VarDecl (var int w =)
+		    │       │   └── Call (width)
+		    │       │       └── Identifier (g)
+		    │       ├── VarDecl (var int h =)
+		    │       │   └── Call (height)
+		    │       │       └── Identifier (g)
+		    │       ├── VarDecl (var array[bool] onPath =)
+		    │       │   └── ArrayAlloc (bool)
+		    │       │       └── Binary (*)
+		    │       │           ├── Identifier (w)
+		    │       │           └── Identifier (h)
+		    │       ├── RepRange (i)
+		    │       │   ├── Num (0)
+		    │       │   └── Call (pathCount)
+		    │       │       └── Identifier (robot)
+		    │       │   └── Block
+		    │       │       ├── VarDecl (var int cx =)
+		    │       │       │   └── Call (int)
+		    │       │       │       └── Call (pathPointX)
+		    │       │       │           ├── Identifier (robot)
+		    │       │       │           └── Identifier (i)
+		    │       │       ├── VarDecl (var int cy =)
+		    │       │       │   └── Call (int)
+		    │       │       │       └── Call (pathPointY)
+		    │       │       │           ├── Identifier (robot)
+		    │       │       │           └── Identifier (i)
+		    │       │       └── If
+		    │       │           ├── Call (inBounds)
+		    │       │           │   ├── Identifier (g)
+		    │       │           │   ├── Identifier (cx)
+		    │       │           │   └── Identifier (cy)
+		    │       │           └── Block
+		    │       │               └── Assign (=)
+		    │       │                   ├── Index
+		    │       │                   │   ├── Identifier (onPath)
+		    │       │                   │   └── Binary (+)
+		    │       │                   │       ├── Binary (*)
+		    │       │                   │       │   ├── Identifier (cx)
+		    │       │                   │       │   └── Identifier (h)
+		    │       │                   │       └── Identifier (cy)
+		    │       │                   └── Bool (true)
+		    │       ├── VarDecl (var int rx =)
+		    │       │   └── Call (int)
+		    │       │       └── Call (getX)
+		    │       │           └── Identifier (robot)
+		    │       ├── VarDecl (var int ry =)
+		    │       │   └── Call (int)
+		    │       │       └── Call (getY)
+		    │       │           └── Identifier (robot)
+		    │       └── RepRange (y)
+		    │           ├── Num (0)
+		    │           └── Identifier (h)
+		    │           └── Block
+		    │               ├── RepRange (x)
+		    │               │   ├── Num (0)
+		    │               │   └── Identifier (w)
+		    │               │   └── Block
+		    │               │       └── If
+		    │               │           ├── Binary (and)
+		    │               │           │   ├── Binary (==)
+		    │               │           │   │   ├── Identifier (x)
+		    │               │           │   │   └── Identifier (rx)
+		    │               │           │   └── Binary (==)
+		    │               │           │       ├── Identifier (y)
+		    │               │           │       └── Identifier (ry)
+		    │               │           ├── Block
+		    │               │           │   └── ExprStmt
+		    │               │           │       └── Call (print)
+		    │               │           │           └── String (R)
+		    │               │           └── If
+		    │               │               ├── Call (isBlocked)
+		    │               │               │   ├── Identifier (g)
+		    │               │               │   ├── Identifier (x)
+		    │               │               │   └── Identifier (y)
+		    │               │               ├── Block
+		    │               │               │   └── ExprStmt
+		    │               │               │       └── Call (print)
+		    │               │               │           └── String (#)
+		    │               │               └── If
+		    │               │                   ├── Index
+		    │               │                   │   ├── Identifier (onPath)
+		    │               │                   │   └── Binary (+)
+		    │               │                   │       ├── Binary (*)
+		    │               │                   │       │   ├── Identifier (x)
+		    │               │                   │       │   └── Identifier (h)
+		    │               │                   │       └── Identifier (y)
+		    │               │                   ├── Block
+		    │               │                   │   └── ExprStmt
+		    │               │                   │       └── Call (print)
+		    │               │                   │           └── String (+)
+		    │               │                   └── Block
+		    │               │                       └── ExprStmt
+		    │               │                           └── Call (print)
+		    │               │                               └── String (.)
+		    │               └── ExprStmt
+		    │                   └── Call (println)
+		    │                       └── String ()
 		    └── FuncDecl (main: void)
 		        └── Block
+		            ├── VarDecl (var Grid grid =)
+		            │   └── Call (Grid)
+		            │       ├── Num (24)
+		            │       └── Num (12)
+		            ├── ExprStmt
+		            │   └── Call (blockRect)
+		            │       ├── Identifier (grid)
+		            │       ├── Num (10)
+		            │       ├── Num (0)
+		            │       ├── Num (2)
+		            │       └── Num (8)
+		            ├── ExprStmt
+		            │   └── Call (blockRect)
+		            │       ├── Identifier (grid)
+		            │       ├── Num (10)
+		            │       ├── Num (9)
+		            │       ├── Num (8)
+		            │       └── Num (2)
+		            ├── ExprStmt
+		            │   └── Call (inflate)
+		            │       ├── Identifier (grid)
+		            │       └── Num (1)
+		            ├── VarDecl (var Graph graph =)
+		            │   └── Call (Graph)
+		            │       └── Identifier (grid)
+		            ├── VarDecl (var Robot robot =)
+		            │   └── Call (Robot)
+		            │       ├── Identifier (grid)
+		            │       ├── Identifier (graph)
+		            │       ├── Num (2.5f)
+		            │       ├── Num (2.5f)
+		            │       ├── Num (0.0f)
+		            │       ├── Num (21.5f)
+		            │       ├── Num (10.5f)
+		            │       └── Num (5)
+		            ├── VarDecl (var int maxSteps =)
+		            │   └── Num (200)
+		            ├── RepRange (s)
+		            │   ├── Num (0)
+		            │   └── Identifier (maxSteps)
+		            │   └── Block
+		            │       ├── If
+		            │       │   ├── Call (isReached)
+		            │       │   │   └── Identifier (robot)
+		            │       │   └── Block
+		            │       │           └── break
+		            │       ├── ExprStmt
+		            │       │   └── Call (predictPath)
+		            │       │       └── Identifier (robot)
+		            │       └── ExprStmt
+		            │           └── Call (move)
+		            │               └── Identifier (robot)
 		            ├── ExprStmt
 		            │   └── Call (println)
-		            │       └── Call (square)
-		            │           └── Num (7)
-		            ├── VarDecl (var Greeter g =)
-		            │   └── Call (Greeter)
-		            │       └── String (Weasel)
+		            │       └── String (=== ИТОГ ===)
+		            ├── If
+		            │   ├── Call (isReached)
+		            │   │   └── Identifier (robot)
+		            │   ├── Block
+		            │   │   └── ExprStmt
+		            │   │       └── Call (println)
+		            │   │           ├── String (robot0: цель достигнута за)
+		            │   │           ├── Call (getSteps)
+		            │   │           │   └── Identifier (robot)
+		            │   │           └── String (шагов)
+		            │   └── Block
+		            │       └── ExprStmt
+		            │           └── Call (println)
+		            │               ├── String (robot0: застрял за)
+		            │               ├── Call (getSteps)
+		            │               │   └── Identifier (robot)
+		            │               └── String (шагов)
+		            ├── ExprStmt
+		            │   └── Call (println)
+		            │       ├── String (позиция:)
+		            │       ├── Call (getX)
+		            │       │   └── Identifier (robot)
+		            │       └── Call (getY)
+		            │           └── Identifier (robot)
 		            └── ExprStmt
-		                └── Call (println)
-		                    └── Call (greeting)
-		                        └── Identifier (g)
+		                └── Call (printRobotMap)
+		                    ├── Identifier (grid)
+		                    └── Identifier (robot)
 
 [Sema]		Таблица символов:
 		| Node               | Slot         | Mutable      | Type         |
-		| 000001AE26AF3BE0   | 0            | val          | int          |
-		| 000001AE26AF3490   | 0            | val          | int          |
-		| 000001AE26AF2830   | 0            | var          | Greeter      |
-		| 000001AE26AF2EF0   | 1            | val          | string       |
+		| 000001E339B2C340   | 0            | val          | real         |
+		| 000001E339B29BE0   | 0            | val          | real         |
+		| 000001E3396A3E00   | 0            | var          | Grid         |
+		| 000001E339B2ADE0   | 0            | val          | real         |
+		| 000001E339B2AB10   | 0            | val          | real         |
+		| 000001E339B29520   | 0            | var          | real         |
+		| 000001E339B2AF00   | 0            | val          | real         |
+		| 000001E339B2B0B0   | 0            | val          | real         |
+		| 000001E339B295B0   | 0            | var          | real         |
+		| 000001E3396A0380   | 0            | val          | Grid         |
+		| 000001E339B2B380   | 0            | val          | real         |
+		| 000001E339B2ACC0   | 0            | val          | real         |
+		| 000001E3396A2C90   | 0            | var          | Grid         |
+		| 000001E339B2A3C0   | 0            | var          | real         |
+		| 000001E339B29C70   | 0            | val          | real         |
+		| 000001E339B2A690   | 0            | val          | real         |
+		| 000001E339B2B650   | 0            | val          | real         |
+		| 000001E339B2B260   | 0            | val          | real         |
+		| 000001E339B2CBB0   | 0            | val          | real         |
+		| 000001E3396A44C0   | 0            | var          | Grid         |
+		| 000001E3396A2150   | 0            | val          | Grid         |
+		| 000001E3396A37D0   | 0            | var          | Grid         |
+		| 000001E339B2A960   | 0            | val          | real         |
+		| 000001E339B2A0F0   | 0            | val          | real         |
+		| 000001E3396A3860   | 0            | var          | Grid         |
+		| 000001E339B2A2A0   | 0            | var          | real         |
+		| 000001E339B2B2F0   | 0            | val          | real         |
+		| 000001E339B29250   | 0            | var          | real         |
+		| 000001E339B290A0   | 0            | val          | real         |
+		| 000001E339B2C2B0   | 0            | val          | real         |
+		| 000001E3396A3110   | 0            | val          | Grid         |
+		| 000001E339B2F790   | 0            | val          | real         |
+		| 000001E339B2B6E0   | 0            | val          | real         |
+		| 000001E339B292E0   | 0            | var          | real         |
+		| 000001E3396A3B30   | 0            | var          | Grid         |
+		| 000001E339B2A720   | 0            | var          | real         |
+		| 000001E3396A1DF0   | 0            | val          | Grid         |
+		| 000001E339B2C730   | 0            | val          | real         |
+		| 000001E339B2A600   | 0            | val          | real         |
+		| 000001E339B2AD50   | 0            | val          | real         |
+		| 000001E339B2C460   | 1            | var          | real         |
+		| 000001E3396A2270   | 1            | var          | Graph        |
+		| 000001E339B2F940   | 1            | val          | int          |
+		| 000001E33969F2A0   | 1            | var          | real         |
+		| 000001E3396A2810   | 1            | val          | Robot        |
+		| 000001E339697410   | 1            | var          | real         |
+		| 000001E339B2CFA0   | 1            | var          | real         |
+		| 000001E339B2EE90   | 1            | val          | int          |
+		| 000001E339B2D6F0   | 1            | val          | int          |
+		| 000001E339B2C190   | 1            | var          | real         |
+		| 000001E339B2DAE0   | 1            | val          | int          |
+		| 000001E339B296D0   | 1            | val          | real         |
+		| 000001E33969AC50   | 1            | val          | Grid         |
+		| 000001E339B2DD20   | 1            | val          | int          |
+		| 000001E339B2FCA0   | 1            | val          | int          |
+		| 000001E339B2A9F0   | 1            | val          | real         |
+		| 000001E339B2BBF0   | 1            | var          | real         |
+		| 000001E339B2ABA0   | 1            | val          | real         |
+		| 000001E339B2FE50   | 1            | val          | int          |
+		| 000001E3396A0E30   | 1            | var          | real         |
+		| 000001E339B10800   | 1            | val          | int          |
+		| 000001E339B11970   | 1            | val          | int          |
+		| 000001E339B106E0   | 1            | val          | int          |
+		| 000001E339B297F0   | 1            | val          | real         |
+		| 000001E339B29D00   | 1            | val          | real         |
+		| 000001E33969D290   | 1            | var          | real         |
+		| 000001E339B157E0   | 1            | var          | real         |
+		| 000001E339B28F80   | 1            | val          | real         |
+		| 000001E339B2CB20   | 1            | var          | real         |
+		| 000001E339B10C80   | 1            | val          | int          |
+		| 000001E339B2C070   | 1            | var          | real         |
+		| 000001E3396972F0   | 1            | var          | real         |
+		| 000001E339B11190   | 1            | val          | Grid         |
+		| 000001E339B2BDA0   | 1            | var          | real         |
+		| 000001E339B10530   | 1            | val          | int          |
+		| 000001E339621640   | 1            | var          | real         |
+		| 000001E339B29F40   | 1            | var          | int          |
+		| 000001E339B2BE30   | 1            | var          | real         |
+		| 000001E339621D90   | 1            | var          | real         |
+		| 000001E339B2B5C0   | 1            | val          | real         |
+		| 000001E339622330   | 1            | var          | real         |
+		| 000001E339B2BEC0   | 1            | val          | real         |
+		| 000001E339B2A210   | 1            | var          | real         |
+		| 000001E339B2BB60   | 1            | var          | real         |
+		| 000001E339B2C8E0   | 1            | var          | real         |
+		| 000001E339697020   | 1            | var          | real         |
+		| 000001E33969BE50   | 1            | var          | real         |
+		| 000001E339B2CE80   | 1            | var          | real         |
+		| 000001E33969D8C0   | 1            | val          | int          |
+		| 000001E33969CF30   | 1            | val          | int          |
+		| 000001E339B2A330   | 1            | var          | real         |
+		| 000001E339B2CDF0   | 1            | var          | real         |
+		| 000001E33969CEA0   | 1            | var          | real         |
+		| 000001E339B2A7B0   | 1            | var          | real         |
+		| 000001E33969FF90   | 1            | val          | Robot        |
+		| 000001E339B163B0   | 1            | var          | real         |
+		| 000001E3396A3620   | 1            | val          | Robot        |
+		| 000001E339B2C610   | 1            | var          | real         |
+		| 000001E33969ED00   | 1            | var          | real         |
+		| 000001E3396A02F0   | 1            | val          | Robot        |
+		| 000001E3396A18E0   | 1            | val          | Robot        |
+		| 000001E339B2C4F0   | 1            | var          | real         |
+		| 000001E339B2C100   | 1            | var          | real         |
+		| 000001E339B2C970   | 1            | var          | real         |
+		| 000001E339621490   | 1            | var          | real         |
+		| 000001E339B14DC0   | 1            | var          | real         |
+		| 000001E339B2E110   | 1            | val          | int          |
+		| 000001E339B2E620   | 1            | val          | int          |
+		| 000001E339B2F670   | 1            | val          | int          |
+		| 000001E33969B430   | 1            | val          | Grid         |
+		| 000001E339B2E1A0   | 2            | val          | int          |
+		| 000001E339B120C0   | 2            | var          | array[bool]  |
+		| 000001E339B2E470   | 2            | var          | int          |
+		| 000001E339B2B800   | 2            | var          | int          |
+		| 000001E3396A2540   | 2            | var          | Robot        |
+		| 000001E3396A4040   | 2            | var          | Robot        |
+		| 000001E3396A2ED0   | 2            | var          | Robot        |
+		| 000001E339B2FC10   | 2            | val          | int          |
+		| 000001E339B16710   | 2            | var          | real         |
+		| 000001E339B2B890   | 2            | var          | int          |
+		| 000001E339B29910   | 2            | val          | real         |
+		| 000001E3396A2420   | 2            | var          | Robot        |
+		| 000001E339B2F5E0   | 2            | val          | int          |
+		| 000001E339B2F040   | 2            | val          | int          |
+		| 000001E339B30000   | 2            | val          | int          |
+		| 000001E3396A0A40   | 2            | var          | int          |
+		| 000001E3396A3980   | 2            | var          | int          |
+		| 000001E3396A1190   | 2            | var          | real         |
+		| 000001E339B2A4E0   | 2            | val          | real         |
+		| 000001E339B105C0   | 2            | val          | int          |
+		| 000001E339B2A060   | 2            | var          | real         |
+		| 000001E33969EFD0   | 2            | var          | real         |
+		| 000001E339B15000   | 2            | var          | real         |
+		| 000001E3396A3CE0   | 2            | var          | Robot        |
+		| 000001E339B2E590   | 2            | val          | int          |
+		| 000001E339B2D8A0   | 2            | val          | int          |
+		| 000001E339B29E20   | 2            | var          | real         |
+		| 000001E339B2D810   | 2            | val          | int          |
+		| 000001E33969E7F0   | 2            | var          | real         |
+		| 000001E3396A2C00   | 2            | var          | Robot        |
+		| 000001E339B2AE70   | 2            | var          | real         |
+		| 000001E3396A3A10   | 2            | var          | Robot        |
+		| 000001E339697EC0   | 2            | var          | real         |
+		| 000001E3396970B0   | 2            | var          | real         |
+		| 000001E3396219A0   | 2            | var          | real         |
+		| 000001E339B2C7C0   | 2            | var          | real         |
+		| 000001E339B2C3D0   | 2            | var          | real         |
+		| 000001E3396A2D20   | 2            | var          | Robot        |
+		| 000001E339B29FD0   | 2            | var          | real         |
+		| 000001E339B2F0D0   | 2            | val          | int          |
+		| 000001E339621FD0   | 2            | var          | real         |
+		| 000001E33969B280   | 2            | val          | Graph        |
+		| 000001E339621EB0   | 2            | var          | real         |
+		| 000001E339B2DC00   | 2            | val          | int          |
+		| 000001E3396A3E90   | 2            | var          | Robot        |
+		| 000001E339B10EC0   | 2            | var          | array[bool]  |
+		| 000001E339B2CF10   | 3            | var          | real         |
+		| 000001E339B2BC80   | 3            | var          | real         |
+		| 000001E339B2BF50   | 3            | var          | real         |
+		| 000001E339B10380   | 3            | val          | int          |
+		| 000001E339621BE0   | 3            | var          | real         |
+		| 000001E339697920   | 3            | var          | real         |
+		| 000001E339B2FDC0   | 3            | val          | int          |
+		| 000001E339B2B9B0   | 3            | var          | real         |
+		| 000001E339B10260   | 3            | val          | int          |
+		| 000001E339B15990   | 3            | var          | real         |
+		| 000001E339B2E740   | 3            | var          | real         |
+		| 000001E33969A860   | 3            | val          | real         |
+		| 000001E339B2D5D0   | 3            | var          | real         |
+		| 000001E339B10650   | 3            | val          | int          |
+		| 000001E3396986A0   | 3            | var          | real         |
+		| 000001E3396A06E0   | 3            | var          | real         |
+		| 000001E3396983D0   | 3            | var          | real         |
+		| 000001E33969E9A0   | 3            | var          | real         |
+		| 000001E33969FBA0   | 3            | var          | real         |
+		| 000001E33969FC30   | 3            | var          | real         |
+		| 000001E3396A4280   | 3            | var          | int          |
+		| 000001E33969FD50   | 3            | var          | real         |
+		| 000001E3396A0FE0   | 3            | val          | int          |
+		| 000001E3396A0AD0   | 3            | val          | int          |
+		| 000001E339B160E0   | 3            | var          | real         |
+		| 000001E3396A1970   | 3            | var          | real         |
+		| 000001E3396A0DA0   | 3            | var          | int          |
+		| 000001E3396A2FF0   | 3            | var          | int          |
+		| 000001E339B2D540   | 3            | var          | real         |
+		| 000001E339B152D0   | 3            | var          | real         |
+		| 000001E3396A31A0   | 3            | var          | int          |
+		| 000001E3396A3BC0   | 3            | var          | int          |
+		| 000001E339B2CCD0   | 3            | var          | real         |
+		| 000001E339B2BAD0   | 3            | var          | real         |
+		| 000001E339621D00   | 3            | var          | real         |
+		| 000001E33969ACE0   | 3            | val          | real         |
+		| 000001E339621910   | 4            | var          | real         |
+		| 000001E339B2BD10   | 4            | var          | real         |
+		| 000001E3396A13D0   | 4            | var          | int          |
+		| 000001E339B2BFE0   | 4            | var          | real         |
+		| 000001E339B15E10   | 4            | var          | real         |
+		| 000001E339B2F550   | 4            | var          | real         |
+		| 000001E33969AF20   | 4            | val          | real         |
+		| 000001E339B2BA40   | 4            | var          | real         |
+		| 000001E3396A0890   | 4            | var          | int          |
+		| 000001E339698E80   | 4            | var          | real         |
+		| 000001E339B2B4A0   | 4            | var          | real         |
+		| 000001E339B2FD30   | 4            | val          | int          |
+		| 000001E339B164D0   | 4            | var          | real         |
+		| 000001E339B2F3A0   | 4            | var          | real         |
+		| 000001E3396220F0   | 4            | var          | real         |
+		| 000001E339B102F0   | 4            | val          | int          |
+		| 000001E33969D560   | 4            | var          | int          |
+		| 000001E339B2F700   | 4            | var          | real         |
+		| 000001E339699B70   | 4            | var          | real         |
+		| 000001E339B11100   | 4            | val          | int          |
+		| 000001E339B2E7D0   | 4            | var          | real         |
+		| 000001E33969A590   | 4            | var          | real         |
+		| 000001E33969B5E0   | 4            | val          | real         |
+		| 000001E339B2E860   | 4            | var          | real         |
+		| 000001E339B2B530   | 4            | var          | real         |
+		| 000001E339B2D9C0   | 4            | var          | real         |
+		| 000001E339B15870   | 4            | var          | real         |
+		| 000001E339B10BF0   | 4            | val          | int          |
+		| 000001E3396A1CD0   | 4            | var          | array[bool]  |
+		| 000001E339B2CA90   | 4            | var          | real         |
+		| 000001E3396A32C0   | 4            | var          | array[bool]  |
+		| 000001E339B2D4B0   | 4            | var          | real         |
+		| 000001E339B2D420   | 5            | val          | int          |
+		| 000001E339B2D150   | 5            | val          | int          |
+		| 000001E339B14E50   | 5            | var          | real         |
+		| 000001E339621E20   | 5            | var          | real         |
+		| 000001E339B124B0   | 5            | var          | int          |
+		| 000001E339B2CA00   | 5            | val          | int          |
+		| 000001E339B14F70   | 5            | var          | real         |
+		| 000001E339B16830   | 5            | var          | real         |
+		| 000001E339697380   | 5            | var          | int          |
+		| 000001E339697530   | 5            | var          | int          |
+		| 000001E3396976E0   | 5            | var          | int          |
+		| 000001E339698610   | 5            | var          | int          |
+		| 000001E339B11220   | 5            | val          | int          |
+		| 000001E339B155A0   | 5            | var          | real         |
+		| 000001E339B2FF70   | 5            | val          | int          |
+		| 000001E33969A980   | 5            | val          | real         |
+		| 000001E339B2D030   | 5            | val          | int          |
+		| 000001E3396A00B0   | 5            | var          | int          |
+		| 000001E3396A20C0   | 5            | val          | int          |
+		| 000001E3396A1A00   | 5            | val          | int          |
+		| 000001E3396A1730   | 5            | var          | int          |
+		| 000001E3396A36B0   | 5            | var          | int          |
+		| 000001E339B2D0C0   | 5            | val          | int          |
+		| 000001E3396216D0   | 5            | var          | real         |
+		| 000001E339B151B0   | 5            | var          | real         |
+		| 000001E339B15630   | 5            | var          | real         |
+		| 000001E3396A21E0   | 5            | var          | int          |
+		| 000001E339698B20   | 6            | var          | real         |
+		| 000001E339B2FEE0   | 6            | val          | int          |
+		| 000001E339B2B770   | 6            | var          | real         |
+		| 000001E33969B820   | 6            | var          | array[real]  |
+		| 000001E3396A1220   | 6            | val          | int          |
+		| 000001E3396990C0   | 6            | var          | real         |
+		| 000001E339B10770   | 6            | var          | int          |
+		| 000001E339B14D30   | 6            | val          | int          |
+		| 000001E339699D20   | 6            | val          | real         |
+		| 000001E339B10E30   | 6            | var          | int          |
+		| 000001E3396A2030   | 6            | val          | int          |
+		| 000001E33969A1A0   | 6            | var          | real         |
+		| 000001E339B13A10   | 6            | var          | int          |
+		| 000001E339B10F50   | 6            | var          | int          |
+		| 000001E3396A1BB0   | 6            | var          | int          |
+		| 000001E33969F7B0   | 6            | var          | array[real]  |
+		| 000001E339B128A0   | 6            | var          | int          |
+		| 000001E3396A3470   | 6            | var          | int          |
+		| 000001E3396994B0   | 6            | val          | real         |
+		| 000001E339697260   | 6            | var          | real         |
+		| 000001E3396A4550   | 6            | var          | int          |
+		| 000001E339698850   | 6            | var          | real         |
+		| 000001E339B14550   | 6            | var          | int          |
+		| 000001E339698FA0   | 6            | var          | real         |
+		| 000001E3396974A0   | 6            | var          | real         |
+		| 000001E339B109B0   | 6            | val          | int          |
+		| 000001E339B2CC40   | 6            | var          | real         |
+		| 000001E3396A0800   | 6            | val          | int          |
+		| 000001E33969C5A0   | 7            | val          | int          |
+		| 000001E339B16200   | 7            | val          | int          |
+		| 000001E339621F40   | 7            | val          | int          |
+		| 000001E339B15EA0   | 7            | var          | int          |
+		| 000001E339B11CD0   | 7            | var          | int          |
+		| 000001E3396A1F10   | 7            | var          | real         |
+		| 000001E3396A09B0   | 7            | var          | real         |
+		| 000001E33969B8B0   | 7            | val          | int          |
+		| 000001E339B114F0   | 7            | var          | int          |
+		| 000001E3396A3FB0   | 7            | var          | int          |
+		| 000001E339699AE0   | 7            | var          | real         |
+		| 000001E3396A3C50   | 7            | val          | int          |
+		| 000001E339B10A40   | 7            | var          | int          |
+		| 000001E33969D050   | 7            | val          | int          |
+		| 000001E339B11B20   | 7            | var          | int          |
+		| 000001E33969B1F0   | 7            | val          | real         |
+		| 000001E3396A1C40   | 7            | var          | int          |
+		| 000001E33969CC60   | 7            | val          | int          |
+		| 000001E339698340   | 7            | var          | real         |
+		| 000001E33969F450   | 7            | var          | array[real]  |
+		| 000001E3396988E0   | 7            | var          | real         |
+		| 000001E33969B700   | 7            | val          | int          |
+		| 000001E33969B040   | 7            | val          | real         |
+		| 000001E339B10410   | 7            | var          | int          |
+		| 000001E3396A38F0   | 7            | val          | int          |
+		| 000001E339B11460   | 7            | var          | int          |
+		| 000001E3396A3350   | 7            | val          | int          |
+		| 000001E339B11070   | 7            | var          | int          |
+		| 000001E339B10890   | 7            | var          | int          |
+		| 000001E33969E0A0   | 7            | var          | array[real]  |
+		| 000001E339698A00   | 7            | var          | real         |
+		| 000001E33969F9F0   | 7            | var          | array[real]  |
+		| 000001E33969ED90   | 8            | var          | real         |
+		| 000001E3396A1460   | 8            | var          | real         |
+		| 000001E33969B790   | 8            | var          | real         |
+		| 000001E33969CA20   | 8            | val          | int          |
+		| 000001E339697800   | 8            | var          | real         |
+		| 000001E3396222A0   | 8            | var          | real         |
+		| 000001E33969DCB0   | 8            | val          | int          |
+		| 000001E339B113D0   | 8            | var          | int          |
+		| 000001E339B11850   | 8            | var          | int          |
+		| 000001E33969AAA0   | 8            | val          | int          |
+		| 000001E33969F960   | 8            | val          | int          |
+		| 000001E339696F00   | 8            | var          | real         |
+		| 000001E339B11610   | 8            | var          | int          |
+		| 000001E3396A33E0   | 8            | val          | int          |
+		| 000001E339B11BB0   | 8            | var          | int          |
+		| 000001E33969D0E0   | 8            | var          | real         |
+		| 000001E339B14670   | 8            | var          | int          |
+		| 000001E3396A12B0   | 8            | var          | real         |
+		| 000001E339B16320   | 8            | var          | int          |
+		| 000001E339B16C20   | 8            | var          | int          |
+		| 000001E33969DC20   | 8            | var          | real         |
+		| 000001E33969DD40   | 8            | var          | real         |
+		| 000001E3396A2780   | 8            | val          | int          |
+		| 000001E33969D680   | 8            | var          | real         |
+		| 000001E339B16560   | 8            | var          | int          |
+		| 000001E3396A43A0   | 8            | val          | int          |
+		| 000001E339697DA0   | 8            | var          | real         |
+		| 000001E3396971D0   | 8            | var          | real         |
+		| 000001E33969E010   | 9            | var          | bool         |
+		| 000001E33969A2C0   | 9            | var          | real         |
+		| 000001E3396217F0   | 9            | var          | int          |
+		| 000001E339698100   | 9            | var          | int          |
+		| 000001E339698190   | 9            | var          | real         |
+		| 000001E339698D60   | 9            | var          | int          |
+		| 000001E33969C750   | 9            | var          | int          |
+		| 000001E3396A1340   | 9            | var          | real         |
+		| 000001E339698CD0   | 9            | var          | int          |
+		| 000001E339696F90   | 9            | var          | int          |
+		| 000001E339697140   | 9            | var          | int          |
+		| 000001E33969E880   | 9            | var          | bool         |
+		| 000001E33969BDC0   | 9            | var          | int          |
+		| 000001E339B11A90   | 9            | var          | int          |
+		| 000001E339697650   | 9            | var          | int          |
+		| 000001E339697AD0   | 9            | var          | int          |
+		| 000001E33969B940   | 9            | var          | real         |
+		| 000001E339698F10   | 9            | var          | int          |
+		| 000001E33969A740   | 9            | var          | real         |
+		| 000001E3396A0770   | 9            | var          | real         |
+		| 000001E339696E70   | 10           | val          | int          |
+		| 000001E339699540   | 10           | var          | int          |
+		| 000001E339B16950   | 10           | var          | int          |
+		| 000001E33969DEF0   | 10           | val          | int          |
+		| 000001E339698220   | 10           | var          | real         |
+		| 000001E33969E6D0   | 10           | val          | int          |
+		| 000001E339622060   | 10           | var          | real         |
+		| 000001E33969B9D0   | 10           | var          | real         |
+		| 000001E339698BB0   | 10           | var          | real         |
+		| 000001E339B13BC0   | 10           | var          | int          |
+		| 000001E339B13F20   | 10           | var          | int          |
+		| 000001E339697770   | 11           | var          | int          |
+		| 000001E3396995D0   | 11           | var          | int          |
+		| 000001E339699030   | 11           | var          | real         |
+		| 000001E339B11C40   | 11           | var          | real         |
+		| 000001E339B11580   | 11           | var          | real         |
+		| 000001E33969FA80   | 11           | val          | int          |
+		| 000001E33969F690   | 11           | val          | int          |
+		| 000001E3396987C0   | 11           | var          | real         |
+		| 000001E33969F840   | 11           | val          | int          |
+		| 000001E339B13C50   | 11           | var          | real         |
+		| 000001E3396991E0   | 11           | var          | real         |
+		| 000001E3396975C0   | 11           | var          | real         |
+		| 000001E339699660   | 12           | var          | int          |
+		| 000001E33969DB00   | 12           | var          | real         |
+		| 000001E33969E5B0   | 12           | var          | real         |
+		| 000001E339697890   | 12           | var          | int          |
+		| 000001E33969F570   | 12           | var          | real         |
+		| 000001E339B14160   | 12           | var          | array[real]  |
+		| 000001E339698070   | 12           | var          | real         |
+		| 000001E33969DB90   | 12           | var          | real         |
+		| 000001E339B11A00   | 12           | var          | array[real]  |
+		| 000001E339698970   | 12           | var          | real         |
+		| 000001E339B10AD0   | 12           | var          | array[real]  |
+		| 000001E33969E910   | 12           | var          | real         |
+		| 000001E339B13620   | 12           | var          | array[real]  |
+		| 000001E339B12780   | 12           | var          | array[real]  |
+		| 000001E339B13B30   | 12           | var          | array[real]  |
+		| 000001E339B12AE0   | 12           | var          | array[real]  |
+		| 000001E339697F50   | 12           | var          | real         |
+		| 000001E339B129C0   | 12           | var          | array[real]  |
+		| 000001E339697FE0   | 12           | var          | real         |
+		| 000001E339B16CB0   | 13           | var          | array[int]   |
+		| 000001E339699F60   | 13           | var          | real         |
+		| 000001E33969F600   | 13           | var          | real         |
+		| 000001E3396998A0   | 13           | var          | int          |
+		| 000001E339B116A0   | 13           | var          | array[int]   |
+		| 000001E33969E250   | 13           | var          | real         |
+		| 000001E339699270   | 13           | var          | real         |
+		| 000001E339B12C00   | 13           | var          | array[int]   |
+		| 000001E33969B550   | 13           | var          | real         |
+		| 000001E339699E40   | 13           | var          | real         |
+		| 000001E33969EAC0   | 13           | var          | real         |
+		| 000001E33969FCC0   | 13           | var          | real         |
+		| 000001E339B15120   | 13           | var          | array[int]   |
+		| 000001E339699FF0   | 14           | var          | bool         |
+		| 000001E339B13860   | 14           | var          | array[bool]  |
+		| 000001E33969CBD0   | 14           | var          | array[int]   |
+		| 000001E33969BEE0   | 14           | var          | array[int]   |
+		| 000001E33969F720   | 14           | var          | real         |
+		| 000001E339B13470   | 14           | var          | array[bool]  |
+		| 000001E339699930   | 14           | var          | bool         |
+		| 000001E33969E1C0   | 14           | var          | real         |
+		| 000001E33969F3C0   | 14           | var          | real         |
+		| 000001E33969E2E0   | 14           | var          | real         |
+		| 000001E33969DF80   | 14           | var          | real         |
+		| 000001E339B11D60   | 14           | var          | array[bool]  |
+		| 000001E339B15D80   | 15           | var          | int          |
+		| 000001E339B16170   | 15           | var          | int          |
+		| 000001E33969C120   | 15           | val          | int          |
+		| 000001E33969D170   | 15           | val          | int          |
+		| 000001E339B15BD0   | 15           | var          | int          |
+		| 000001E339B10B60   | 15           | val          | int          |
+		| 000001E33969B160   | 15           | var          | real         |
+		| 000001E339B11730   | 15           | val          | int          |
+		| 000001E33969C900   | 15           | val          | int          |
+		| 000001E339698A90   | 15           | val          | int          |
+		| 000001E3396999C0   | 15           | var          | real         |
+		| 000001E339699C00   | 15           | var          | real         |
+		| 000001E339B16A70   | 15           | var          | int          |
+		| 000001E339B12D20   | 16           | var          | int          |
+		| 000001E33969BF70   | 16           | var          | int          |
+		| 000001E339B14C10   | 16           | var          | int          |
+		| 000001E339B16B00   | 16           | var          | int          |
+		| 000001E339B12A50   | 16           | var          | int          |
+		| 000001E339B16440   | 16           | var          | int          |
+		| 000001E339B14AF0   | 16           | var          | int          |
+		| 000001E339B15A20   | 16           | var          | int          |
+		| 000001E339B12930   | 16           | var          | int          |
+		| 000001E33969D710   | 16           | var          | int          |
+		| 000001E339B14040   | 16           | var          | int          |
+		| 000001E339B16B90   | 16           | var          | int          |
+		| 000001E339B15480   | 16           | var          | int          |
+		| 000001E3396979B0   | 16           | val          | int          |
+		| 000001E339B13500   | 16           | var          | int          |
+		| 000001E339B136B0   | 16           | var          | int          |
+		| 000001E339B16290   | 16           | var          | int          |
+		| 000001E339B14820   | 16           | var          | int          |
+		| 000001E339B13110   | 17           | var          | real         |
+		| 000001E339B13080   | 17           | var          | real         |
+		| 000001E339B15AB0   | 17           | var          | array[int]   |
+		| 000001E33969AE00   | 17           | var          | int          |
+		| 000001E33969C000   | 17           | var          | int          |
+		| 000001E339B169E0   | 17           | var          | array[int]   |
+		| 000001E33969BCA0   | 17           | var          | int          |
+		| 000001E3396996F0   | 17           | var          | int          |
+		| 000001E33969A3E0   | 17           | var          | int          |
+		| 000001E33969C6C0   | 18           | var          | int          |
+		| 000001E33969A350   | 18           | var          | int          |
+		| 000001E339B15090   | 18           | var          | int          |
+		| 000001E339B11E80   | 18           | val          | int          |
+		| 000001E339B13980   | 18           | val          | int          |
+		| 000001E339B14430   | 18           | var          | int          |
+		| 000001E339B15B40   | 18           | var          | int          |
+		| 000001E33969AD70   | 18           | var          | int          |
+		| 000001E339699ED0   | 18           | var          | int          |
+		| 000001E339B14B80   | 18           | var          | int          |
+		| 000001E339B13D70   | 18           | var          | int          |
+		| 000001E339B13FB0   | 18           | val          | int          |
+		| 000001E339B12810   | 18           | val          | int          |
+		| 000001E339B14310   | 19           | var          | int          |
+		| 000001E33969B4C0   | 19           | var          | real         |
+		| 000001E339B145E0   | 20           | val          | int          |
+		| 000001E339B13230   | 20           | val          | int          |
+		| 000001E339B14700   | 20           | val          | int          |
+		| 000001E33969A500   | 20           | var          | real         |
+		| 000001E339B140D0   | 21           | val          | int          |
+		| 000001E339B13590   | 21           | val          | int          |
+		| 000001E33969A230   | 21           | var          | real         |
+		| 000001E339B12660   | 21           | val          | int          |
+		| 000001E33969B310   | 21           | var          | real         |
+		| 000001E339B12DB0   | 22           | var          | int          |
+		| 000001E339B143A0   | 22           | var          | int          |
+		| 000001E339B141F0   | 23           | var          | int          |
+		| 000001E339B149D0   | 23           | var          | int          |
+		| 000001E339B12B70   | 24           | var          | int          |
+		| 000001E339B132C0   | 24           | var          | int          |
+		| 000001E339B138F0   | 24           | var          | int          |
+		| 000001E339B14790   | 24           | var          | int          |
+		| 000001E339B12ED0   | 25           | var          | real         |
+		| 000001E339B13740   | 25           | var          | real         |
+		| 000001E339B12C90   | 26           | var          | real         |
+		| 000001E339B137D0   | 26           | var          | real         |
 
-[Timer] 	Время компиляции: 0.002701 s
+[Virtual]  	Превышен лимит констант в одном блоке (максимум 256)
+[Timer] 	Время компиляции: 0.063851 s

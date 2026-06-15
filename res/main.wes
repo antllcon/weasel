@@ -1,84 +1,820 @@
-enum Status
-[
-    NEW,
-    PROCESSING,
-    DONE,
-    ERROR
-]
+real <- PI()
+{
+    return 3.14159265358979
+}
 
-enum Color
-[
-    RED,
-    GREEN,
-    BLUE
-]
+real <- absR(real x)
+{
+    if (x < 0.0)
+    {
+        return 0.0 - x
+    }
+    return x
+}
+
+real <- minR(real a, real b)
+{
+    if (a < b)
+    {
+        return a
+    }
+    return b
+}
+
+real <- maxR(real a, real b)
+{
+    if (a > b)
+    {
+        return a
+    }
+    return b
+}
+
+real <- clampR(real x, real lo, real hi)
+{
+    if (x < lo)
+    {
+        return lo
+    }
+    if (x > hi)
+    {
+        return hi
+    }
+    return x
+}
+
+real <- floorR(real x)
+{
+    var int truncated = x.int()
+    var real result = truncated.real()
+    if (result > x)
+    {
+        result = result - 1.0
+    }
+    return result
+}
+
+real <- normalizeAngle(var real a)
+{
+    var real twoPi = 2.0 * PI()
+    run (a > PI())
+    {
+        a = a - twoPi
+    }
+    run (a < 0.0 - PI())
+    {
+        a = a + twoPi
+    }
+    return a
+}
+
+real <- sinR(real angle)
+{
+    var real x = normalizeAngle(angle)
+    var real x2 = x * x
+    var real term = x
+    var real sum = x
+    repeat (k in 1 .. 12)
+    {
+        var real denom = ((2 * k) * (2 * k + 1)).real()
+        term = term * (0.0 - x2) / denom
+        sum = sum + term
+    }
+    return sum
+}
+
+real <- cosR(real angle)
+{
+    var real x = normalizeAngle(angle)
+    var real x2 = x * x
+    var real term = 1.0
+    var real sum = 1.0
+    repeat (k in 1 .. 12)
+    {
+        var real denom = ((2 * k - 1) * (2 * k)).real()
+        term = term * (0.0 - x2) / denom
+        sum = sum + term
+    }
+    return sum
+}
+
+real <- sqrtR(real x)
+{
+    if (x <= 0.0)
+    {
+        return 0.0
+    }
+    var real g = x
+    if (g < 1.0)
+    {
+        g = 1.0
+    }
+    repeat (i in 0 .. 30)
+    {
+        g = 0.5 * (g + x / g)
+    }
+    return g
+}
+
+real <- hypotR(real a, real b)
+{
+    return sqrtR(a * a + b * b)
+}
+
+real <- expR(real x)
+{
+    var real ax = x
+    if (x < 0.0)
+    {
+        ax = 0.0 - x
+    }
+    var int halvings = 0
+    run (ax > 0.5)
+    {
+        ax = ax * 0.5
+        halvings = halvings + 1
+    }
+    var real term = 1.0
+    var real sum = 1.0
+    repeat (k in 1 .. 14)
+    {
+        term = term * ax / k.real()
+        sum = sum + term
+    }
+    repeat (i in 0 .. halvings)
+    {
+        sum = sum * sum
+    }
+    if (x < 0.0)
+    {
+        return 1.0 / sum
+    }
+    return sum
+}
+
+real <- vSpeed()
+{
+    return 1.0
+}
+
+real <- dtVal()
+{
+    return 0.6
+}
+
+real <- senseRadius()
+{
+    return 1.5
+}
+
+real <- minSafeDist()
+{
+    return 1.6
+}
+
+real <- robotRadius()
+{
+    return 0.4
+}
+
+real <- wTracking()
+{
+    return 1.0
+}
+
+real <- wObstacle()
+{
+    return 25.0
+}
+
+real <- stepGradient()
+{
+    return 0.01
+}
+
+real <- stepDescent()
+{
+    return 0.03
+}
+
+real <- maxOmegaVal()
+{
+    return 1.2
+}
+real <- goalRadius()
+{
+    return 0.7
+}
+
+int  <- descentSteps()
+{
+    return 6
+}
+
+
+class Grid
+{
+    var int w
+    var int h
+    var array[bool] cells
+
+public {
+    Grid(int width, int height)
+    {
+        w = width
+        h = height
+        cells = array[bool](width * height)
+    }
+
+    int <- width()
+    {
+        return w
+    }
+
+    int <- height()
+    {
+        return h
+    }
+
+    bool <- inBounds(int x, int y)
+    {
+        if (x < 0)
+        {
+            return false
+        }
+        if (y < 0)
+        {
+            return false
+        }
+        if (x >= w)
+        {
+            return false
+        }
+        if (y >= h)
+        {
+            return false
+        }
+        return true
+    }
+
+    bool <- isBlocked(int x, int y)
+    {
+        if (not inBounds(x, y))
+        {
+            return true
+        }
+        return cells[x * h + y]
+    }
+
+    void <- block(int x, int y)
+    {
+        if (inBounds(x, y))
+        {
+            cells[x * h + y] = true
+        }
+    }
+
+    void <- blockRect(int x0, int y0, int rw, int rh)
+    {
+        repeat (x in x0 .. x0 + rw)
+        {
+            repeat (y in y0 .. y0 + rh)
+            {
+                block(x, y)
+            }
+        }
+    }
+
+    void <- inflate(int radius)
+    {
+        var array[bool] result = array[bool](w * h)
+        repeat (x in 0 .. w)
+        {
+            repeat (y in 0 .. h)
+            {
+                if (cells[x * h + y])
+                {
+                    repeat (dx in 0 - radius .. radius + 1)
+                    {
+                        repeat (dy in 0 - radius .. radius + 1)
+                        {
+                            var int nx = x + dx
+                            var int ny = y + dy
+                            if (inBounds(nx, ny))
+                            {
+                                result[nx * h + ny] = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        cells = result
+    }
+}
+}
+
+class Graph
+{
+    var Grid grid
+
+public {
+    Graph(Grid g)
+    {
+        grid = g
+    }
+
+    array[int] <- shortestPath(int startX, int startY, int goalX, int goalY)
+    {
+        var int w = grid.width()
+        var int h = grid.height()
+        var int n = w * h
+        var int none = 0 - 1
+        var int start = startX * h + startY
+        var int goal = goalX * h + goalY
+
+        var real INF = 1000000000.0
+        var array[real] dist = array[real](n)
+        var array[int] prev = array[int](n)
+        var array[bool] visited = array[bool](n)
+
+        repeat (i in 0 .. n)
+        {
+            dist[i] = INF
+            prev[i] = none
+        }
+        dist[start] = 0.0
+
+        repeat (iter in 0 .. n)
+        {
+            var int u = none
+            var real best = INF
+            repeat (v in 0 .. n)
+            {
+                if (not visited[v])
+                {
+                    if (dist[v] < best)
+                    {
+                        best = dist[v]
+                        u = v
+                    }
+                }
+            }
+            if (u == none)
+            {
+                break
+            }
+            visited[u] = true
+
+            var int ux = u / h
+            var int uy = u - ux * h
+            repeat (dx in 0 - 1 .. 2)
+            {
+                repeat (dy in 0 - 1 .. 2)
+                {
+                    if (dx >< 0 or dy >< 0)
+                    {
+                        var int nx = ux + dx
+                        var int ny = uy + dy
+                        if (not grid.isBlocked(nx, ny))
+                        {
+                            var int nIdx = nx * h + ny
+                            if (not visited[nIdx])
+                            {
+                                var real stepCost = 1.0
+                                if (dx >< 0 and dy >< 0)
+                                {
+                                    stepCost = 1.41421356
+                                }
+                                var real nd = dist[u] + stepCost
+                                if (nd < dist[nIdx])
+                                {
+                                    dist[nIdx] = nd
+                                    prev[nIdx] = u
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (dist[goal] >= INF)
+        {
+            return array[int](0)
+        }
+
+        var int len = 0
+        var int cur = goal
+        run (cur >< none)
+        {
+            len = len + 1
+            cur = prev[cur]
+        }
+
+        var array[int] path = array[int](len)
+        var int pos = len - 1
+        cur = goal
+        run (cur >< none)
+        {
+            path[pos] = cur
+            pos = pos - 1
+            cur = prev[cur]
+        }
+        return path
+    }
+}
+}
+
+class Robot
+{
+    var Grid grid
+    var real x
+    var real y
+    var real phi
+    var real goalX
+    var real goalY
+    var array[real] pathX
+    var array[real] pathY
+    var int pathLen
+    var int pathIndex
+    var array[real] omega
+    var int horizon
+    var bool reached
+    var int steps
+
+    bool <- predictHitsWall()
+    {
+        var real dt = dtVal()
+        var real v = vSpeed()
+        var real px = x
+        var real py = y
+        var real pphi = phi
+        repeat (k in 0 .. horizon)
+        {
+            pphi = pphi + omega[k] * dt
+            px = px + v * dt * cosR(pphi)
+            py = py + v * dt * sinR(pphi)
+            var int cx = floorR(px).int()
+            var int cy = floorR(py).int()
+            if (grid.isBlocked(cx, cy))
+            {
+                return true
+            }
+        }
+        return false
+    }
+
+    real <- costTracking()
+    {
+        if (pathLen == 0)
+        {
+            return 0.0
+        }
+        var real dt = dtVal()
+        var real v = vSpeed()
+        var real px = x
+        var real py = y
+        var real pphi = phi
+        var real total = 0.0
+        repeat (k in 0 .. horizon)
+        {
+            pphi = pphi + omega[k] * dt
+            px = px + v * dt * cosR(pphi)
+            py = py + v * dt * sinR(pphi)
+
+            var real lookAhead = v * dt * (k + 1).real()
+            var int ti = pathIndex
+            var real acc = 0.0
+            run (ti < pathLen - 2 and acc < lookAhead)
+            {
+                var real sdx = pathX[ti + 1] - pathX[ti]
+                var real sdy = pathY[ti + 1] - pathY[ti]
+                acc = acc + sqrtR(sdx * sdx + sdy * sdy)
+                ti = ti + 1
+            }
+            var real ex = px - pathX[ti]
+            var real ey = py - pathY[ti]
+            total = total + ex * ex + ey * ey
+        }
+        return total
+    }
+
+    real <- costObstacle()
+    {
+        var real dt = dtVal()
+        var real v = vSpeed()
+        var real sense = senseRadius()
+        var real minSafe = minSafeDist()
+        var int r = sense.int() + 1
+        var real px = x
+        var real py = y
+        var real pphi = phi
+        var real total = 0.0
+        repeat (k in 0 .. horizon)
+        {
+            pphi = pphi + omega[k] * dt
+            px = px + v * dt * cosR(pphi)
+            py = py + v * dt * sinR(pphi)
+
+            var int cx = floorR(px).int()
+            var int cy = floorR(py).int()
+            var real minDist = sense
+            var bool found = false
+            repeat (dx in 0 - r .. r + 1)
+            {
+                repeat (dy in 0 - r .. r + 1)
+                {
+                    var int nx = cx + dx
+                    var int ny = cy + dy
+                    if (grid.isBlocked(nx, ny) and grid.inBounds(nx, ny))
+                    {
+                        var real ox = nx.real() + 0.5
+                        var real oy = ny.real() + 0.5
+                        var real d = hypotR(px - ox, py - oy)
+                        if (d < minDist)
+                        {
+                            minDist = d
+                            found = true
+                        }
+                    }
+                }
+            }
+            if (found and minDist < minSafe)
+            {
+                var real clearance = minDist - robotRadius()
+                if (clearance < 0.05)
+                {
+                    clearance = 0.05
+                }
+                total = total + expR(2.0 * (minSafe - clearance))
+            }
+        }
+        return total
+    }
+
+    real <- costMain()
+    {
+        return wTracking() * costTracking() + wObstacle() * costObstacle()
+    }
+
+public {
+    Robot(Grid g, Graph graph, real sx, real sy, real sphi, real gx, real gy, int hor)
+    {
+        grid = g
+        x = sx
+        y = sy
+        phi = sphi
+        goalX = gx
+        goalY = gy
+        horizon = hor
+        reached = false
+        steps = 0
+        pathIndex = 0
+
+        var int gh = g.height()
+        var int scx = sx.int()
+        var int scy = sy.int()
+        var int gcx = gx.int()
+        var int gcy = gy.int()
+        var array[int] cells = graph.shortestPath(scx, scy, gcx, gcy)
+
+        pathLen = cells.size.int()
+        pathX = array[real](pathLen)
+        pathY = array[real](pathLen)
+        repeat (i in 0 .. pathLen)
+        {
+            var int c = cells[i]
+            var int ccx = c / gh
+            var int ccy = c - ccx * gh
+            pathX[i] = ccx.real() + 0.5
+            pathY[i] = ccy.real() + 0.5
+        }
+
+        omega = array[real](hor)
+    }
+
+    bool <- isReached()
+    {
+        return reached
+    }
+
+    int <- getSteps()
+    {
+        return steps
+    }
+
+    real <- getX()
+    {
+        return x
+    }
+
+    real <- getY()
+    {
+        return y
+    }
+
+    int <- pathCount()
+    {
+        return pathLen
+    }
+
+    real <- pathPointX(int i)
+    {
+        return pathX[i]
+    }
+
+    real <- pathPointY(int i)
+    {
+        return pathY[i]
+    }
+
+    void <- predictPath()
+    {
+        var real stepGrad = stepGradient()
+        var real stepDesc = stepDescent()
+        var real maxOmega = maxOmegaVal()
+        var int iters = descentSteps()
+
+        repeat (it in 0 .. iters)
+        {
+            var array[real] grad = array[real](horizon)
+            repeat (k in 0 .. horizon)
+            {
+                var real orig = omega[k]
+                omega[k] = orig + stepGrad
+                var real f1 = costMain()
+                omega[k] = orig - stepGrad
+                var real f2 = costMain()
+                omega[k] = orig
+                grad[k] = (f1 - f2) / (2.0 * stepGrad)
+            }
+
+            var array[real] saved = array[real](horizon)
+            repeat (k in 0 .. horizon)
+            {
+                saved[k] = omega[k]
+            }
+
+            var real scale = 1.0
+            var bool safe = false
+            repeat (attempt in 0 .. 20)
+            {
+                repeat (k in 0 .. horizon)
+                {
+                    var real upd = grad[k] * stepDesc * scale
+                    var real cap = 0.15
+                    if (upd > cap)
+                    {
+                        upd = cap
+                    }
+                    if (upd < 0.0 - cap)
+                    {
+                        upd = 0.0 - cap
+                    }
+                    var real no = saved[k] - upd
+                    if (no > maxOmega)
+                    {
+                        no = maxOmega
+                    }
+                    if (no < 0.0 - maxOmega)
+                    {
+                        no = 0.0 - maxOmega
+                    }
+                    omega[k] = no
+                }
+                if (not predictHitsWall())
+                {
+                    safe = true
+                    break
+                }
+                scale = scale * 0.5
+            }
+            if (not safe)
+            {
+                repeat (k in 0 .. horizon)
+                {
+                    omega[k] = saved[k]
+                }
+            }
+        }
+    }
+
+    void <- move()
+    {
+        var real dt = dtVal()
+        var real v = vSpeed()
+        phi = phi + omega[0] * dt
+        x = x + v * dt * cosR(phi)
+        y = y + v * dt * sinR(phi)
+        steps = steps + 1
+
+        repeat (k in 0 .. horizon - 1)
+        {
+            omega[k] = omega[k + 1]
+        }
+
+        omega[horizon - 1] = 0.0
+
+        var real bestD = 1000000000.0
+        var int bestI = pathIndex
+        var int windowEnd = pathIndex + 8
+        if (windowEnd > pathLen)
+        {
+            windowEnd = pathLen
+        }
+        repeat (i in pathIndex .. windowEnd)
+        {
+            var real ddx = x - pathX[i]
+            var real ddy = y - pathY[i]
+            var real d = ddx * ddx + ddy * ddy
+            if (d < bestD)
+            {
+                bestD = d
+                bestI = i
+            }
+        }
+        pathIndex = bestI
+
+        if (hypotR(x - goalX, y - goalY) < goalRadius())
+        {
+            reached = true
+        }
+    }
+}
+}
+
+void <- printRobotMap(Grid g, Robot robot)
+{
+    var int w = g.width()
+    var int h = g.height()
+    var array[bool] onPath = array[bool](w * h)
+    repeat (i in 0 .. robot.pathCount())
+    {
+        var int cx = robot.pathPointX(i).int()
+        var int cy = robot.pathPointY(i).int()
+        if (g.inBounds(cx, cy))
+        {
+            onPath[cx * h + cy] = true
+        }
+    }
+    var int rx = robot.getX().int()
+    var int ry = robot.getY().int()
+    repeat (y in 0 .. h)
+    {
+        repeat (x in 0 .. w)
+        {
+            if (x == rx and y == ry)
+            {
+                print("R")
+            }
+            else if (g.isBlocked(x, y))
+            {
+                print("#")
+            }
+            else if (onPath[x * h + y])
+            {
+                print("+")
+            }
+            else
+            {
+                print(".")
+            }
+        }
+        println("")
+    }
+}
 
 void <- main()
 {
-    print("Тестирование When и Enum")
-    print()
+    var Grid grid = Grid(24, 12)
+    grid.blockRect(10, 0, 2, 8)
+    grid.blockRect(10, 9, 8, 2)
+    grid.inflate(1)
 
-    print("1. Конструкция when без предмета (замена if-else if)")
-    val int score = 85
-    print("Входной балл:", score)
+    var Graph graph = Graph(grid)
+    var Robot robot = Robot(grid, graph, 2.5, 2.5, 0.0, 21.5, 10.5, 5)
 
-    when
+    var int maxSteps = 200
+    repeat (s in 0 .. maxSteps)
     {
-        score >= 90 -> print("-> Оценка: Отлично")
-        score >= 70 -> print("-> Оценка: Хорошо")
-        score >= 50 -> print("-> Оценка: Удовлетворительно")
-        else -> print("-> Оценка: Лох")
-    }
-    print()
-
-    print("2. Конструкция when с предметом (целочисленные значения)")
-    val int dayCode = 4
-    print("Код дня недели:", dayCode)
-
-    when (dayCode)
-    {
-        1, 2, 3, 4, 5 -> print("-> Это будний день. Надо работать")
-        6, 7 -> print("-> Это выходной? Нет, это six-seven")
-        else -> print("-> Ошибка: неизвестный день недели")
-    }
-    print()
-
-    print("3. Базовая работа с enum")
-    val Status currentStatus = Status.PROCESSING
-    val Status nextStatus = Status.DONE
-
-    print("currentStatus (PROCESSING = 1):", currentStatus)
-    print("nextStatus (DONE = 2):", nextStatus)
-
-    val bool isDone = currentStatus == Status.DONE
-    print("currentStatus == Status.DONE (false):", isDone)
-    print()
-
-    print("4. Конструкция when с enum (Проверка исчерпываемости)")
-    print("Текущий статус процесса:")
-
-    when (currentStatus)
-    {
-        Status.NEW -> print("-> Задача только создана")
-        Status.PROCESSING -> print("-> Задача в процессе выполнения...")
-        Status.DONE -> print("-> Задача успешно завершена")
-        Status.ERROR -> print("-> Произошла ошибка при выполнении")
-    }
-    print()
-
-    print("5. Блоки кода внутри веток when и множественный матчинг enum")
-    val Color themeColor = Color.GREEN
-
-    when (themeColor)
-    {
-        Color.RED, Color.BLUE -> print("-> Выбран красный или синий цвет")
-        Color.GREEN -> {
-            print("-> Выбран зеленый цвет!")
-            print("-> Это блок из нескольких инструкций.")
-            val int a = 10
-            val int b = 20
-            print("-> 10 + 20 =", a + b)
+        if (robot.isReached())
+        {
+            break
         }
+        robot.predictPath()
+        robot.move()
     }
-    print()
+
+    if (robot.isReached())
+    {
+        println("robot0: цель достигнута за", robot.getSteps(), "шагов")
+    }
+    else
+    {
+        println("robot0: застрял за", robot.getSteps(), "шагов")
+    }
+
+    println("позиция:", robot.getX(), robot.getY())
+    printRobotMap(grid, robot)
 }

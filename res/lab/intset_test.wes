@@ -1,0 +1,28 @@
+import "set"
+
+void <- main()
+{
+    var IntSet s = IntSet()
+
+    println(s.isEmpty())        # true  — пустое множество
+    s.add(10)
+    s.add(20)
+    s.add(10)                   # дубликат игнорируется
+    println(s.size())           # 2
+    println(s.contains(10))     # true
+    println(s.contains(99))     # false
+    println(s.isEmpty())        # false
+
+    # Заставляем множество вырасти за пределы начальной ёмкости (4)
+    repeat (i in 0 .. 10)
+    {
+        s.add(i)                # добавит 0..9 (10 и 20 уже / не входят)
+    }
+    println(s.size())           # 12
+    println(s.contains(7))      # true
+
+    println(s.remove(20))       # true  — удалили
+    println(s.remove(20))       # false — повторное удаление ничего не делает
+    println(s.contains(20))     # false
+    println(s.size())           # 11
+}
